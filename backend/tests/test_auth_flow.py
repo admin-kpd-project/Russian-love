@@ -5,14 +5,7 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
 from tests.integration import requires_postgres
-
-
-@pytest.fixture
-def client():
-    # Host must match DATING_TRUSTED_HOSTS (default excludes Starlette's "testserver").
-    return TestClient(app, base_url="http://localhost")
 
 
 @requires_postgres

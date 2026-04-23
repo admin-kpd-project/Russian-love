@@ -5,13 +5,7 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
 from tests.integration import requires_postgres
-
-
-@pytest.fixture
-def client():
-    return TestClient(app, base_url="http://localhost")
 
 
 def _register(client: TestClient, prefix: str) -> tuple[str, str]:
