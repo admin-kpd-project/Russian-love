@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: dating
+          POSTGRES_PASSWORD: dating
+          POSTGRES_DB: dating
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dating -d dating"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -r requirements.txt
+      - name: Ruff
+        run: ruff check app tests
+      - name: Alembic upgrade
+        env:
+          DATING_DATABASE_URL: postgresql+asyncpg://dating:dating@localhost:5432/dating
+          DATING_REDIS_URL: redis://localhost:6379/0
+          DATING_JWT_SECRET: ci-test-secret-at-least-32-characters-long
+        run: alembic upgrade head
+      - name: Seed
+        env:
+          DATING_DATABASE_URL: postgresql+asyncpg://dating:dating@localhost:5432/dating
+          DATING_REDIS_URL: redis://localhost:6379/0
+          DATING_JWT_SECRET: ci-test-secret-at-least-32-characters-long
+        run: python -m app.seed
+      - name: Pytest
+        env:
+          DATING_DATABASE_URL: postgresql+asyncpg://dating:dating@localhost:5432/dating
+          DATING_REDIS_URL: redis://localhost:6379/0
+          DATING_JWT_SECRET: ci-test-secret-at-least-32-characters-long
+        run: pytest -q
+
+  docker-images:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build API image
+        run: docker build -t dating-api:ci -f backend/Dockerfile backend
+      - name: Build worker image
+        run: docker build -t dating-worker:ci -f backend/Dockerfile.worker backend
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm install
+      - name: Build
+        env:
+          VITE_API_BASE_URL: http://localhost:8000
+        run: npm run build

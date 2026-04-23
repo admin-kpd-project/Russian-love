@@ -1,0 +1,1224 @@
+openapi: "3.0.3"
+
+info:
+  title: Dating API
+  version: "1.0.0"
+  description: |
+    REST API для dating-приложения. Монорепо: backend (Go/chi) + frontend (React SPA).
+
+    **Формат всех ответов:**
+    ```json
+    { "data": <payload | null>, "error": <"сообщение" | null> }
+    ```
+
+    **Rate limits:**
+    - `/api/auth/*` — 5 rps, burst 10 (per IP)
+    - `/api/*` (защищённые) — 100 rps, burst 200 (per IP)
+
+    **Body limit:** 1 МБ на все запросы.
+
+servers:
+  - url: http://localhost:8080
+    description: Локальная разработка
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT access-токен, выданный при регистрации, логине или OAuth.
+        TTL по умолчанию: 15 минут.
+
+  schemas:
+    # ── Оболочка ответа ────────────────────────────────────────────────────────
+    Envelope:
+      type: object
+      required: [data, error]
+      properties:
+        data:
+          description: Полезная нагрузка (null при ошибке)
+        error:
+          type: string
+          nullable: true
+          description: Сообщение об ошибке (null при успехе)
+
+    # ── Пользователь ──────────────────────────────────────────────────────────
+    ProfileResponse:
+      type: object
+      description: Публичный профиль пользователя, возвращаемый API.
+      required: [id, name, age, bio, interests, location, photo, birthDate]
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        name:
+          type: string
+          description: display_name из БД
+          example: "Алексей"
+        age:
+          type: integer
+          description: Вычисляется из birth_date; 0 если дата не задана
+          example: 28
+        bio:
+          type: string
+          description: Описание профиля (пустая строка если не задано)
+          example: "Люблю горы и кофе"
+        interests:
+          type: array
+          items:
+            type: string
+          description: Список интересов (JSONB → []string)
+          example: ["hiking", "coffee", "dev"]
+        location:
+          type: string
+          description: Город/локация (пустая строка если не задано)
+          example: "Москва"
+        photo:
+          type: string
+          description: avatar_url (пустая строка если не задано)
+          example: "https://cdn.example.com/media/abc.jpg"
+        birthDate:
+          type: string
+          format: date
+          description: Дата рождения в формате YYYY-MM-DD (пустая строка если не задана)
+          example: "1996-03-15"
+        personality:
+          description: Произвольный JSONB-объект данных личности (опционально)
+          nullable: true
+          example: { "type": "INTJ", "traits": ["analytic"] }
+        astrology:
+          description: Произвольный JSONB-объект астрологических данных (опционально)
+          nullable: true
+          example: { "sign": "Рыбы", "element": "Вода" }
+        numerology:
+          description: Произвольный JSONB-объект нумерологических данных (опционально)
+          nullable: true
+          example: { "lifePathNumber": 7 }
+
+    AuthResponse:
+      type: object
+      description: Ответ на успешную аутентификацию (register / login / OAuth).
+      required: [accessToken, refreshToken, user]
+      properties:
+        accessToken:
+          type: string
+          description: JWT HS256 access-токен, TTL 15 минут
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        refreshToken:
+          type: string
+          description: Opaque refresh-токен, TTL 30 дней (720 ч)
+          example: "dGhpcyBpcyBhIHJhbmRvbSByZWZyZXNoIHRva2Vu"
+        user:
+          $ref: "#/components/schemas/ProfileResponse"
+
+    TokenPair:
+      type: object
+      description: Пара токенов без данных пользователя (для /auth/refresh).
+      required: [accessToken, refreshToken]
+      properties:
+        accessToken:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        refreshToken:
+          type: string
+          example: "dGhpcyBpcyBhIHJhbmRvbSByZWZyZXNoIHRva2Vu"
+
+    # ── Сообщения ─────────────────────────────────────────────────────────────
+    ConversationResponse:
+      type: object
+      description: |
+        Беседа в списке бесед. Поля name/avatar/lastMessage/timestamp/unread
+        заполняются только в GET /api/conversations; в POST /api/conversations
+        возвращается только id.
+      required: [id, name, avatar, lastMessage, timestamp, unread]
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "c1b2d3e4-0000-0000-0000-000000000001"
+        name:
+          type: string
+          description: Имя собеседника (display_name партнёра)
+          example: "Мария"
+        avatar:
+          type: string
+          description: avatar_url партнёра
+          example: "https://cdn.example.com/media/avatar.jpg"
+        lastMessage:
+          type: string
+          description: Текст последнего сообщения (пустая строка если нет)
+          example: "Привет! Как дела?"
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO 8601, UTC — момент последнего обновления беседы
+          example: "2024-06-01T12:34:56Z"
+        unread:
+          type: boolean
+          description: Есть ли непрочитанные сообщения
+          example: true
+
+    ConversationCreatedResponse:
+      type: object
+      description: Ответ на POST /api/conversations — только id беседы.
+      required: [id]
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "c1b2d3e4-0000-0000-0000-000000000001"
+
+    MessageResponse:
+      type: object
+      description: Сообщение в беседе.
+      required: [id, type, sender, time]
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "m1b2d3e4-0000-0000-0000-000000000001"
+        text:
+          type: string
+          nullable: true
+          description: Текст сообщения (присутствует если type = "text")
+          example: "Привет!"
+        type:
+          type: string
+          enum: [text, image, video, voice]
+          description: |
+            Тип сообщения. Соответствует media_type_enum в БД;
+            "text" если body != null и media_type is null.
+          example: "text"
+        sender:
+          type: string
+          enum: [me, other]
+          description: '"me" если sender_id == текущий пользователь, иначе "other"'
+          example: "me"
+        time:
+          type: string
+          description: Время отправки в формате HH:MM (UTC)
+          example: "14:05"
+        mediaUrl:
+          type: string
+          nullable: true
+          description: |
+            URL медиафайла в CDN. Схема обязана быть https,
+            хост должен совпадать с CDN_BASE_URL.
+          example: "https://cdn.example.com/media/photo.jpg"
+        duration:
+          type: string
+          nullable: true
+          description: Длительность для voice/video — вычисляется на стороне клиента
+          example: null
+
+    # ── Storage ───────────────────────────────────────────────────────────────
+    PresignUploadResponse:
+      type: object
+      required: [uploadUrl, fileUrl]
+      properties:
+        uploadUrl:
+          type: string
+          description: Presigned S3 PUT URL, действителен 15 минут
+          example: "https://s3.amazonaws.com/dating-media/media/uuid.jpg?X-Amz-Signature=..."
+        fileUrl:
+          type: string
+          description: Публичный CDN URL файла (использовать как media_url в сообщениях)
+          example: "https://cdn.example.com/media/uuid.jpg"
+
+    # ── Утилиты ───────────────────────────────────────────────────────────────
+    OkResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+          example: true
+
+    ErrorResponse:
+      type: object
+      description: Оболочка при ошибке.
+      required: [data, error]
+      properties:
+        data:
+          nullable: true
+          example: null
+        error:
+          type: string
+          example: "неверный email или пароль"
+
+paths:
+  # ════════════════════════════════════════════════════════════════════════════
+  # AUTH
+  # ════════════════════════════════════════════════════════════════════════════
+
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Регистрация нового пользователя
+      description: |
+        Создаёт учётную запись с email+password. При успехе возвращает
+        access + refresh токены и профиль. Пароль минимум 6 символов.
+        При дублировании email — 409 Conflict.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, birthDate, email, password]
+              properties:
+                name:
+                  type: string
+                  description: Отображаемое имя (display_name)
+                  example: "Алексей"
+                birthDate:
+                  type: string
+                  format: date
+                  description: Дата рождения YYYY-MM-DD
+                  example: "1996-03-15"
+                email:
+                  type: string
+                  format: email
+                  example: "alex@example.com"
+                phone:
+                  type: string
+                  description: Номер телефона (опционально)
+                  example: "+79991234567"
+                password:
+                  type: string
+                  minLength: 6
+                  example: "s3cr3tP@ss"
+                agreeToPrivacy:
+                  type: boolean
+                  example: true
+                agreeToTerms:
+                  type: boolean
+                  example: true
+                agreeToOffer:
+                  type: boolean
+                  example: true
+      responses:
+        "201":
+          description: Пользователь зарегистрирован
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Неверный формат запроса или пароль короче 6 символов
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Email уже занят
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Вход по email и паролю
+      description: |
+        Проверяет email+password и выдаёт access + refresh токены.
+        Email приводится к нижнему регистру и обрезается.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "alex@example.com"
+                password:
+                  type: string
+                  example: "s3cr3tP@ss"
+      responses:
+        "200":
+          description: Успешный вход
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Неверный формат запроса
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Неверный email или пароль
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Обновление пары токенов
+      description: |
+        Принимает действующий refresh-токен и возвращает новую пару
+        access + refresh (rotation). Старый refresh-токен аннулируется.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+                  example: "dGhpcyBpcyBhIHJhbmRvbSByZWZyZXNoIHRva2Vu"
+      responses:
+        "200":
+          description: Новая пара токенов
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/TokenPair"
+        "400":
+          description: refreshToken отсутствует или неверный формат запроса
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Токен недействителен или истёк
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Выход (отзыв refresh-токена)
+      description: |
+        Аннулирует переданный refresh-токен. Ошибки DB игнорируются —
+        если токен уже отозван, ответ всё равно 200.
+        Клиент должен самостоятельно удалить access-токен из памяти.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+                  example: "dGhpcyBpcyBhIHJhbmRvbSByZWZyZXNoIHRva2Vu"
+      responses:
+        "200":
+          description: Токен отозван (или уже был отозван)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/OkResponse"
+        "400":
+          description: refreshToken отсутствует или неверный формат запроса
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/auth/yandex:
+    get:
+      tags: [Auth]
+      summary: Редирект на Yandex OAuth
+      description: |
+        Генерирует CSRF state, сохраняет его (TTL 10 минут) и выполняет
+        HTTP 307 редирект на `https://oauth.yandex.ru/authorize`.
+        Запрашиваемые scopes: `login:email login:info login:avatar`.
+      responses:
+        "307":
+          description: Временный редирект на страницу авторизации Yandex
+          headers:
+            Location:
+              schema:
+                type: string
+              description: URL авторизации Yandex с параметрами OAuth
+
+  /api/auth/yandex/callback:
+    get:
+      tags: [Auth]
+      summary: Обработка callback от Yandex OAuth
+      description: |
+        Принимает `code` и `state` от Yandex, обменивает code на токен,
+        получает профиль через `https://login.yandex.ru/info?format=json`,
+        создаёт или обновляет пользователя (upsert по yandex_id) и
+        возвращает пару токенов + профиль.
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Authorization code от Yandex
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+          description: CSRF state (должен совпадать с выданным в /api/auth/yandex)
+      responses:
+        "200":
+          description: Успешная аутентификация через Yandex
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Неверный/истёкший state или ошибка обмена кода
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Ошибка при обращении к Yandex API за профилем
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/auth/messenger:
+    get:
+      tags: [Auth]
+      summary: Редирект на MAX Messenger OAuth (заглушка)
+      description: |
+        **STUB — не реализовано.** Всегда возвращает 501.
+        TODO(MESSENGER_PROVIDER): реализовать после получения credentials от MAX Messenger.
+      responses:
+        "501":
+          description: Провайдер не настроен
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                data: null
+                error: "MESSENGER_PROVIDER не настроен"
+
+  /api/auth/messenger/callback:
+    get:
+      tags: [Auth]
+      summary: Обработка callback от MAX Messenger OAuth (заглушка)
+      description: |
+        **STUB — не реализовано.** Всегда возвращает 501.
+        TODO(MESSENGER_PROVIDER): реализовать после получения credentials от MAX Messenger.
+      parameters:
+        - name: code
+          in: query
+          schema:
+            type: string
+          description: Authorization code от MAX Messenger (не обрабатывается)
+        - name: state
+          in: query
+          schema:
+            type: string
+          description: CSRF state (не обрабатывается)
+      responses:
+        "501":
+          description: Провайдер не настроен
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                data: null
+                error: "MESSENGER_PROVIDER не настроен"
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # USERS
+  # ════════════════════════════════════════════════════════════════════════════
+
+  /api/users/me:
+    get:
+      tags: [Users]
+      summary: Получить профиль текущего пользователя
+      description: Возвращает ProfileResponse для авторизованного пользователя.
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Профиль текущего пользователя
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/ProfileResponse"
+        "401":
+          description: Отсутствует или недействителен JWT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Пользователь не найден в БД
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    patch:
+      tags: [Users]
+      summary: Обновить профиль текущего пользователя
+      description: |
+        Частичное обновление профиля (все поля опциональны).
+        Передавайте только те поля, которые нужно обновить.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: |
+                Все поля опциональны. Поля с omitempty не передавайте,
+                чтобы не перезаписать их пустыми значениями.
+              properties:
+                name:
+                  type: string
+                  nullable: true
+                  description: Новое отображаемое имя
+                  example: "Алекс"
+                bio:
+                  type: string
+                  nullable: true
+                  description: Новое описание профиля
+                  example: "Люблю горы"
+                location:
+                  type: string
+                  nullable: true
+                  description: Новая локация
+                  example: "Санкт-Петербург"
+                avatarUrl:
+                  type: string
+                  nullable: true
+                  description: URL аватара (обычно fileUrl из /api/upload)
+                  example: "https://cdn.example.com/media/avatar.jpg"
+                interests:
+                  type: array
+                  items:
+                    type: string
+                  description: Полный новый список интересов (заменяет старый)
+                  example: ["hiking", "coffee"]
+                personality:
+                  description: Произвольный JSONB-объект данных личности
+                  example: { "type": "INTJ" }
+                astrology:
+                  description: Произвольный JSONB-объект астрологических данных
+                  example: { "sign": "Рыбы" }
+                numerology:
+                  description: Произвольный JSONB-объект нумерологических данных
+                  example: { "lifePathNumber": 7 }
+      responses:
+        "200":
+          description: Обновлённый профиль
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/ProfileResponse"
+        "400":
+          description: Неверный формат запроса
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Отсутствует или недействителен JWT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/users/{id}:
+    get:
+      tags: [Users]
+      summary: Получить профиль пользователя по ID
+      description: Возвращает публичный ProfileResponse для любого пользователя по UUID.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID пользователя
+          example: "550e8400-e29b-41d4-a716-446655440000"
+      responses:
+        "200":
+          description: Профиль пользователя
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/ProfileResponse"
+        "400":
+          description: Невалидный UUID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Отсутствует или недействителен JWT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Пользователь не найден
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # CONVERSATIONS
+  # ════════════════════════════════════════════════════════════════════════════
+
+  /api/conversations:
+    get:
+      tags: [Conversations]
+      summary: Список бесед текущего пользователя
+      description: |
+        Возвращает все беседы, в которых участвует авторизованный пользователь,
+        с именем собеседника, аватаром, последним сообщением и флагом непрочитанных.
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Список бесед
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ConversationResponse"
+        "401":
+          description: Отсутствует или недействителен JWT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    post:
+      tags: [Conversations]
+      summary: Создать или получить прямую беседу с пользователем
+      description: |
+        Идемпотентная операция: если прямая беседа между текущим пользователем
+        и `user_id` уже существует — возвращает её ID; иначе создаёт новую.
+        В ответе возвращается только `id` беседы.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id]
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                  description: UUID пользователя, с которым открывается беседа
+                  example: "550e8400-e29b-41d4-a716-446655440001"
+      responses:
+        "200":
+          description: ID беседы (новой или существующей)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/ConversationCreatedResponse"
+        "400":
+          description: Неверный формат запроса или невалидный user_id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Отсутствует или недействителен JWT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # MESSAGES
+  # ════════════════════════════════════════════════════════════════════════════
+
+  /api/conversations/{id}/messages:
+    get:
+      tags: [Messages]
+      summary: История сообщений беседы
+      description: |
+        Возвращает сообщения беседы с пагинацией. Доступно только участникам беседы.
+        Мягко удалённые сообщения (is_deleted = true) не возвращаются.
+        По умолчанию: limit=20, page=1. Максимальный limit=100.
+        Поле `sender` — "me" если sender_id == текущий пользователь, иначе "other".
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID беседы
+          example: "c1b2d3e4-0000-0000-0000-000000000001"
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Номер страницы (1-based)
+          example: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Количество сообщений на странице
+          example: 20
+      responses:
+        "200":
+          description: Список сообщений
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/MessageResponse"
+        "400":
+          description: Невалидный UUID беседы
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Отсутствует или недействителен JWT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Текущий пользователь не является участником беседы
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    post:
+      tags: [Messages]
+      summary: Отправить сообщение в беседу
+      description: |
+        Создаёт новое сообщение в беседе. Доступно только участникам.
+        Обязательно одно из полей: `text` или `mediaUrl`.
+
+        **Ограничения для mediaUrl:**
+        - Схема должна быть `https`
+        - Хост должен совпадать с `CDN_BASE_URL` (SSRF-защита)
+
+        **Ограничения для mediaType** (соответствует media_type_enum в БД):
+        - Допустимые значения: `"image"`, `"video"`, `"voice"`
+        - Если передан `mediaUrl`, рекомендуется передать `mediaType`
+
+        CHECK-ограничение БД: `body IS NOT NULL OR media_url IS NOT NULL`.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID беседы
+          example: "c1b2d3e4-0000-0000-0000-000000000001"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Хотя бы одно из полей text или mediaUrl обязательно
+              properties:
+                text:
+                  type: string
+                  nullable: true
+                  description: Текст сообщения
+                  example: "Привет!"
+                mediaUrl:
+                  type: string
+                  nullable: true
+                  description: |
+                    URL медиафайла (обычно fileUrl из /api/upload).
+                    Схема https, хост = CDN_BASE_URL.
+                  example: "https://cdn.example.com/media/photo.jpg"
+                mediaType:
+                  type: string
+                  nullable: true
+                  enum: [image, video, voice]
+                  description: Тип медиафайла (обязателен при наличии mediaUrl)
+                  example: "image"
+      responses:
+        "201":
+          description: Сообщение создано
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/MessageResponse"
+        "400":
+          description: |
+            Неверный формат запроса, невалидный UUID беседы,
+            отсутствуют text и mediaUrl, или mediaUrl нарушает ограничения CDN
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Отсутствует или недействителен JWT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Текущий пользователь не является участником беседы
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/messages/{id}:
+    delete:
+      tags: [Messages]
+      summary: Мягкое удаление сообщения
+      description: |
+        Устанавливает `is_deleted = true` для сообщения. Только автор сообщения
+        может его удалить. Физически запись из БД не удаляется.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID сообщения
+          example: "m1b2d3e4-0000-0000-0000-000000000001"
+      responses:
+        "200":
+          description: Сообщение помечено как удалённое
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/OkResponse"
+        "400":
+          description: Невалидный UUID сообщения
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Отсутствует или недействителен JWT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Текущий пользователь не является автором сообщения
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # STORAGE
+  # ════════════════════════════════════════════════════════════════════════════
+
+  /api/upload:
+    post:
+      tags: [Storage]
+      summary: Получить presigned URL для загрузки файла в S3
+      description: |
+        Генерирует presigned S3 PUT URL для прямой загрузки файла из браузера.
+        URL действителен **15 минут**. После загрузки используйте `fileUrl`
+        как `mediaUrl` при отправке сообщения.
+
+        **Поддерживаемые типы и лимиты:**
+
+        | Content-Type  | Макс. размер |
+        |---------------|-------------|
+        | image/jpeg    | 10 МБ       |
+        | image/png     | 10 МБ       |
+        | image/webp    | 10 МБ       |
+        | image/gif     | 10 МБ       |
+        | video/mp4     | 100 МБ      |
+        | audio/ogg     | 20 МБ       |
+        | audio/webm    | 20 МБ       |
+        | audio/mpeg    | 20 МБ       |
+
+        **Как загрузить файл:**
+        ```
+        PUT <uploadUrl>
+        Content-Type: <указанный contentType>
+        Content-Length: <fileSizeBytes>
+
+        <бинарное тело файла>
+        ```
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [contentType, fileSizeBytes]
+              properties:
+                contentType:
+                  type: string
+                  description: MIME-тип загружаемого файла
+                  enum:
+                    - image/jpeg
+                    - image/png
+                    - image/webp
+                    - image/gif
+                    - video/mp4
+                    - audio/ogg
+                    - audio/webm
+                    - audio/mpeg
+                  example: "image/jpeg"
+                fileSizeBytes:
+                  type: integer
+                  format: int64
+                  minimum: 1
+                  description: Точный размер файла в байтах (используется в presigned URL)
+                  example: 204800
+      responses:
+        "200":
+          description: Presigned URL для загрузки
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/PresignUploadResponse"
+        "400":
+          description: |
+            Неверный формат запроса, неподдерживаемый тип файла,
+            или размер файла вне допустимого диапазона
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Отсутствует или недействителен JWT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Ошибка генерации presigned URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # FEED (лента для свайпов, MVP)
+  # ════════════════════════════════════════════════════════════════════════════
+
+  /api/feed:
+    get:
+      tags: [Feed]
+      summary: Лента профилей для главного экрана
+      description: |
+        Возвращает список публичных профилей (`ProfileResponse`), исключая текущего пользователя.
+        Набор профилей задаётся на сервере (сиды / таблица `feed_profiles`).
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Список профилей
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ProfileResponse"
+        "401":
+          description: Отсутствует или недействителен JWT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
