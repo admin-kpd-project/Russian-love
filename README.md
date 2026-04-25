@@ -53,12 +53,12 @@ set VITE_API_BASE_URL=http://localhost:8000   # Windows CMD
 npm run dev
 ```
 
-Если `VITE_API_BASE_URL` не задан, фронт пытается работать через `http://localhost:8080`.
+Если `VITE_API_BASE_URL` не задан, фронт ходит в API **относительными** URL (`/api/...`) — тот же origin, что и страница (удобно для Docker/nginx на VPS).
 
 ### Ручная проверка (чек-лист)
 
 1. Запустите `docker compose up --build` и дождитесь готовности Postgres/Redis.
-2. Откройте веб через **шлюз nginx**: **http://localhost:8080** (так в собранном образе уже зашит `VITE_API_BASE_URL=http://localhost:8080`, демо-режим выключен, запросы идут на `/api` того же origin).
+2. Откройте веб через **шлюз nginx**: **http://localhost:8080** (сборка без абсолютного API URL — запросы идут на `/api` того же origin).
 3. Зарегистрируйте минимум двух пользователей (вторая вкладка инкогнито) для проверки лайков/матчей/чатов.
 4. Лента: карточки приходят с **GET /api/feed**.
 5. Чаты: список — **GET /api/conversations**; переписка — история + отправка через REST и realtime через WebSocket.

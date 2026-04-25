@@ -1,11 +1,8 @@
-// API Configuration: in Vite dev, empty base = same-origin so /api is proxied (see vite.config.ts).
+// API base: unset/empty = same-origin (/api via nginx in Docker, or Vite proxy in dev — see vite.config.ts).
+// Never default to localhost in production builds — that breaks real hosts (wrong origin + CORS).
 const rawBase = import.meta.env.VITE_API_BASE_URL as string | undefined;
 export const API_BASE_URL =
-  rawBase !== undefined && rawBase !== ""
-    ? rawBase
-    : import.meta.env.DEV
-      ? ""
-      : "http://localhost:8080";
+  rawBase !== undefined && rawBase !== "" ? rawBase : "";
 
 // API Response wrapper type
 export interface ApiResponse<T> {

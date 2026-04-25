@@ -1,6 +1,7 @@
 FROM node:20-alpine AS build
 WORKDIR /w
-ARG VITE_API_BASE_URL=http://localhost:8080
+# Empty = browser uses current origin (nginx :8080 on VPS, etc.). Override at build: --build-arg VITE_API_BASE_URL=https://api.example.com
+ARG VITE_API_BASE_URL=
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 COPY package.json ./
 RUN npm install

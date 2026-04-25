@@ -38,6 +38,8 @@ export async function createInvite(): Promise<ApiResponse<{ code: string; url: s
 export function createChatWebSocket(conversationId: string): WebSocket | null {
   const token = tokenStorage.getAccessToken();
   if (!token) return null;
-  const base = API_BASE_URL.replace(/^http/, "ws");
+  const base = API_BASE_URL
+    ? API_BASE_URL.replace(/^http/, "ws")
+    : "";
   return new WebSocket(`${base}/api/ws/chats/${encodeURIComponent(conversationId)}?token=${encodeURIComponent(token)}`);
 }
