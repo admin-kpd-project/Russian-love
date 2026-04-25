@@ -5,6 +5,29 @@ export type UploadFileOptions = {
   forRegistration?: boolean;
 };
 
+/** Браузеры на части Android не заполняют file.type — иначе бэкенд отклонит presign. */
+function guessImageContentType(file: File): string {
+  const t = file.type?.trim();
+  if (t) return t;
+  const n = file.name.toLowerCase();
+  if (n.endsWith(".png")) return "image/png";
+  if (n.endsWith(".webp")) return "image/webp";
+  if (n.endsWith(".gif")) return "image/gif";
+  if (n.endsWith(".jpg") || n.endsWith(".jpeg")) return "image/jpeg";
+  return "image/jpeg";
+}
+
+function guessMediaContentType(file: File): string {
+  const t = file.type?.trim();
+  if (t) return t;
+  const n = file.name.toLowerCase();
+  if (n.endsWith(".mp4")) return "video/mp4";
+  if (n.endsWith(".webm")) return "video/webm";
+  if (n.endsWith(".ogg")) return "audio/ogg";
+  if (n.endsWith(".mp3")) return "audio/mpeg";
+  return guessImageContentType(file);
+}
+
 // Presigned upload response
 export interface PresignUploadResponse {
   uploadUrl: string;
@@ -69,7 +92,8 @@ export async function uploadFile(
   opts?: UploadFileOptions
 ): Promise<UploadResult> {
   const forReg = Boolean(opts?.forRegistration);
-  const response = await getPresignedUploadUrl(file.type, file.size, forReg);
+  const contentType = forReg ? guessImageContentType(file) : guessMediaContentType(file);
+  const response = await getPresignedUploadUrl(contentType, file.size, forReg);
   
   if (!response.data) {
     console.error("Failed to get presigned URL:", response.error);

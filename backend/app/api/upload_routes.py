@@ -30,6 +30,17 @@ _REG_UPLOAD_IMAGE_TYPES = frozenset(
     k for k in _LIMITS if k.startswith("image/")
 )
 
+_CONTENT_TYPE_ALIASES: dict[str, str] = {
+    "image/jpg": "image/jpeg",
+    "image/pjpeg": "image/jpeg",
+    "image/x-png": "image/png",
+}
+
+
+def _normalize_upload_content_type(raw: str) -> str:
+    c = (raw or "").strip().lower()
+    return _CONTENT_TYPE_ALIASES.get(c, c)
+
 
 def _s3_base_client(endpoint_url: str | None):
     s = get_settings()
@@ -83,7 +94,7 @@ async def presign_upload(
     body: UploadPresignBody,
     user: User = Depends(get_current_user),
 ):
-    ct = body.content_type
+    ct = _normalize_upload_content_type(body.content_type)
     if ct not in _LIMITS:
         return JSONResponse(status_code=400, content=Envelope.err("Неподдерживаемый contentType"))
     mx = _LIMITS[ct]
@@ -111,7 +122,7 @@ async def presign_upload(
 @router.post("/upload/registration")
 async def presign_upload_registration(request: Request, body: UploadPresignBody):
     """Presign для аватара/фото на шаге регистрации (пользователь ещё не авторизован)."""
-    ct = body.content_type
+    ct = _normalize_upload_content_type(body.content_type)
     if ct not in _REG_UPLOAD_IMAGE_TYPES:
         return JSONResponse(
             status_code=400,
