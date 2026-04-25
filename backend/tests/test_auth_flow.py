@@ -17,6 +17,8 @@ def test_register_login_feed(client: TestClient):
             "birthDate": "1990-01-01",
             "email": email,
             "password": "secret12",
+            "gender": "male",
+            "avatarUrl": "https://example.com/ci-avatar.jpg",
             "agreeToPrivacy": True,
             "agreeToTerms": True,
             "agreeToOffer": True,

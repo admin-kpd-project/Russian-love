@@ -16,6 +16,8 @@ def _register(client: TestClient, prefix: str) -> tuple[str, str]:
             "birthDate": "1992-06-15",
             "email": email,
             "password": "secret12",
+            "gender": "male",
+            "avatarUrl": "https://example.com/avatar.jpg",
             "agreeToPrivacy": True,
             "agreeToTerms": True,
             "agreeToOffer": True,
