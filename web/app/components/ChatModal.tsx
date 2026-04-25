@@ -4,12 +4,12 @@ import { useState, useRef, useEffect } from "react";
 
 import { getMessages, sendTextMessage, sendMediaMessage } from "../services/messagesService";
 import { uploadFile } from "../services/uploadService";
+import { createChatWebSocket } from "../services/socialService";
+import { initTbankPayment } from "../services/paymentsService";
 
 interface ChatModalProps {
   onClose: () => void;
-  /** When true, local mock thread only (no API). */
-  demoMode: boolean;
-  /** Required when demoMode is false. */
+  /** Required for server-side chat. */
   conversationId?: string;
   userName: string;
   userAvatar: string;
@@ -25,37 +25,6 @@ interface Message {
   mediaUrl?: string;
   duration?: string;
 }
-
-const mockMessages: Message[] = [
-  {
-    id: "m1",
-    text: "Привет! Как дела?",
-    type: "text",
-    sender: "other",
-    time: "10:30",
-  },
-  {
-    id: "m2",
-    text: "Привет! Отлично, спасибо! А у тебя?",
-    type: "text",
-    sender: "me",
-    time: "10:32",
-  },
-  {
-    id: "m3",
-    type: "voice",
-    sender: "other",
-    time: "10:33",
-    duration: "0:15",
-  },
-  {
-    id: "m4",
-    text: "Да, действительно! Особенно понравилось, что ты тоже любишь путешествия",
-    type: "text",
-    sender: "me",
-    time: "10:35",
-  },
-];
 
 function mapApiMessage(m: import("../services/messagesService").MessageResponse): Message {
   let mt: Message["type"] = "text";
@@ -74,13 +43,12 @@ function mapApiMessage(m: import("../services/messagesService").MessageResponse)
 
 export function ChatModal({
   onClose,
-  demoMode,
   conversationId,
   userName,
   userAvatar,
   prefilledMessage,
 }: ChatModalProps) {
-  const [messages, setMessages] = useState<Message[]>(() => (demoMode ? mockMessages : []));
+  const [messages, setMessages] = useState<Message[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [messagesError, setMessagesError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
@@ -101,18 +69,13 @@ export function ChatModal({
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
     if (prefilledMessage) setInputText((prev) => (prev.trim() ? prev : prefilledMessage));
   }, [prefilledMessage]);
 
   useEffect(() => {
-    if (demoMode) {
-      setMessages(mockMessages);
-      setMessagesError(null);
-      setMessagesLoading(false);
-      return;
-    }
     if (!conversationId) {
       setMessages([]);
       setMessagesLoading(false);
@@ -136,7 +99,32 @@ export function ChatModal({
     return () => {
       cancelled = true;
     };
-  }, [demoMode, conversationId]);
+  }, [conversationId]);
+
+  useEffect(() => {
+    if (!conversationId) return;
+    const ws = createChatWebSocket(conversationId);
+    wsRef.current = ws;
+    if (!ws) return;
+    ws.onmessage = (event) => {
+      try {
+        const parsed = JSON.parse(event.data);
+        if (parsed?.event === "message" && parsed?.message) {
+          const incoming = mapApiMessage(parsed.message);
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === incoming.id)) return prev;
+            return [...prev, incoming];
+          });
+        }
+      } catch (err) {
+        console.warn("WS parse error", err);
+      }
+    };
+    return () => {
+      ws.close();
+      wsRef.current = null;
+    };
+  }, [conversationId]);
 
   const gifts = [
     { id: 1, name: "Роза", emoji: "🌹", price: 50 },
@@ -166,28 +154,19 @@ export function ChatModal({
   };
 
   const handleSendGift = (gift: typeof gifts[0]) => {
-    if (!demoMode) {
-      alert("Подарки в демо-режиме. В обычном чате используйте текст или фото.");
+    void (async () => {
+      const res = await initTbankPayment("gift", gift.price * 100, { giftId: gift.id, giftName: gift.name });
+      if (res.error || !res.data) {
+        alert(res.error || "Не удалось создать платеж");
+        return;
+      }
       setShowGiftModal(false);
-      return;
-    }
-    const newMessage: Message = {
-      id: crypto.randomUUID(),
-      text: `Отправил подарок ${gift.emoji} ${gift.name}`,
-      type: "text",
-      sender: "me",
-      time: new Date().toLocaleTimeString("ru-RU", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    };
-    setMessages((prev) => [...prev, newMessage]);
-    setShowGiftModal(false);
-    alert(`Подарок "${gift.name}" отправлен за ${gift.price} ₽`);
+      window.open(res.data.paymentUrl, "_blank", "noopener,noreferrer");
+    })();
   };
 
   const sendQuick = async (text: string) => {
-    if (demoMode || !conversationId) return;
+    if (!conversationId) return;
     setSending(true);
     const res = await sendTextMessage(conversationId, text);
     setSending(false);
@@ -197,22 +176,6 @@ export function ChatModal({
 
   const handleSend = async () => {
     if (!inputText.trim()) return;
-
-    if (demoMode) {
-      const newMessage: Message = {
-        id: crypto.randomUUID(),
-        text: inputText,
-        type: "text",
-        sender: "me",
-        time: new Date().toLocaleTimeString("ru-RU", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-      };
-      setMessages((prev) => [...prev, newMessage]);
-      setInputText("");
-      return;
-    }
     if (!conversationId) return;
     setSending(true);
     const text = inputText.trim();
@@ -238,31 +201,15 @@ export function ChatModal({
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-
-    if (demoMode) {
-      const newMessage: Message = {
-        id: crypto.randomUUID(),
-        type: "image",
-        sender: "me",
-        time: new Date().toLocaleTimeString("ru-RU", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        mediaUrl: URL.createObjectURL(file),
-      };
-      setMessages((prev) => [...prev, newMessage]);
-      setShowAttachMenu(false);
-      return;
-    }
     if (!conversationId) return;
     setSending(true);
-    const url = await uploadFile(file);
-    if (!url) {
+    const upload = await uploadFile(file);
+    if (!upload.url) {
       setSending(false);
-      alert("Не удалось загрузить файл");
+      alert(upload.error || "Не удалось загрузить файл");
       return;
     }
-    const res = await sendMediaMessage(conversationId, url, "image");
+    const res = await sendMediaMessage(conversationId, upload.url, "image");
     setSending(false);
     setShowAttachMenu(false);
     if (res.error) {
@@ -273,42 +220,13 @@ export function ChatModal({
   };
 
   const startRecording = (type: "voice" | "video") => {
-    if (!demoMode) {
-      alert("В чате с сервером доступны текст и фото. Голос и видео — только в демо-режиме.");
-      setShowAttachMenu(false);
-      return;
-    }
-    if (type === "voice") {
-      setIsRecordingVoice(true);
-    } else {
-      setIsRecordingVideo(true);
-    }
-    setRecordingDuration(0);
-    recordingIntervalRef.current = setInterval(() => {
-      setRecordingDuration((prev) => prev + 1);
-    }, 1000);
+    alert("Голосовые и видео сообщения будут добавлены позже.");
     setShowAttachMenu(false);
+    return;
   };
 
   const stopRecording = (type: "voice" | "video") => {
-    if (recordingIntervalRef.current) {
-      clearInterval(recordingIntervalRef.current);
-    }
-
-    const duration = `${Math.floor(recordingDuration / 60)}:${String(recordingDuration % 60).padStart(2, "0")}`;
-    
-    const newMessage: Message = {
-      id: crypto.randomUUID(),
-      type: type,
-      sender: "me",
-      time: new Date().toLocaleTimeString("ru-RU", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      duration: duration,
-    };
-
-    setMessages((prev) => [...prev, newMessage]);
+    void type;
     setIsRecordingVoice(false);
     setIsRecordingVideo(false);
     setRecordingDuration(0);
@@ -360,18 +278,6 @@ export function ChatModal({
     }
   };
 
-  // Cleanup intervals on unmount
-  useEffect(() => {
-    return () => {
-      if (recordingIntervalRef.current) {
-        clearInterval(recordingIntervalRef.current);
-      }
-      if (audioIntervalRef.current) {
-        clearInterval(audioIntervalRef.current);
-      }
-    };
-  }, []);
-
   const handleReport = () => {
     setShowReportDialog(false);
     setShowMenu(false);
@@ -388,13 +294,19 @@ export function ChatModal({
   const handleClearHistory = () => {
     setShowClearHistoryDialog(false);
     setShowMenu(false);
-    if (demoMode) {
-      setMessages([]);
-      alert("История чата очищена");
-    } else {
-      alert("История хранится на сервере; очистка из приложения пока не реализована.");
-    }
+    alert("История хранится на сервере; очистка из приложения пока не реализована.");
   };
+  // Cleanup intervals on unmount
+  useEffect(() => {
+    return () => {
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+      }
+      if (audioIntervalRef.current) {
+        clearInterval(audioIntervalRef.current);
+      }
+    };
+  }, []);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -495,10 +407,10 @@ export function ChatModal({
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-br from-red-50/30 to-amber-50/30">
-          {!demoMode && messagesLoading && (
+          {messagesLoading && (
             <p className="text-center text-sm text-gray-500 py-4">Загрузка сообщений…</p>
           )}
-          {!demoMode && messagesError && !messagesLoading && (
+          {messagesError && !messagesLoading && (
             <p className="text-center text-sm text-red-600 py-4">{messagesError}</p>
           )}
           {messages.map((message) => (
@@ -656,7 +568,7 @@ export function ChatModal({
                   placeholder="Напишите сообщение..."
                   rows={2}
                   className="w-full bg-transparent outline-none text-base text-gray-800 placeholder-gray-400 resize-none"
-                  disabled={sending || (!demoMode && messagesLoading)}
+                  disabled={sending || messagesLoading}
                   readOnly={false}
                   autoComplete="off"
                   spellCheck="true"
@@ -668,7 +580,7 @@ export function ChatModal({
                 <button
                   type="button"
                   onClick={() => void handleSend()}
-                  disabled={sending || (!demoMode && messagesLoading)}
+                  disabled={sending || messagesLoading}
                   className="p-3 rounded-full transition-all bg-gradient-to-r from-red-500 to-amber-500 text-white hover:shadow-lg flex-shrink-0 disabled:opacity-50"
                 >
                   <Send className="size-5" />
@@ -690,12 +602,7 @@ export function ChatModal({
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => {
-                    if (demoMode) {
-                      setInputText("👋 Привет");
-                      setTimeout(() => void handleSend(), 0);
-                    } else {
-                      void sendQuick("👋 Привет");
-                    }
+                    void sendQuick("👋 Привет");
                   }}
                   className="px-3 py-1 bg-gradient-to-r from-red-100 to-amber-100 text-red-600 rounded-full text-xs hover:shadow-sm transition-shadow"
                 >
@@ -703,12 +610,7 @@ export function ChatModal({
                 </button>
                 <button
                   onClick={() => {
-                    if (demoMode) {
-                      setInputText("❤️ Нравится");
-                      setTimeout(() => void handleSend(), 0);
-                    } else {
-                      void sendQuick("❤️ Нравится");
-                    }
+                    void sendQuick("❤️ Нравится");
                   }}
                   className="px-3 py-1 bg-gradient-to-r from-red-100 to-amber-100 text-red-600 rounded-full text-xs hover:shadow-sm transition-shadow flex items-center gap-1"
                 >

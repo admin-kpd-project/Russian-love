@@ -1,41 +1,148 @@
-import { Heart, Download, ChevronRight, Sparkles, ArrowRight } from "lucide-react";
-import { useState } from "react";
+import { ArrowRight, Heart, Sparkles, Camera } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "motion/react";
-import { useParams } from "react-router";
-import { datingProfiles } from "../data/profiles";
+import { useNavigate, useParams } from "react-router";
 import { ProfileCard } from "./ProfileCard";
 import matreshkaLogo from "../../imports/1775050275_(1)_3_(1)-1.png";
 import { calculateCompatibility } from "../utils/compatibilityAI";
+import { getUserById } from "../services/usersService";
+import { register } from "../services/authService";
+import { uploadFile } from "../services/uploadService";
+
+function getAdultMaxDate(): string {
+  const today = new Date();
+  const d = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
+  return d.toISOString().split("T")[0];
+}
+import { mapApiProfileToUserProfile } from "../utils/mapApiProfile";
+import { useAuth } from "../contexts/AuthContext";
+import { normalizeRuPhone } from "../utils/phone";
 
 export function InvitePage() {
   const { inviterId } = useParams<{ inviterId: string }>();
+  const navigate = useNavigate();
+  const { refreshUser } = useAuth();
   const [step, setStep] = useState<"intro" | "register" | "profile">("intro");
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [inviterProfile, setInviterProfile] = useState<any | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
+    authMethod: "email" as "email" | "phone",
     email: "",
+    loginPhone: "",
     password: "",
-    age: "",
+    birthDate: "",
     gender: "female" as "male" | "female",
+    avatarUrl: "",
+    photos: [] as string[],
+    bio: "",
+    interests: "",
   });
 
-  // Find inviter profile (для демонстрации используем первый профиль)
-  const inviterProfile = datingProfiles[0];
-  
-  // Calculate compatibility with mock user data
-  const mockNewUser = {
-    name: formData.name || "Новый пользователь",
-    age: parseInt(formData.age) || 25,
-    gender: formData.gender,
-  };
-  
-  const compatibility = calculateCompatibility(mockNewUser, inviterProfile);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!inviterId) {
+        setLoadError("Некорректная ссылка приглашения");
+        setLoading(false);
+        return;
+      }
+      const res = await getUserById(inviterId);
+      if (cancelled) return;
+      setLoading(false);
+      if (res.error || !res.data) {
+        setLoadError(res.error || "Профиль пригласившего недоступен");
+        return;
+      }
+      setInviterProfile(mapApiProfileToUserProfile(res.data));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [inviterId]);
 
-  const handleRegister = () => {
-    // Simulate registration
-    if (formData.name && formData.email && formData.password && formData.age) {
-      setStep("profile");
+  const compatibility = useMemo(() => {
+    if (!inviterProfile) return 0;
+    const age = formData.birthDate
+      ? new Date().getFullYear() - new Date(formData.birthDate).getFullYear()
+      : 25;
+    return calculateCompatibility(
+      {
+        id: "invite-new-user",
+        name: formData.name || "Новый пользователь",
+        age,
+        bio: "",
+        interests: [],
+        location: "",
+        photo: "",
+        personality: { extroversion: 50, openness: 50, conscientiousness: 50, agreeableness: 50, emotionalStability: 50 },
+        astrology: { zodiacSign: "", element: "air", moonSign: "", ascendant: "" },
+        numerology: { lifePath: 1, soulUrge: 1, destiny: 1 },
+        birthDate: formData.birthDate || "1999-01-01",
+      },
+      inviterProfile
+    );
+  }, [formData.birthDate, formData.name, inviterProfile]);
+
+  const handleRegister = async () => {
+    setSubmitError(null);
+    const emailOk =
+      formData.email.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email);
+    const phoneOk = !!normalizeRuPhone(formData.loginPhone);
+    const idOk = formData.authMethod === "email" ? emailOk : phoneOk;
+    if (!formData.name || !formData.password || !formData.birthDate || !formData.avatarUrl || !idOk) {
+      setSubmitError("Заполните все обязательные поля, укажите email или корректный телефон и загрузите фото");
+      return;
     }
+    setSubmitting(true);
+    const interestList = formData.interests
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const res = await register({
+      authMethod: formData.authMethod,
+      email: formData.authMethod === "email" ? formData.email.trim() : undefined,
+      loginPhone: formData.authMethod === "phone" ? formData.loginPhone.trim() : undefined,
+      password: formData.password,
+      agreeToOffer: true,
+      agreeToPrivacy: true,
+      agreeToTerms: true,
+      name: formData.name.trim(),
+      birthDate: formData.birthDate,
+      gender: formData.gender,
+      avatarUrl: formData.avatarUrl,
+      photos: formData.photos.length ? formData.photos : undefined,
+      bio: formData.bio.trim() || undefined,
+      interests: interestList.length ? interestList : undefined,
+    });
+    setSubmitting(false);
+    if (res.error || !res.data) {
+      setSubmitError(res.error || "Не удалось зарегистрироваться");
+      return;
+    }
+    await refreshUser();
+    setStep("profile");
   };
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center text-gray-600">Загрузка...</div>;
+  }
+
+  if (loadError || !inviterProfile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl p-8 shadow-xl text-center">
+          <p className="text-red-600 mb-4">{loadError || "Профиль не найден"}</p>
+          <button onClick={() => navigate("/")} className="px-6 py-3 bg-gradient-to-r from-red-500 to-amber-500 text-white rounded-xl">
+            На главную
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (step === "intro") {
     return (
@@ -144,21 +251,54 @@ export function InvitePage() {
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email
-              </label>
-              <div className="relative">
-                <Download className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-gray-400" />
+            <div className="flex gap-2 rounded-xl bg-gray-100 p-1">
+              <button
+                type="button"
+                onClick={() => setFormData((d) => ({ ...d, authMethod: "email" }))}
+                className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${
+                  formData.authMethod === "email" ? "bg-white text-red-600 shadow" : "text-gray-600"
+                }`}
+              >
+                По почте
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData((d) => ({ ...d, authMethod: "phone" }))}
+                className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${
+                  formData.authMethod === "phone" ? "bg-white text-red-600 shadow" : "text-gray-600"
+                }`}
+              >
+                По телефону
+              </button>
+            </div>
+            {formData.authMethod === "email" && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                <div className="relative">
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
+                    placeholder="your@email.com"
+                  />
+                </div>
+              </div>
+            )}
+            {formData.authMethod === "phone" && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Номер телефона</label>
                 <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
-                  placeholder="your@email.com"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  value={formData.loginPhone}
+                  onChange={(e) => setFormData({ ...formData, loginPhone: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
+                  placeholder="+7 9XX XXX-XX-XX"
                 />
               </div>
-            </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -176,42 +316,109 @@ export function InvitePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Возраст
-                </label>
-                <input
-                  type="number"
-                  value={formData.age}
-                  onChange={(e) => setFormData({ ...formData, age: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
-                  placeholder="25"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Дата рождения *</label>
+              <input
+                type="date"
+                max={getAdultMaxDate()}
+                value={formData.birthDate}
+                onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
+              />
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Пол
-                </label>
-                <select
-                  value={formData.gender}
-                  onChange={(e) => setFormData({ ...formData, gender: e.target.value as "male" | "female" })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
-                >
-                  <option value="female">Женский</option>
-                  <option value="male">Мужской</option>
-                </select>
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Пол *</label>
+              <select
+                value={formData.gender}
+                onChange={(e) =>
+                  setFormData({ ...formData, gender: e.target.value as "male" | "female" })
+                }
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
+              >
+                <option value="female">Женский</option>
+                <option value="male">Мужской</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Основное фото *</label>
+              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 p-3 text-gray-600 hover:bg-gray-50">
+                <Camera className="size-4" />
+                <span>{formData.avatarUrl ? "Фото загружено" : "Загрузить фото"}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const r = await uploadFile(file, { forRegistration: true });
+                    if (r.url) setFormData((d) => ({ ...d, avatarUrl: r.url! }));
+                    else setSubmitError(r.error || "Ошибка загрузки");
+                  }}
+                />
+              </label>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">О себе</label>
+              <textarea
+                value={formData.bio}
+                onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                rows={2}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
+                placeholder="Коротко о себе"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Интересы (через запятую)</label>
+              <input
+                value={formData.interests}
+                onChange={(e) => setFormData({ ...formData, interests: e.target.value })}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
+                placeholder="Кино, музыка"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Доп. фото</label>
+              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 p-2 text-sm text-gray-600 hover:bg-gray-50">
+                <Camera className="size-4" />
+                <span>Добавить</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const r = await uploadFile(file, { forRegistration: true });
+                    if (r.url) setFormData((d) => ({ ...d, photos: [...d.photos, r.url!] }));
+                  }}
+                />
+              </label>
             </div>
 
             <button
-              onClick={handleRegister}
-              disabled={!formData.name || !formData.email || !formData.password || !formData.age}
+              onClick={() => void handleRegister()}
+              disabled={
+                submitting ||
+                !formData.name ||
+                !formData.password ||
+                !formData.birthDate ||
+                !formData.avatarUrl ||
+                (formData.authMethod === "email" &&
+                  (!formData.email.trim() ||
+                    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))) ||
+                (formData.authMethod === "phone" && !normalizeRuPhone(formData.loginPhone))
+              }
               className="w-full py-4 bg-gradient-to-r from-red-500 to-amber-500 text-white rounded-xl font-semibold text-lg hover:shadow-lg transition-shadow disabled:opacity-50 disabled:cursor-not-allowed mt-6"
             >
-              Продолжить
+              {submitting ? "Регистрация..." : "Продолжить"}
             </button>
+            {submitError && <p className="text-sm text-red-600 mt-2">{submitError}</p>}
           </div>
         </motion.div>
       </div>
@@ -259,7 +466,10 @@ export function InvitePage() {
           <p className="text-sm text-gray-600 mb-6">
             {inviterProfile.name} увидит ваш профиль и процент совместимости
           </p>
-          <button className="w-full py-3 bg-gradient-to-r from-red-500 to-amber-500 text-white rounded-xl font-semibold hover:shadow-lg transition-shadow">
+          <button
+            onClick={() => navigate("/app")}
+            className="w-full py-3 bg-gradient-to-r from-red-500 to-amber-500 text-white rounded-xl font-semibold hover:shadow-lg transition-shadow"
+          >
             Перейти в приложение
           </button>
         </div>

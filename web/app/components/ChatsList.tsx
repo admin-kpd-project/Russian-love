@@ -5,7 +5,6 @@ import { formatDistanceToNow } from "date-fns";
 import { ru } from "date-fns/locale";
 
 import type { OpenChatParams } from "../types/chat";
-import { DEMO_MODE } from "../services/api";
 import { getConversations } from "../services/conversationsService";
 
 interface Chat {
@@ -32,64 +31,16 @@ function formatListTimestamp(iso: string): string {
   }
 }
 
-const mockChats: Chat[] = [
-  {
-    id: "mock-1",
-    name: "Анастасия",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150",
-    lastMessage: "Привет! Как дела? 😊",
-    timestamp: "2 мин назад",
-    unread: true
-  },
-  {
-    id: "mock-2",
-    name: "Дмитрий",
-    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150",
-    lastMessage: "Спасибо за интересную беседу!",
-    timestamp: "1 час назад",
-    unread: true
-  },
-  {
-    id: "mock-3",
-    name: "Мария",
-    avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150",
-    lastMessage: "Давай встретимся на выходных",
-    timestamp: "3 часа назад",
-    unread: false
-  },
-  {
-    id: "mock-4",
-    name: "Александр",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150",
-    lastMessage: "Отлично! До встречи 👋",
-    timestamp: "Вчера",
-    unread: false
-  },
-  {
-    id: "mock-5",
-    name: "Екатерина",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
-    lastMessage: "Ты смотрел новый сериал?",
-    timestamp: "2 дня назад",
-    unread: false
-  }
-];
-
 export function ChatsList({ onClose, onOpenChat }: ChatsListProps) {
-  const [chats, setChats] = useState<Chat[]>(() => (DEMO_MODE ? mockChats : []));
+  const [chats, setChats] = useState<Chat[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(!DEMO_MODE);
+  const [loading, setLoading] = useState(true);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedChats, setSelectedChats] = useState<string[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
 
   useEffect(() => {
-    if (DEMO_MODE) {
-      setChats(mockChats);
-      setLoading(false);
-      return;
-    }
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -246,7 +197,7 @@ export function ChatsList({ onClose, onOpenChat }: ChatsListProps) {
 
         {/* Chats List */}
         <div className="overflow-y-auto flex-1">
-          {loading && !DEMO_MODE ? (
+          {loading ? (
             <div className="p-12 text-center text-gray-500 text-sm">Загрузка…</div>
           ) : loadError ? (
             <div className="p-8 text-center text-red-600 text-sm">{loadError}</div>
@@ -262,7 +213,7 @@ export function ChatsList({ onClose, onOpenChat }: ChatsListProps) {
                       onOpenChat({
                         userName: chat.name,
                         userAvatar: chat.avatar,
-                        conversationId: DEMO_MODE ? undefined : chat.id,
+                        conversationId: chat.id,
                       });
                       onClose();
                     }

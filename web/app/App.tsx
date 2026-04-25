@@ -12,11 +12,11 @@ export default function App() {
     // Prevent pull-to-refresh on mobile
     document.body.style.overscrollBehavior = 'none';
 
-    // Register Service Worker
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/service-worker.js')
-        .then(() => console.log('ServiceWorker registered'))
-        .catch((err) => console.log('ServiceWorker failed:', err));
+    if (import.meta.env.PROD && "serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/service-worker.js")
+        .then(() => console.log("ServiceWorker registered"))
+        .catch((err) => console.log("ServiceWorker failed:", err));
     }
   }, []);
 

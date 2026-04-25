@@ -43,3 +43,14 @@ async def get_current_user_strict(
     user: User = Depends(get_current_user),
 ) -> User:
     return user
+
+
+async def get_current_completed_user(
+    user: User = Depends(get_current_user),
+) -> User:
+    if not user.profile_completed:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="PROFILE_INCOMPLETE",
+        )
+    return user

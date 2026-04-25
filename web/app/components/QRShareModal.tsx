@@ -2,8 +2,8 @@ import { motion, AnimatePresence } from "motion/react";
 import { X, Share2, Copy, CheckCircle, Download } from "lucide-react";
 import { useState } from "react";
 import QRCode from "react-qr-code";
-import { currentUser } from "../utils/compatibilityAI";
 import matreshkaLogo from "../../imports/1775050275_(1)_3_(1)-1.png";
+import { useAuth } from "../contexts/AuthContext";
 
 interface QRShareModalProps {
   onClose: () => void;
@@ -12,9 +12,12 @@ interface QRShareModalProps {
 export function QRShareModal({ onClose }: QRShareModalProps) {
   const [copied, setCopied] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const { user } = useAuth();
   
   // Generate unique QR URL with user ID
-  const qrUrl = `${window.location.origin}/scan/${currentUser.id}`;
+  const qrUrl = user?.id
+    ? `${window.location.origin}/scan/${user.id}`
+    : `${window.location.origin}/`;
 
   const handleDownload = () => {
     const svg = document.getElementById("qr-code-svg");

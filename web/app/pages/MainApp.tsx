@@ -6,7 +6,6 @@ import matreshkaLogo from "../../imports/1775050275_(1)_3_(1)-1.png";
 import { SwipeableCard } from "../components/SwipeableCard";
 import { ProfileCard } from "../components/ProfileCard";
 import { MatchModal } from "../components/MatchModal";
-import { ProfileModal } from "../components/ProfileModal";
 import { NotificationsModal } from "../components/NotificationsModal";
 import { ChatModal } from "../components/ChatModal";
 import { ChatsList } from "../components/ChatsList";
@@ -16,6 +15,7 @@ import { LikesModal } from "../components/LikesModal";
 import { Favorites } from "../components/Favorites";
 import { SubscriptionModal } from "../components/SubscriptionModal";
 import { SettingsModal } from "../components/SettingsModal";
+import { ProfileSettingsModal } from "../components/ProfileSettingsModal";
 import { RecommendModal } from "../components/RecommendModal";
 import { SuperLikeShopModal } from "../components/SuperLikeShopModal";
 import { DetailedAnalysisModal } from "../components/DetailedAnalysisModal";
@@ -24,42 +24,27 @@ import { PWAInstallPrompt } from "../components/PWAInstallPrompt";
 import { ScanNotificationCard } from "../components/ScanNotificationCard";
 import { useFavorites } from "../contexts/FavoritesContext";
 import { useAuth } from "../contexts/AuthContext";
-import { datingProfiles } from "../data/profiles";
-import { calculateCompatibility, currentUser, type UserProfile } from "../utils/compatibilityAI";
+import { calculateCompatibility, type UserProfile } from "../utils/compatibilityAI";
 import { getFeed } from "../services/feedService";
 import { createConversation } from "../services/conversationsService";
 import { mapApiProfileToUserProfile } from "../utils/mapApiProfile";
 import type { OpenChatParams } from "../types/chat";
-import { getUnviewedScanEvents, ScanEvent, cleanupOldScanEvents } from "../utils/scanEvents";
 import { tokenStorage } from "../services/api";
+import { sendLike, sendSuperLike } from "../services/socialService";
 
 export function MainApp() {
   const navigate = useNavigate();
-  const { demoMode, user: authUser } = useAuth();
+  const { user: authUser } = useAuth();
   
-  // Register Service Worker for PWA functionality
-  useEffect(() => {
-    // Prevent pull-to-refresh on mobile
-    document.body.style.overscrollBehavior = 'none';
-    
-    // Register Service Worker
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/service-worker.js')
-        .then(() => console.log('ServiceWorker registered'))
-        .catch((err) => console.log('ServiceWorker failed:', err));
-    }
-  }, []);
-
   // Use Favorites Context
   const { toggleFavorite, isFavorite, favorites } = useFavorites();
 
-  const [profiles, setProfiles] = useState<UserProfile[]>(datingProfiles);
+  const [profiles, setProfiles] = useState<UserProfile[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [compatibility, setCompatibility] = useState<number[]>([]);
   const [showMatch, setShowMatch] = useState(false);
   const [matchedProfile, setMatchedProfile] = useState<UserProfile | null>(null);
   const [history, setHistory] = useState<{ profile: UserProfile; liked: boolean }[]>([]);
-  const [showProfile, setShowProfile] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showChats, setShowChats] = useState(false);
   const [showQR, setShowQR] = useState(false);
@@ -72,6 +57,7 @@ export function MainApp() {
   const [showSubscription, setShowSubscription] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [showRecommend, setShowRecommend] = useState(false);
   const [profileToRecommend, setProfileToRecommend] = useState<UserProfile | null>(null);
   const [showSuperLikeShop, setShowSuperLikeShop] = useState(false);
@@ -80,14 +66,10 @@ export function MainApp() {
   const [analysisProfile, setAnalysisProfile] = useState<UserProfile | null>(null);
   const [purchasedAnalyses, setPurchasedAnalyses] = useState<string[]>([]);
   const [hasUnlimitedAnalysis, setHasUnlimitedAnalysis] = useState(false);
-  const [scanEvents, setScanEvents] = useState<ScanEvent[]>([]);
+  const [scanEvents, setScanEvents] = useState<any[]>([]);
   const [selectedLikedProfile, setSelectedLikedProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
-    if (demoMode) {
-      setProfiles(datingProfiles);
-      return;
-    }
     let cancelled = false;
     (async () => {
       const res = await getFeed();
@@ -102,16 +84,16 @@ export function MainApp() {
     return () => {
       cancelled = true;
     };
-  }, [demoMode]);
+  }, []);
 
   useEffect(() => {
-    const self =
-      demoMode || !authUser ? currentUser : mapApiProfileToUserProfile(authUser);
+    if (!authUser) return;
+    const self = mapApiProfileToUserProfile(authUser);
     const compatibilityScores = profiles.map((profile) =>
       calculateCompatibility(self, profile)
     );
     setCompatibility(compatibilityScores);
-  }, [profiles, demoMode, authUser]);
+  }, [profiles, authUser]);
 
   const handleSwipe = (liked: boolean) => {
     if (currentIndex >= profiles.length) return;
@@ -121,15 +103,19 @@ export function MainApp() {
     // Add to history for undo
     setHistory(prev => [...prev, { profile: currentProfile, liked }]);
 
-    // Add to liked profiles if liked
     if (liked) {
       setLikedProfiles(prev => [...prev, currentProfile]);
-    }
-
-    // Simulate match (30% chance on like)
-    if (liked && Math.random() > 0.7) {
-      setMatchedProfile(currentProfile);
-      setShowMatch(true);
+      void (async () => {
+        const res = await sendLike(String(currentProfile.id));
+        if (res.error) {
+          console.warn("Like failed:", res.error);
+          return;
+        }
+        if (res.data?.matched) {
+          setMatchedProfile(currentProfile);
+          setShowMatch(true);
+        }
+      })();
     }
 
     setCurrentIndex(prev => prev + 1);
@@ -149,8 +135,7 @@ export function MainApp() {
     // Send super like and show match
     const currentProfile = profiles[currentIndex];
     setLikedProfiles(prev => [...prev, currentProfile]);
-    setMatchedProfile(currentProfile);
-    setShowMatch(true);
+    void sendSuperLike(String(currentProfile.id));
     setCurrentIndex(prev => prev + 1);
     
     // Decrease super likes only if not premium and has super likes
@@ -168,11 +153,6 @@ export function MainApp() {
     setMatchedProfile(null);
     setSelectedLikedProfile(null);
 
-    if (demoMode) {
-      setChatSession(params);
-      setShowChat(true);
-      return;
-    }
     if (!params.conversationId && !params.peerUserId) {
       alert(
         "Откройте чат из списка сообщений или из карточки в ленте — для переписки с сервером нужен контекст беседы."
@@ -203,10 +183,7 @@ export function MainApp() {
   const handleLogout = () => {
     // Clear all authentication tokens and data
     tokenStorage.clearTokens();
-    
-    // Clear any other stored data
-    localStorage.clear();
-    
+
     // Navigate to landing page
     navigate("/");
   };
@@ -214,30 +191,12 @@ export function MainApp() {
   const currentProfile = profiles[currentIndex];
   const hasMoreProfiles = currentIndex < profiles.length;
 
-  // Fetch unviewed scan events
   useEffect(() => {
-    const events = getUnviewedScanEvents(currentUser.id);
-    setScanEvents(events);
-    
-    // Cleanup old scan events on mount
-    cleanupOldScanEvents();
-    
-    // Poll for new scan events every 10 seconds
-    const interval = setInterval(() => {
-      const newEvents = getUnviewedScanEvents(currentUser.id);
-      setScanEvents(newEvents);
-    }, 10000);
-    
-    return () => clearInterval(interval);
+    setScanEvents([]);
   }, []);
 
   return (
     <div className="size-full bg-gradient-to-br from-red-50 via-amber-50 to-yellow-50 flex flex-col overflow-hidden">
-      {/* Demo Mode Banner */}
-      {demoMode && (
-        null
-      )}
-      
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-md shadow-lg safe-top">
         <div className="max-w-md mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-end justify-between">
@@ -387,22 +346,6 @@ export function MainApp() {
           />
         )}
         
-        {showProfile && (
-          <ProfileModal 
-            key="profile-modal"
-            onClose={() => setShowProfile(false)}
-            onOpenQR={() => {
-              setShowProfile(false);
-              setShowQR(true);
-            }}
-            onOpenSettings={() => {
-              setShowProfile(false);
-              setShowSettings(true);
-            }}
-            onLogout={handleLogout}
-          />
-        )}
-        
         {showNotifications && (
           <NotificationsModal 
             key="notifications-modal"
@@ -422,8 +365,7 @@ export function MainApp() {
         {showChat && chatSession && (
           <ChatModal 
             key="chat-modal"
-            demoMode={demoMode}
-            conversationId={demoMode ? undefined : chatSession.conversationId}
+            conversationId={chatSession.conversationId}
             onClose={() => {
               setShowChat(false);
               setChatSession(null);
@@ -495,6 +437,22 @@ export function MainApp() {
           <SettingsModal 
             key="settings-modal"
             onClose={() => setShowSettings(false)}
+          />
+        )}
+
+        {showProfile && (
+          <ProfileSettingsModal
+            key="profile-settings-modal"
+            onClose={() => setShowProfile(false)}
+            onOpenQR={() => {
+              setShowProfile(false);
+              setShowQR(true);
+            }}
+            onOpenSettings={() => {
+              setShowProfile(false);
+              setShowSettings(true);
+            }}
+            onLogout={handleLogout}
           />
         )}
         

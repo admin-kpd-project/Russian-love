@@ -4,10 +4,11 @@ import { MainApp } from "./pages/MainApp";
 import { InvitePage } from "./components/InvitePage";
 import { ScanProfile } from "./pages/ScanProfile";
 import { useAuth } from "./contexts/AuthContext";
+import { PaymentConfirmPage } from "./pages/PaymentConfirmPage";
 
 // Protected Route Component
 function ProtectedRoute() {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
   
   if (loading) {
     return (
@@ -23,7 +24,7 @@ function ProtectedRoute() {
   if (!isAuthenticated) {
     return <Navigate to="/" replace />;
   }
-  
+
   return <Outlet />;
 }
 
@@ -41,6 +42,15 @@ export const router = createBrowserRouter([
         element: <MainApp />,
       },
     ],
+  },
+  {
+    path: "/profile/edit",
+    element: <Navigate to="/app" replace />,
+  },
+  {
+    path: "/payment/confirm",
+    element: <ProtectedRoute />,
+    children: [{ index: true, element: <PaymentConfirmPage /> }],
   },
   {
     path: "/scan/:userId",

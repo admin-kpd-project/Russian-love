@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { ProfileResponse } from "../services/authService";
 import { getCurrentUser } from "../services/usersService";
-import { tokenStorage, DEMO_MODE } from "../services/api";
+import { tokenStorage } from "../services/api";
 
 interface AuthContextType {
   user: ProfileResponse | null;
@@ -9,7 +9,6 @@ interface AuthContextType {
   setUser: (user: ProfileResponse | null) => void;
   refreshUser: () => Promise<void>;
   isAuthenticated: boolean;
-  demoMode: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,27 +23,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (!accessToken) {
         setUser(null);
-        setLoading(false);
-        return;
-      }
-
-      // In demo mode, skip API call
-      if (DEMO_MODE) {
-        console.log("Running in DEMO mode - skipping API calls");
-        setUser({
-          id: "demo-user",
-          name: "Демо Пользователь",
-          email: "demo@example.com",
-          birthDate: "1990-01-01",
-          age: 34,
-          photos: [],
-          interests: [],
-          preferences: {
-            minAge: 18,
-            maxAge: 99,
-            maxDistance: 100,
-          },
-        });
         setLoading(false);
         return;
       }
@@ -81,7 +59,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser,
         refreshUser,
         isAuthenticated,
-        demoMode: DEMO_MODE,
       }}
     >
       {children}

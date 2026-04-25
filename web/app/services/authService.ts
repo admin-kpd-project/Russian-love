@@ -1,10 +1,11 @@
-import { apiFetch, tokenStorage, ApiResponse, DEMO_MODE } from "./api";
+import { apiFetch, tokenStorage, ApiResponse, API_BASE_URL } from "./api";
 
 // Types from API spec
 export interface ProfileResponse {
   id: string;
   name: string;
   age: number;
+  gender?: "male" | "female";
   bio?: string;
   interests: string[];
   location?: string;
@@ -12,6 +13,8 @@ export interface ProfileResponse {
   photos?: string[];
   birthDate: string;
   email?: string;
+  phone?: string;
+  profileCompleted?: boolean;
   personality?: any;
   astrology?: any;
   numerology?: any;
@@ -28,44 +31,25 @@ export interface AuthResponse {
   user: ProfileResponse;
 }
 
-// Register
+// Register (профиль обязателен в одном запросе)
 export interface RegisterRequest {
-  name: string;
-  birthDate: string;
-  email: string;
-  phone?: string;
+  authMethod: "email" | "phone";
+  email?: string;
+  loginPhone?: string;
   password: string;
   agreeToPrivacy: boolean;
   agreeToTerms: boolean;
   agreeToOffer: boolean;
+  name: string;
+  birthDate: string;
+  gender: "male" | "female";
+  avatarUrl: string;
+  photos?: string[];
+  bio?: string;
+  interests?: string[];
 }
 
 export async function register(data: RegisterRequest): Promise<ApiResponse<AuthResponse>> {
-  // Demo mode - simulate successful registration
-  if (DEMO_MODE) {
-    console.log("DEMO: Simulating registration");
-    const demoResponse: AuthResponse = {
-      accessToken: "demo-access-token",
-      refreshToken: "demo-refresh-token",
-      user: {
-        id: "demo-user",
-        name: data.name,
-        email: data.email,
-        birthDate: data.birthDate,
-        age: new Date().getFullYear() - new Date(data.birthDate).getFullYear(),
-        photos: [],
-        interests: [],
-        preferences: {
-          minAge: 18,
-          maxAge: 99,
-          maxDistance: 100,
-        },
-      },
-    };
-    tokenStorage.setTokens(demoResponse.accessToken, demoResponse.refreshToken);
-    return { data: demoResponse, error: null };
-  }
-
   const response = await apiFetch<AuthResponse>("/api/auth/register", {
     method: "POST",
     body: JSON.stringify(data),
@@ -78,38 +62,13 @@ export async function register(data: RegisterRequest): Promise<ApiResponse<AuthR
   return response;
 }
 
-// Login
+// Login: поле email — email или телефон (как вводит пользователь)
 export interface LoginRequest {
   email: string;
   password: string;
 }
 
 export async function login(data: LoginRequest): Promise<ApiResponse<AuthResponse>> {
-  // Demo mode - simulate successful login
-  if (DEMO_MODE) {
-    console.log("DEMO: Simulating login");
-    const demoResponse: AuthResponse = {
-      accessToken: "demo-access-token",
-      refreshToken: "demo-refresh-token",
-      user: {
-        id: "demo-user",
-        name: "Демо Пользователь",
-        email: data.email,
-        birthDate: "1990-01-01",
-        age: 34,
-        photos: [],
-        interests: [],
-        preferences: {
-          minAge: 18,
-          maxAge: 99,
-          maxDistance: 100,
-        },
-      },
-    };
-    tokenStorage.setTokens(demoResponse.accessToken, demoResponse.refreshToken);
-    return { data: demoResponse, error: null };
-  }
-
   const response = await apiFetch<AuthResponse>("/api/auth/login", {
     method: "POST",
     body: JSON.stringify(data),
@@ -137,34 +96,7 @@ export async function logout(): Promise<ApiResponse<{ ok: boolean }>> {
 
 // Yandex OAuth - redirect to Yandex
 export function redirectToYandexOAuth(): void {
-  // Demo mode - simulate OAuth login
-  if (DEMO_MODE) {
-    console.log("DEMO: Simulating Yandex OAuth login");
-    const demoResponse: AuthResponse = {
-      accessToken: "demo-access-token",
-      refreshToken: "demo-refresh-token",
-      user: {
-        id: "demo-user",
-        name: "Демо Пользователь",
-        email: "demo@gosuslugi.ru",
-        birthDate: "1990-01-01",
-        age: 34,
-        photos: [],
-        interests: [],
-        preferences: {
-          minAge: 18,
-          maxAge: 99,
-          maxDistance: 100,
-        },
-      },
-    };
-    tokenStorage.setTokens(demoResponse.accessToken, demoResponse.refreshToken);
-    // Redirect to app
-    window.location.href = "/app";
-    return;
-  }
-
-  window.location.href = `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"}/api/auth/yandex`;
+  window.location.href = `${API_BASE_URL}/api/auth/yandex`;
 }
 
 // Handle Yandex callback (called by router)
@@ -181,34 +113,27 @@ export async function handleYandexCallback(code: string, state: string): Promise
   return response;
 }
 
-// Messenger OAuth - redirect to MAX Messenger
+// Messenger OAuth
 export function redirectToMessengerOAuth(): void {
-  // Demo mode - simulate OAuth login
-  if (DEMO_MODE) {
-    console.log("DEMO: Simulating MAX Messenger OAuth login");
-    const demoResponse: AuthResponse = {
-      accessToken: "demo-access-token",
-      refreshToken: "demo-refresh-token",
-      user: {
-        id: "demo-user",
-        name: "Демо Пользователь",
-        email: "demo@maxmessenger.ru",
-        birthDate: "1990-01-01",
-        age: 34,
-        photos: [],
-        interests: [],
-        preferences: {
-          minAge: 18,
-          maxAge: 99,
-          maxDistance: 100,
-        },
-      },
-    };
-    tokenStorage.setTokens(demoResponse.accessToken, demoResponse.refreshToken);
-    // Redirect to app
-    window.location.href = "/app";
-    return;
-  }
+  window.location.href = `${API_BASE_URL}/api/auth/messenger`;
+}
 
-  window.location.href = `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"}/api/auth/messenger`;
+export interface CompleteProfileRequest {
+  name: string;
+  birthDate: string;
+  email: string;
+  gender: "male" | "female";
+  avatarUrl: string;
+  photos?: string[];
+  bio?: string;
+  interests?: string[];
+}
+
+export async function completeProfile(
+  data: CompleteProfileRequest
+): Promise<ApiResponse<ProfileResponse>> {
+  return apiFetch<ProfileResponse>("/api/users/me/complete-profile", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 }

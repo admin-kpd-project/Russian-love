@@ -1,74 +1,40 @@
 import { motion } from "motion/react";
 import { X, Heart, Star, MessageCircle, UserPlus, Gift, Send } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import type { OpenChatParams } from "../types/chat";
+import { getNotifications, markNotificationsRead, type NotificationItem } from "../services/notificationsService";
 
 interface NotificationsModalProps {
   onClose: () => void;
   onOpenChat: (params: OpenChatParams) => void;
 }
 
-interface Notification {
-  id: number;
-  type: "match" | "like" | "message" | "superlike" | "new";
-  title: string;
-  message: string;
-  time: string;
-  read: boolean;
-  avatar?: string;
-  userName?: string;
-}
-
-const mockNotifications: Notification[] = [
-  {
-    id: 1,
-    type: "match",
-    title: "Новый match!",
-    message: "У вас взаимная симпатия с Анастасией",
-    time: "2 минуты назад",
-    read: false,
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop",
-    userName: "Анастасия",
-  },
-  {
-    id: 2,
-    type: "superlike",
-    title: "Супер-лайк!",
-    message: "Мария отправила вам супер-лайк",
-    time: "15 минут назад",
-    read: false,
-    avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop",
-    userName: "Мария",
-  },
-  {
-    id: 3,
-    type: "like",
-    title: "Новый лайк",
-    message: "Кто-то поставил вам лайк",
-    time: "1 час назад",
-    read: true,
-  },
-  {
-    id: 4,
-    type: "message",
-    title: "Новое сообщение",
-    message: "Елена написала вам сообщение",
-    time: "2 часа назад",
-    read: true,
-    avatar: "https://images.unsplash.com/photo-1489424731084-a5d8b219a5bb?w=150&h=150&fit=crop",
-    userName: "Елена",
-  },
-  {
-    id: 5,
-    type: "new",
-    title: "Обновление профилей",
-    message: "5 новых пользователей в вашем районе",
-    time: "3 часа назад",
-    read: true,
-  },
-];
-
 export function NotificationsModal({ onClose, onOpenChat }: NotificationsModalProps) {
+  const [items, setItems] = useState<NotificationItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setError(null);
+      const res = await getNotifications();
+      if (cancelled) return;
+      setLoading(false);
+      if (res.error) {
+        setError(res.error);
+        setItems([]);
+        return;
+      }
+      setItems(res.data ?? []);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const getIcon = (type: Notification["type"]) => {
     switch (type) {
       case "match":
@@ -103,7 +69,7 @@ export function NotificationsModal({ onClose, onOpenChat }: NotificationsModalPr
     }
   };
 
-  const unreadCount = mockNotifications.filter(n => !n.read).length;
+  const unreadCount = items.filter(n => !n.read).length;
 
   return (
     <motion.div
@@ -139,7 +105,11 @@ export function NotificationsModal({ onClose, onOpenChat }: NotificationsModalPr
 
         {/* Notifications List */}
         <div className="overflow-y-auto max-h-[calc(90vh-8rem)] p-4">
-          {mockNotifications.length === 0 ? (
+          {loading ? (
+            <div className="text-center py-12 text-gray-500">Загрузка...</div>
+          ) : error ? (
+            <div className="text-center py-12 text-red-600">{error}</div>
+          ) : items.length === 0 ? (
             <div className="text-center py-12">
               <div className="bg-gradient-to-br from-red-100 to-amber-100 rounded-full p-8 mx-auto w-fit mb-4">
                 <MessageCircle className="size-12 text-red-500" />
@@ -148,7 +118,7 @@ export function NotificationsModal({ onClose, onOpenChat }: NotificationsModalPr
             </div>
           ) : (
             <div className="space-y-3">
-              {mockNotifications.map((notification) => (
+              {items.map((notification) => (
                 <motion.div
                   key={notification.id}
                   initial={{ opacity: 0, x: -20 }}
@@ -181,7 +151,7 @@ export function NotificationsModal({ onClose, onOpenChat }: NotificationsModalPr
                       )}
                     </div>
                     <p className="text-sm text-gray-600 mb-1">{notification.message}</p>
-                    <p className="text-xs text-gray-400 mb-2">{notification.time}</p>
+                    <p className="text-xs text-gray-400 mb-2">{notification.timestamp}</p>
                     
                     {/* Write Button for notifications with avatar */}
                     {notification.avatar && notification.userName && (
@@ -192,6 +162,8 @@ export function NotificationsModal({ onClose, onOpenChat }: NotificationsModalPr
                           onOpenChat({
                             userName: notification.userName!,
                             userAvatar: notification.avatar!,
+                            conversationId: notification.conversationId,
+                            peerUserId: notification.peerUserId,
                           });
                         }}
                         className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-red-500 to-amber-500 text-white rounded-full text-sm font-medium hover:shadow-lg transition-all hover:scale-105"
@@ -208,9 +180,15 @@ export function NotificationsModal({ onClose, onOpenChat }: NotificationsModalPr
         </div>
 
         {/* Footer */}
-        {mockNotifications.length > 0 && (
+        {items.length > 0 && (
           <div className="px-6 py-4 border-t border-gray-100">
-            <button className="w-full text-center text-sm text-red-500 hover:text-red-600 font-medium transition-colors">
+            <button
+              onClick={async () => {
+                await markNotificationsRead();
+                setItems((prev) => prev.map((n) => ({ ...n, read: true })));
+              }}
+              className="w-full text-center text-sm text-red-500 hover:text-red-600 font-medium transition-colors"
+            >
               Отметить все как прочитанные
             </button>
           </div>

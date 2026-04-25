@@ -9,9 +9,12 @@ export async function getCurrentUser(): Promise<ApiResponse<ProfileResponse>> {
 // Update current user profile
 export interface UpdateProfileRequest {
   name?: string;
+  email?: string;
+  birthDate?: string;
   bio?: string;
   location?: string;
   avatarUrl?: string;
+  photos?: string[];
   interests?: string[];
   personality?: any;
   astrology?: any;

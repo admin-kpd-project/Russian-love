@@ -1,25 +1,35 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { X, Mail, Lock, User, Phone, Heart, Calendar, Shield, MessageCircle, Camera, ArrowLeft, CheckCircle, Eye, EyeOff } from "lucide-react";
-import DatePicker, { registerLocale } from "react-datepicker";
-import InputMask from "react-input-mask";
-import ru from "date-fns/locale/ru";
+import { X, Mail, Lock, Heart, Shield, MessageCircle, ArrowLeft, CheckCircle, Eye, EyeOff, Camera, Phone } from "lucide-react";
 import "react-datepicker/dist/react-datepicker.css";
-import matreshkaLogo from "../../imports/1775050275_(1)_3_(1)-1.png";
 import matreshkaLogoWhite from "../../imports/1775050275_(1)_4.png";
 import { login, register, redirectToYandexOAuth, redirectToMessengerOAuth } from "../services/authService";
+import { uploadFile } from "../services/uploadService";
 import { useAuth } from "../contexts/AuthContext";
+import { normalizeRuPhone } from "../utils/phone";
 
-registerLocale("ru", ru);
+function getAdultMaxDate(): string {
+  const today = new Date();
+  const d = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
+  return d.toISOString().split("T")[0];
+}
 
 interface AuthModalProps {
   show?: boolean;
   onClose: () => void;
-  onAuthSuccess?: () => void;
-  onSuccess?: () => void;
+  onAuthSuccess?: () => void | Promise<void>;
+  onSuccess?: () => void | Promise<void>;
+  /** When opening the modal, start on login (вход) or register (регистрация). */
+  initialMode?: "login" | "register";
 }
 
-export function AuthModal({ show = true, onClose, onAuthSuccess, onSuccess }: AuthModalProps) {
+export function AuthModal({
+  show = true,
+  onClose,
+  onAuthSuccess,
+  onSuccess,
+  initialMode = "login",
+}: AuthModalProps) {
   const { refreshUser } = useAuth();
   
   const handleSuccess = async () => {
@@ -27,74 +37,69 @@ export function AuthModal({ show = true, onClose, onAuthSuccess, onSuccess }: Au
     await refreshUser();
     
     // Call parent callbacks
-    if (onSuccess) onSuccess();
-    if (onAuthSuccess) onAuthSuccess();
+    if (onSuccess) await Promise.resolve(onSuccess());
+    if (onAuthSuccess) await Promise.resolve(onAuthSuccess());
   };
 
-  const [mode, setMode] = useState<"login" | "register" | "reset">("login");
+  const [mode, setMode] = useState<"login" | "register" | "reset">(initialMode);
   const [resetEmail, setResetEmail] = useState("");
+
+  useEffect(() => {
+    if (show) {
+      setMode(initialMode);
+    }
+  }, [show, initialMode]);
+  const isLogin = mode === "login";
+  const isRegister = mode === "register";
+  const isReset = mode === "reset";
   const [resetEmailSent, setResetEmailSent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
-    name: "",
-    birthDate: "",
     email: "",
-    phone: "",
+    authMethod: "email" as "email" | "phone",
+    loginPhone: "",
     password: "",
     confirmPassword: "",
-    isOver18: false,
+    name: "",
+    birthDate: "",
+    gender: "female" as "male" | "female",
+    avatarUrl: "",
+    photos: [] as string[],
+    bio: "",
+    interests: "",
     agreeToPrivacy: false,
     agreeToTerms: false,
     agreeToOffer: false,
     agreeToNewsletter: false,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
-
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfilePhoto(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!isLogin && !formData.name.trim()) {
-      newErrors.name = "Введите имя";
-    }
-
-    if (!isLogin && !formData.birthDate.trim()) {
-      newErrors.birthDate = "Введите дату рождения";
-    } else if (!isLogin && formData.birthDate) {
-      const today = new Date();
-      const birthDate = new Date(formData.birthDate);
-      let age = today.getFullYear() - birthDate.getFullYear();
-      const monthDiff = today.getMonth() - birthDate.getMonth();
-      
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-        age--;
+    if (isLogin) {
+      const raw = formData.email.trim();
+      if (!raw) {
+        newErrors.email = "Введите email или телефон";
+      } else if (raw.includes("@")) {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw)) {
+          newErrors.email = "Неверный формат email";
+        }
+      } else if (!normalizeRuPhone(raw)) {
+        newErrors.email = "Введите корректный номер (российский мобильный)";
       }
-      
-      if (age < 18) {
-        newErrors.birthDate = "Вам должно быть не менее 18 лет";
+    } else if (formData.authMethod === "email") {
+      if (!formData.email.trim()) {
+        newErrors.email = "Введите email";
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+        newErrors.email = "Неверный формат email";
       }
-    }
-
-    if (!formData.email.trim()) {
-      newErrors.email = "Введите email";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = "Неверный формат email";
-    }
-
-    if (!isLogin && !formData.phone.trim()) {
-      newErrors.phone = "Введите номер телефона";
+    } else {
+      if (!formData.loginPhone.trim()) {
+        newErrors.loginPhone = "Введите номер телефона";
+      } else if (!normalizeRuPhone(formData.loginPhone)) {
+        newErrors.loginPhone = "Введите корректный номер (российский мобильный)";
+      }
     }
 
     if (!formData.password) {
@@ -105,10 +110,6 @@ export function AuthModal({ show = true, onClose, onAuthSuccess, onSuccess }: Au
 
     if (!isLogin && formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = "Пароли не совпадают";
-    }
-
-    if (!isLogin && !formData.isOver18) {
-      newErrors.isOver18 = "Подтвердите, что вам есть 18 лет";
     }
 
     if (!isLogin && !formData.agreeToPrivacy) {
@@ -123,8 +124,39 @@ export function AuthModal({ show = true, onClose, onAuthSuccess, onSuccess }: Au
       newErrors.agreeToOffer = "Необходимо согласие с публичной офертой";
     }
 
+    if (!isLogin) {
+      if (!formData.name.trim()) newErrors.name = "Введите имя";
+      if (!formData.birthDate) newErrors.birthDate = "Укажите дату рождения";
+      if (!formData.avatarUrl) newErrors.avatarUrl = "Загрузите фото профиля";
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const handleAvatarUpload = async (file?: File) => {
+    if (!file) return;
+    const res = await uploadFile(file, { forRegistration: true });
+    if (!res.url) {
+      setErrors((prev) => ({ ...prev, avatarUrl: res.error || "Ошибка загрузки" }));
+      return;
+    }
+    setFormData((p) => ({ ...p, avatarUrl: res.url! }));
+    setErrors((prev) => {
+      const n = { ...prev };
+      delete n.avatarUrl;
+      return n;
+    });
+  };
+
+  const handleExtraPhoto = async (file?: File) => {
+    if (!file) return;
+    const res = await uploadFile(file, { forRegistration: true });
+    if (!res.url) {
+      setErrors((prev) => ({ ...prev, photos: res.error || "Ошибка загрузки" }));
+      return;
+    }
+    setFormData((p) => ({ ...p, photos: [...p.photos, res.url!] }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -148,18 +180,34 @@ export function AuthModal({ show = true, onClose, onAuthSuccess, onSuccess }: Au
       } else {
         // Register
         const response = await register({
-          name: formData.name,
-          birthDate: formData.birthDate,
-          email: formData.email,
-          phone: formData.phone || undefined,
+          authMethod: formData.authMethod,
+          email: formData.authMethod === "email" ? formData.email.trim() : undefined,
+          loginPhone: formData.authMethod === "phone" ? formData.loginPhone.trim() : undefined,
           password: formData.password,
           agreeToPrivacy: formData.agreeToPrivacy,
           agreeToTerms: formData.agreeToTerms,
           agreeToOffer: formData.agreeToOffer,
+          name: formData.name.trim(),
+          birthDate: formData.birthDate,
+          gender: formData.gender,
+          avatarUrl: formData.avatarUrl,
+          photos: formData.photos.length ? formData.photos : undefined,
+          bio: formData.bio.trim() || undefined,
+          interests: (() => {
+            const list = formData.interests
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean);
+            return list.length ? list : undefined;
+          })(),
         });
         
         if (response.error) {
-          setErrors({ email: response.error });
+          setErrors(
+            formData.authMethod === "email"
+              ? { email: response.error }
+              : { loginPhone: response.error }
+          );
         } else if (response.data) {
           handleSuccess();
         }
@@ -190,17 +238,6 @@ export function AuthModal({ show = true, onClose, onAuthSuccess, onSuccess }: Au
     // Simulate sending reset email
     setResetEmailSent(true);
   };
-
-  const isLogin = mode === "login";
-  const isRegister = mode === "register";
-  const isReset = mode === "reset";
-
-  // Calculate max date (18 years ago from today)
-  const maxBirthDate = (() => {
-    const today = new Date();
-    const maxDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
-    return maxDate.toISOString().split('T')[0];
-  })();
 
   return (
     <motion.div
@@ -313,6 +350,7 @@ export function AuthModal({ show = true, onClose, onAuthSuccess, onSuccess }: Au
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-gray-400" />
                       <input
                         type="email"
+                        autoComplete="email"
                         value={resetEmail}
                         onChange={(e) => setResetEmail(e.target.value)}
                         placeholder="example@mail.ru"
@@ -345,137 +383,108 @@ export function AuthModal({ show = true, onClose, onAuthSuccess, onSuccess }: Au
           ) : (
             /* Login/Register Form */
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Profile Photo Upload (registration only) */}
-              {!isLogin && (
-                <div className="flex justify-center mb-4">
-                  <div className="relative">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handlePhotoChange}
-                      className="hidden"
-                      id="profile-photo-upload"
-                    />
-                    <label
-                      htmlFor="profile-photo-upload"
-                      className="block cursor-pointer"
-                    >
-                      <div className="relative size-24 rounded-full bg-gray-100 border-4 border-white shadow-lg overflow-hidden hover:opacity-90 transition-opacity">
-                        {profilePhoto ? (
-                          <img
-                            src={profilePhoto}
-                            alt="Profile"
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-red-100 to-amber-100">
-                            <Camera className="size-8 text-red-500" />
-                          </div>
-                        )}
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                          <Camera className="size-6 text-white" />
-                        </div>
-                      </div>
-                    </label>
-                    <div className="absolute -bottom-1 -right-1 size-8 bg-red-500 rounded-full flex items-center justify-center shadow-md border-2 border-white">
-                      <Camera className="size-4 text-white" />
-                    </div>
-                  </div>
+
+              {/* Способ регистрации: почта или телефон */}
+              {isRegister && (
+                <div className="flex gap-2 rounded-xl bg-gray-100 p-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData((p) => ({ ...p, authMethod: "email" }));
+                      setErrors((e) => {
+                        const n = { ...e };
+                        delete n.loginPhone;
+                        return n;
+                      });
+                    }}
+                    className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${
+                      formData.authMethod === "email"
+                        ? "bg-white text-red-600 shadow"
+                        : "text-gray-600"
+                    }`}
+                  >
+                    По почте
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData((p) => ({ ...p, authMethod: "phone" }));
+                      setErrors((e) => {
+                        const n = { ...e };
+                        delete n.email;
+                        return n;
+                      });
+                    }}
+                    className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${
+                      formData.authMethod === "phone"
+                        ? "bg-white text-red-600 shadow"
+                        : "text-gray-600"
+                    }`}
+                  >
+                    По телефону
+                  </button>
                 </div>
               )}
 
-              {/* Name field (registration only) */}
-              {!isLogin && (
+              {/* Логин: email или телефон; регистрация: одно из полей */}
+              {isLogin && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Имя
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email или телефон</label>
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-gray-400" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-gray-400" />
                     <input
                       type="text"
-                      value={formData.name}
-                      onChange={(e) => handleInputChange("name", e.target.value)}
-                      placeholder="Ваше имя"
-                      className={`w-full pl-10 pr-4 py-3 border ${errors.name ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500`}
+                      inputMode="email"
+                      autoComplete="username"
+                      value={formData.email}
+                      onChange={(e) => handleInputChange("email", e.target.value)}
+                      placeholder="example@mail.ru или +7…"
+                      className={`w-full pl-10 pr-4 py-3 border ${
+                        errors.email ? "border-red-500" : "border-gray-300"
+                      } rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500`}
                     />
                   </div>
-                  {errors.name && (
-                    <p className="text-red-500 text-xs mt-1">{errors.name}</p>
-                  )}
+                  {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
                 </div>
               )}
-
-              {/* Birth Date field (registration only) */}
-              {!isLogin && (
+              {isRegister && formData.authMethod === "email" && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Дата рождения <span className="text-xs text-gray-500">(вам должно быть не менее 18 лет)</span>
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                   <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-gray-400 pointer-events-none z-10" />
-                    <DatePicker
-                      selected={formData.birthDate ? new Date(formData.birthDate) : null}
-                      onChange={(date) => {
-                        if (date) {
-                          handleInputChange("birthDate", date.toISOString().split('T')[0]);
-                        }
-                      }}
-                      dateFormat="dd.MM.yyyy"
-                      locale="ru"
-                      showMonthDropdown
-                      showYearDropdown
-                      dropdownMode="select"
-                      maxDate={new Date(new Date().getFullYear() - 18, new Date().getMonth(), new Date().getDate())}
-                      placeholderText="Выберите дату"
-                      className={`w-full pl-10 pr-4 py-3 border ${errors.birthDate ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500`}
-                      wrapperClassName="w-full"
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-gray-400" />
+                    <input
+                      type="email"
+                      autoComplete="email"
+                      value={formData.email}
+                      onChange={(e) => handleInputChange("email", e.target.value)}
+                      placeholder="example@mail.ru"
+                      className={`w-full pl-10 pr-4 py-3 border ${
+                        errors.email ? "border-red-500" : "border-gray-300"
+                      } rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500`}
                     />
                   </div>
-                  {errors.birthDate && (
-                    <p className="text-red-500 text-xs mt-1">{errors.birthDate}</p>
-                  )}
+                  {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
                 </div>
               )}
-
-              {/* Email field */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-gray-400" />
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => handleInputChange("email", e.target.value)}
-                    placeholder="example@mail.ru"
-                    className={`w-full pl-10 pr-4 py-3 border ${errors.email ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500`}
-                  />
-                </div>
-                {errors.email && (
-                  <p className="text-red-500 text-xs mt-1">{errors.email}</p>
-                )}
-              </div>
-
-              {/* Phone field (registration only) */}
-              {!isLogin && (
+              {isRegister && formData.authMethod === "phone" && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Телефон
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Номер телефона</label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-gray-400" />
-                    <InputMask
-                      mask="+7 (999) 999-99-99"
-                      value={formData.phone}
-                      onChange={(e) => handleInputChange("phone", e.target.value)}
-                      placeholder="+7 (___) ___-__-__"
-                      className={`w-full pl-10 pr-4 py-3 border ${errors.phone ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500`}
+                    <input
+                      type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
+                      value={formData.loginPhone}
+                      onChange={(e) => handleInputChange("loginPhone", e.target.value)}
+                      placeholder="+7 9XX XXX-XX-XX"
+                      className={`w-full pl-10 pr-4 py-3 border ${
+                        errors.loginPhone ? "border-red-500" : "border-gray-300"
+                      } rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500`}
                     />
                   </div>
-                  {errors.phone && (
-                    <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
+                  {errors.loginPhone && (
+                    <p className="text-red-500 text-xs mt-1">{errors.loginPhone}</p>
                   )}
                 </div>
               )}
@@ -493,6 +502,7 @@ export function AuthModal({ show = true, onClose, onAuthSuccess, onSuccess }: Au
                     onChange={(e) => handleInputChange("password", e.target.value)}
                     placeholder="••••••••"
                     className={`w-full pl-10 pr-4 py-3 border ${errors.password ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500`}
+                    autoComplete={isLogin ? "current-password" : "new-password"}
                   />
                   <button
                     type="button"
@@ -521,6 +531,7 @@ export function AuthModal({ show = true, onClose, onAuthSuccess, onSuccess }: Au
                       onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
                       placeholder="••••••••"
                       className={`w-full pl-10 pr-4 py-3 border ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500`}
+                      autoComplete="new-password"
                     />
                     <button
                       type="button"
@@ -536,27 +547,104 @@ export function AuthModal({ show = true, onClose, onAuthSuccess, onSuccess }: Au
                 </div>
               )}
 
+              {/* Профиль — только при регистрации */}
+              {!isLogin && (
+                <div className="space-y-4 border-t border-gray-100 pt-4">
+                  <p className="text-sm font-medium text-gray-800">Профиль</p>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Основное фото *</label>
+                    <label className="mt-1 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 p-3 text-sm text-gray-600 hover:bg-gray-50">
+                      <Camera className="size-4" />
+                      <span>{formData.avatarUrl ? "Фото загружено" : "Загрузить фото"}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => void handleAvatarUpload(e.target.files?.[0])}
+                      />
+                    </label>
+                    {errors.avatarUrl && <p className="mt-1 text-xs text-red-500">{errors.avatarUrl}</p>}
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Имя *</label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => handleInputChange("name", e.target.value)}
+                      className={`w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500 ${
+                        errors.name ? "border-red-500" : "border-gray-300"
+                      }`}
+                      placeholder="Как вас зовут"
+                    />
+                    {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name}</p>}
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Дата рождения *</label>
+                    <input
+                      type="date"
+                      max={getAdultMaxDate()}
+                      value={formData.birthDate}
+                      onChange={(e) => handleInputChange("birthDate", e.target.value)}
+                      className={`w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500 ${
+                        errors.birthDate ? "border-red-500" : "border-gray-300"
+                      }`}
+                    />
+                    {errors.birthDate && <p className="mt-1 text-xs text-red-500">{errors.birthDate}</p>}
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Пол *</label>
+                    <select
+                      value={formData.gender}
+                      onChange={(e) => handleInputChange("gender", e.target.value as "male" | "female")}
+                      className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500"
+                    >
+                      <option value="female">Женский</option>
+                      <option value="male">Мужской</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">О себе</label>
+                    <textarea
+                      rows={2}
+                      value={formData.bio}
+                      onChange={(e) => handleInputChange("bio", e.target.value)}
+                      className="w-full resize-none rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500"
+                      placeholder="Коротко о себе"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Интересы (через запятую)</label>
+                    <input
+                      type="text"
+                      value={formData.interests}
+                      onChange={(e) => handleInputChange("interests", e.target.value)}
+                      className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500"
+                      placeholder="Кино, спорт, путешествия"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Дополнительные фото</label>
+                    <label className="mt-1 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 p-2 text-sm text-gray-600 hover:bg-gray-50">
+                      <Camera className="size-4" />
+                      <span>Добавить</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => void handleExtraPhoto(e.target.files?.[0])}
+                      />
+                    </label>
+                    {formData.photos.length > 0 && (
+                      <p className="mt-1 text-xs text-gray-500">Добавлено: {formData.photos.length}</p>
+                    )}
+                    {errors.photos && <p className="mt-1 text-xs text-red-500">{errors.photos}</p>}
+                  </div>
+                </div>
+              )}
+
               {/* Terms and Conditions (registration only) */}
               {!isLogin && (
                 <div className="space-y-3 pt-2">
-                  {/* Age confirmation */}
-                  <div>
-                    <label className="flex items-start gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.isOver18}
-                        onChange={(e) => handleInputChange("isOver18", e.target.checked)}
-                        className="mt-1 size-4 text-red-500 border-gray-300 rounded focus:ring-red-500"
-                      />
-                      <span className="text-sm text-gray-600 leading-relaxed">
-                        Мне уже есть 18 лет
-                      </span>
-                    </label>
-                    {errors.isOver18 && (
-                      <p className="text-red-500 text-xs mt-1 ml-7">{errors.isOver18}</p>
-                    )}
-                  </div>
-
                   {/* Privacy Policy */}
                   <div>
                     <label className="flex items-start gap-3 cursor-pointer">
@@ -698,13 +786,18 @@ export function AuthModal({ show = true, onClose, onAuthSuccess, onSuccess }: Au
                       setMode(isLogin ? "register" : "login");
                       setErrors({});
                       setFormData({
-                        name: "",
-                        birthDate: "",
                         email: "",
-                        phone: "",
+                        authMethod: "email",
+                        loginPhone: "",
                         password: "",
                         confirmPassword: "",
-                        isOver18: false,
+                        name: "",
+                        birthDate: "",
+                        gender: "female",
+                        avatarUrl: "",
+                        photos: [],
+                        bio: "",
+                        interests: "",
                         agreeToPrivacy: false,
                         agreeToTerms: false,
                         agreeToOffer: false,

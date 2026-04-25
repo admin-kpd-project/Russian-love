@@ -9,7 +9,7 @@ from app.api.deps import get_current_user
 from app.core.envelope import Envelope
 from app.db.models import User
 from app.db.session import get_db
-from app.schemas.profile import ProfilePatch, user_to_profile
+from app.schemas.profile import CompleteProfileBody, ProfilePatch, user_to_profile
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
@@ -27,12 +27,22 @@ async def patch_me(
 ):
     if body.name is not None:
         user.display_name = body.name.strip()[:200]
+    if body.email is not None:
+        email = str(body.email).strip().lower()
+        exists = await db.execute(select(User).where(User.email == email, User.id != user.id))
+        if exists.scalar_one_or_none():
+            return JSONResponse(status_code=409, content=Envelope.err("Email уже занят"))
+        user.email = email
+    if body.birth_date is not None:
+        user.birth_date = body.birth_date
     if body.bio is not None:
         user.bio = body.bio
     if body.location is not None:
         user.location = body.location[:200]
     if body.avatar_url is not None:
         user.avatar_url = body.avatar_url
+    if body.photos is not None:
+        user.photos = body.photos
     if body.interests is not None:
         user.interests = body.interests
     if body.personality is not None:
@@ -49,11 +59,43 @@ async def patch_me(
     return Envelope.ok(user_to_profile(user).model_dump(by_alias=True))
 
 
+@router.post("/me/complete-profile")
+async def complete_profile(
+    body: CompleteProfileBody,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    gender = body.gender.strip().lower()
+    if gender not in {"male", "female"}:
+        return JSONResponse(status_code=400, content=Envelope.err("gender должен быть male или female"))
+    email = str(body.email).strip().lower()
+    exists = await db.execute(select(User).where(User.email == email, User.id != user.id))
+    if exists.scalar_one_or_none():
+        return JSONResponse(status_code=409, content=Envelope.err("Email уже занят"))
+
+    user.display_name = body.name.strip()[:200]
+    user.email = email
+    user.birth_date = body.birth_date
+    if not user.gender:
+        user.gender = gender
+    user.avatar_url = body.avatar_url
+    user.photos = body.photos or []
+    user.bio = body.bio or ""
+    user.interests = body.interests or []
+    user.profile_completed = True
+    await db.flush()
+
+    from app.core.redis_client import get_redis
+
+    r = await get_redis()
+    await r.delete(f"profile:{user.id}")
+    return Envelope.ok(user_to_profile(user).model_dump(by_alias=True))
+
+
 @router.get("/{user_id}")
 async def get_user_profile(
     user_id: UUID,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_user),
 ):
     from app.core.redis_client import get_redis
 

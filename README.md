@@ -13,8 +13,6 @@ docker compose up --build
 - Веб напрямую (контейнер): http://localhost:5173  
 - MinIO консоль: http://localhost:9001 (minioadmin / minioadmin)
 
-**Демо-логин после сидов:** `demo@example.com` / `password123`
-
 Переменные окружения API см. [backend/.env.example](backend/.env.example) (префикс `DATING_`).
 
 ## Локальная разработка
@@ -29,7 +27,6 @@ pip install -r requirements.txt
 copy .env.example .env   # отредактировать при необходимости
 # поднять Postgres + Redis + MinIO (или docker compose up postgres redis minio)
 alembic upgrade head
-python -m app.seed
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -56,15 +53,15 @@ set VITE_API_BASE_URL=http://localhost:8000   # Windows CMD
 npm run dev
 ```
 
-Если `VITE_API_BASE_URL` не задан, веб работает в **DEMO**-режиме без запросов к API.
+Если `VITE_API_BASE_URL` не задан, фронт пытается работать через `http://localhost:8080`.
 
 ### Ручная проверка (чек-лист)
 
 1. Запустите `docker compose up --build` и дождитесь готовности Postgres/Redis.
 2. Откройте веб через **шлюз nginx**: **http://localhost:8080** (так в собранном образе уже зашит `VITE_API_BASE_URL=http://localhost:8080`, демо-режим выключен, запросы идут на `/api` того же origin).
-3. Войдите: после сидов **`demo@example.com` / `password123`**, либо зарегистрируйте второго пользователя (вторая вкладка инкогнито) для обмена сообщениями.
-4. Лента: карточки приходят с **GET /api/feed** (пусто, если в ленте никого кроме вас — используйте демо-аккаунт или сиды).
-5. Чаты: список — **GET /api/conversations**; переписка — история и отправка через REST (см. спеку).
+3. Зарегистрируйте минимум двух пользователей (вторая вкладка инкогнито) для проверки лайков/матчей/чатов.
+4. Лента: карточки приходят с **GET /api/feed**.
+5. Чаты: список — **GET /api/conversations**; переписка — история + отправка через REST и realtime через WebSocket.
 6. Локально без Docker (`npm run dev` в `web/`): создайте **`web/.env.local`** с `VITE_API_BASE_URL=http://localhost:8080` (через nginx) или `http://localhost:8000` (прямо в API; в `DATING_CORS_ORIGINS` должен быть origin Vite, например `http://localhost:5173`).
 
 **TLS на VPS:** в репозитории [deploy/nginx.conf](deploy/nginx.conf) только порт 80. Для HTTPS добавьте `listen 443 ssl`, пути к сертификату и ключу (Let's Encrypt / certbot или свой провайдер) и при необходимости редирект с 80 на 443 — секреты в репозиторий не коммитьте.

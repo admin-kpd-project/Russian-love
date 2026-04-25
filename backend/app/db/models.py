@@ -23,16 +23,25 @@ class User(Base):
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     display_name: Mapped[str] = mapped_column(String(200), nullable=False)
     birth_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(32), unique=True, index=True, nullable=True)
+    gender: Mapped[str | None] = mapped_column(String(16), nullable=True)
     yandex_id: Mapped[str | None] = mapped_column(String(64), unique=True, index=True, nullable=True)
 
     avatar_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    photos: Mapped[list] = mapped_column(JSONB, nullable=False, server_default="[]")
     bio: Mapped[str] = mapped_column(Text, nullable=False, default="")
     location: Mapped[str] = mapped_column(String(200), nullable=False, default="")
     interests: Mapped[list] = mapped_column(JSONB, nullable=False, server_default="[]")
     personality: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     astrology: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     numerology: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    profile_completed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    is_premium: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    premium_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    super_likes_balance: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
+    has_unlimited_analysis: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    purchased_analysis_user_ids: Mapped[list] = mapped_column(JSONB, nullable=False, server_default="[]")
 
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -107,3 +116,115 @@ class FeedProfile(Base):
     )
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+
+class Like(Base):
+    __tablename__ = "likes"
+    __table_args__ = (
+        UniqueConstraint("from_user_id", "to_user_id", name="uq_like_from_to"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    from_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    to_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    is_super: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Match(Base):
+    __tablename__ = "matches"
+    __table_args__ = (
+        UniqueConstraint("user_a_id", "user_b_id", name="uq_match_pair"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_a_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    user_b_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    type: Mapped[str] = mapped_column(String(32), nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
+class InviteCode(Base):
+    __tablename__ = "invite_codes"
+
+    code: Mapped[str] = mapped_column(String(32), primary_key=True)
+    inviter_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    used_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class UserFavorite(Base):
+    __tablename__ = "user_favorites"
+    __table_args__ = (UniqueConstraint("user_id", "target_user_id", name="uq_fav_user_target"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    target_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ProfileRecommendation(Base):
+    __tablename__ = "profile_recommendations"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    from_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    to_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    target_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE")
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Payment(Base):
+    __tablename__ = "payments"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    provider: Mapped[str] = mapped_column(String(32), nullable=False, default="tbank")
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    amount_minor: Mapped[int] = mapped_column(Integer, nullable=False)
+    currency: Mapped[str] = mapped_column(String(8), nullable=False, default="RUB")
+    external_payment_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    meta: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

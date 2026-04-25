@@ -1,31 +1,31 @@
-import { Heart, Sparkles, Shield, MessageCircle, Zap, Globe, Download, ArrowRight, Star, UsersRound, TrendingUp } from "lucide-react";
+import { Heart, Sparkles, Shield, MessageCircle, Zap, Globe, Download, ArrowRight, Star, UsersRound, TrendingUp, LogIn } from "lucide-react";
 import { motion } from "motion/react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router";
 import matreshkaLogo from "../../imports/1775050275_(1)_3_(1)-1.png";
 import { AuthModal } from "./AuthModal";
-import { useAuth } from "../contexts/AuthContext";
+import { getCurrentUser } from "../services/usersService";
 
 export function LandingPage() {
   const navigate = useNavigate();
-  const { isAuthenticated, loading } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
+  const [authInitialMode, setAuthInitialMode] = useState<"login" | "register">("register");
 
-  // Redirect to app if already authenticated
-  useEffect(() => {
-    if (!loading && isAuthenticated) {
-      navigate("/app");
-    }
-  }, [isAuthenticated, loading, navigate]);
-
-  const handleGetStarted = () => {
+  const openRegister = () => {
+    setAuthInitialMode("register");
     setShowAuth(true);
   };
 
-  const handleAuthSuccess = () => {
-    // The AuthContext will handle the state update
-    // Just close the modal and let the useEffect handle the navigation
+  const openLogin = () => {
+    setAuthInitialMode("login");
+    setShowAuth(true);
+  };
+
+  const handleAuthSuccess = async () => {
     setShowAuth(false);
+    const res = await getCurrentUser();
+    if (!res.data) return;
+    navigate("/app", { replace: true });
   };
 
   const features = [
@@ -61,25 +61,25 @@ export function LandingPage() {
     }
   ];
 
-  const stats = [
-    { value: "50K+", label: "Активных пользователей" },
-    { value: "10K+", label: "Счастливых пар" },
-    { value: "95%", label: "Точность AI" },
+  const mvpHighlights = [
+    { value: "MVP", label: "Сервис в развитии" },
+    { value: "AI", label: "Совместимость и аналитика" },
+    { value: "24/7", label: "Доступ к приложению" },
   ];
 
   return (
-    <div className="size-full bg-gradient-to-br from-red-50 via-amber-50 to-yellow-50 overflow-y-auto">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+    <div className="size-full min-h-dvh bg-gradient-to-br from-red-50 via-amber-50 to-yellow-50 overflow-y-auto pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      {/* Header — как на forruss.ru: отдельно «начать» и «войти» */}
+      <header className="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-50 pt-[max(0px,env(safe-area-inset-top))]">
+        <div className="max-w-6xl mx-auto px-4 py-3 sm:py-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <img 
               src={matreshkaLogo} 
               alt="Matreshka Logo" 
-              className="size-10 object-contain"
+              className="size-9 sm:size-10 object-contain shrink-0"
             />
-            <div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-red-600 to-amber-600 bg-clip-text text-transparent">
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-red-600 to-amber-600 bg-clip-text text-transparent truncate">
                 Любить по-russки
               </h1>
               <a 
@@ -92,12 +92,23 @@ export function LandingPage() {
               </a>
             </div>
           </div>
-          <button
-            onClick={handleGetStarted}
-            className="px-6 py-2 bg-gradient-to-r from-red-500 to-amber-500 text-white rounded-full font-medium hover:shadow-lg transition-all"
-          >
-            Войти
-          </button>
+          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-end">
+            <button
+              type="button"
+              onClick={openRegister}
+              className="min-h-11 min-w-[44px] px-4 sm:px-5 py-2.5 rounded-full text-sm sm:text-base font-medium border-2 border-red-200 text-red-600 hover:bg-red-50 transition-all"
+            >
+              Регистрация
+            </button>
+            <button
+              type="button"
+              onClick={openLogin}
+              className="min-h-11 min-w-[44px] px-4 sm:px-6 py-2.5 bg-gradient-to-r from-red-500 to-amber-500 text-white rounded-full text-sm sm:text-base font-medium hover:shadow-lg transition-all inline-flex items-center justify-center gap-1.5"
+            >
+              <LogIn className="size-4 sm:size-5" />
+              Войти
+            </button>
+          </div>
         </div>
       </header>
 
@@ -124,53 +135,60 @@ export function LandingPage() {
             </div>
           </div>
           
-          <h2 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-red-600 to-amber-600 bg-clip-text text-transparent">
+          <h2 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-4 sm:mb-6 bg-gradient-to-r from-red-600 to-amber-600 bg-clip-text text-transparent px-1">
             Знакомства с русской душой
           </h2>
           
-          <p className="text-xl md:text-2xl text-gray-700 mb-4 max-w-3xl mx-auto font-medium">
-            Люди — это наше богатство
+          <p className="text-lg sm:text-xl md:text-2xl text-gray-800 mb-3 max-w-3xl mx-auto font-medium px-2">
+            Уникальное приложение для знакомств с AI-алгоритмом расчёта совместимости
           </p>
           
-          <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
-            Мы создали простое и понятное приложение для знакомств, где искусственный интеллект помогает найти идеального партнера
+          <p className="text-base sm:text-lg text-gray-600 mb-8 sm:mb-10 max-w-2xl mx-auto px-2">
+            Искусственный интеллект анализирует ваши интересы, характер и ценности, чтобы помочь найти подходящего партнёра
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-4 max-w-md sm:max-w-2xl mx-auto px-1">
             <button
-              onClick={handleGetStarted}
-              className="group px-8 py-4 bg-gradient-to-r from-red-500 to-amber-500 text-white rounded-full text-lg font-medium hover:shadow-2xl transition-all flex items-center gap-2"
+              type="button"
+              onClick={openRegister}
+              className="group min-h-[44px] px-6 sm:px-8 py-3.5 bg-gradient-to-r from-red-500 to-amber-500 text-white rounded-full text-base sm:text-lg font-medium hover:shadow-2xl transition-all flex items-center justify-center gap-2"
             >
-              <Download className="size-5" />
+              <Download className="size-5 shrink-0" />
               Начать знакомство
-              <ArrowRight className="size-5 group-hover:translate-x-1 transition-transform" />
+              <ArrowRight className="size-5 group-hover:translate-x-1 transition-transform shrink-0" />
             </button>
-            
+            <button
+              type="button"
+              onClick={openLogin}
+              className="min-h-[44px] px-6 sm:px-8 py-3.5 bg-white text-gray-800 rounded-full text-base sm:text-lg font-medium hover:shadow-lg transition-all border-2 border-gray-200 flex items-center justify-center gap-2"
+            >
+              <LogIn className="size-5" />
+              Войти
+            </button>
             <a
               href="https://forruss.ru"
               target="_blank"
               rel="noopener noreferrer"
-              className="px-8 py-4 bg-white text-gray-800 rounded-full text-lg font-medium hover:shadow-lg transition-all border-2 border-gray-200 flex items-center gap-2"
+              className="min-h-[44px] px-6 sm:px-8 py-3.5 bg-white/60 text-gray-700 rounded-full text-base sm:text-lg font-medium hover:bg-white border border-dashed border-gray-300 flex items-center justify-center gap-2"
             >
               <Globe className="size-5" />
-              Посетить forruss.ru
+              forruss.ru
             </a>
           </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-8 mt-16 max-w-3xl mx-auto">
-            {stats.map((stat, index) => (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-8 mt-12 sm:mt-16 max-w-3xl mx-auto px-2">
+            {mvpHighlights.map((row, index) => (
               <motion.div
-                key={stat.label}
+                key={row.label}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.2 + index * 0.1 }}
-                className="text-center"
+                className="text-center rounded-2xl bg-white/50 px-3 py-3 border border-amber-100/80"
               >
-                <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-red-600 to-amber-600 bg-clip-text text-transparent mb-2">
-                  {stat.value}
+                <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-red-600 to-amber-600 bg-clip-text text-transparent mb-1 sm:mb-2">
+                  {row.value}
                 </div>
-                <div className="text-sm md:text-base text-gray-600">{stat.label}</div>
+                <div className="text-xs sm:text-sm text-gray-600 leading-snug">{row.label}</div>
               </motion.div>
             ))}
           </div>
@@ -491,47 +509,20 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Testimonials */}
       <section className="bg-white py-16 md:py-24">
-        <div className="max-w-6xl mx-auto px-4">
+        <div className="max-w-3xl mx-auto px-4 text-center">
           <motion.div
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
           >
             <h3 className="text-3xl md:text-4xl font-bold mb-4 text-gray-900">
               Истории успеха
             </h3>
-            <p className="text-lg text-gray-600">
-              Настоящие отзывы счастливых пар
+            <p className="text-lg text-gray-600 leading-relaxed">
+              Мы в режиме MVP: раздел с реальными отзывами и историями появится позже. Сейчас приоритет — стабильность, безопасность и честные знакомства.
             </p>
           </motion.div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              { name: "Анна и Дмитрий", text: "Встретились через приложение 6 месяцев назад. AI показал 94% совместимости, и он не ошибся!", rating: 5 },
-              { name: "Мария и Александр", text: "Спасибо за супер-лайк! Без него мы бы никогда не познакомились. Теперь планируем свадьбу!", rating: 5 },
-              { name: "Екатерина", text: "Лучшее приложение для знакомств! Интерфейс удобный, люди адекватные. Рекомендую!", rating: 5 },
-            ].map((testimonial, index) => (
-              <motion.div
-                key={testimonial.name}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="p-6 rounded-2xl bg-gradient-to-br from-red-50 to-amber-50"
-              >
-                <div className="flex gap-1 mb-4">
-                  {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star key={i} className="size-5 fill-amber-500 text-amber-500" />
-                  ))}
-                </div>
-                <p className="text-gray-700 mb-4 italic">"{testimonial.text}"</p>
-                <p className="font-medium text-gray-900">— {testimonial.name}</p>
-              </motion.div>
-            ))}
-          </div>
         </div>
       </section>
 
@@ -549,21 +540,30 @@ export function LandingPage() {
               Готовы найти свою половинку?
             </h3>
             <p className="text-lg md:text-xl mb-8 opacity-90">
-              Присоединяйтесь к тысячам счастливых пользователей уже сегодня
+              Создайте аккаунт или войдите — и пройдите настройку профиля, чтобы увидеть ленту
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-4 max-w-md sm:max-w-2xl mx-auto">
               <button
-                onClick={handleGetStarted}
-                className="px-8 py-4 bg-white text-red-600 rounded-full text-lg font-medium hover:shadow-2xl transition-all flex items-center gap-2"
+                type="button"
+                onClick={openRegister}
+                className="min-h-[44px] px-8 py-4 bg-white text-red-600 rounded-full text-lg font-medium hover:shadow-2xl transition-all flex items-center justify-center gap-2"
               >
                 <Download className="size-5" />
                 Начать сейчас
+              </button>
+              <button
+                type="button"
+                onClick={openLogin}
+                className="min-h-[44px] px-8 py-4 bg-white/10 backdrop-blur-sm text-white rounded-full text-lg font-medium hover:bg-white/20 transition-all border-2 border-white/30 flex items-center justify-center gap-2"
+              >
+                <LogIn className="size-5" />
+                Войти
               </button>
               <a
                 href="https://forruss.ru"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-8 py-4 bg-white/10 backdrop-blur-sm text-white rounded-full text-lg font-medium hover:bg-white/20 transition-all border-2 border-white/30 flex items-center gap-2"
+                className="min-h-[44px] px-8 py-4 text-white/95 rounded-full text-lg font-medium border border-white/30 flex items-center justify-center gap-2 hover:bg-white/10"
               >
                 <Globe className="size-5" />
                 forruss.ru
@@ -594,9 +594,9 @@ export function LandingPage() {
             <div>
               <h4 className="font-bold mb-4">Продукт</h4>
               <ul className="space-y-2 text-sm text-gray-400">
-                <li><button onClick={handleGetStarted} className="hover:text-white transition-colors">Функции</button></li>
-                <li><button onClick={handleGetStarted} className="hover:text-white transition-colors">Тарифы</button></li>
-                <li><button onClick={handleGetStarted} className="hover:text-white transition-colors">Безопасность</button></li>
+                <li><button type="button" onClick={openRegister} className="hover:text-white transition-colors min-h-10 text-left w-full sm:w-auto">Регистрация</button></li>
+                <li><a href="https://forruss.ru" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors inline-block min-h-10 py-1.5">Тарифы</a></li>
+                <li><button type="button" onClick={openLogin} className="hover:text-white transition-colors min-h-10 text-left w-full sm:w-auto">Вход</button></li>
               </ul>
             </div>
             
@@ -655,6 +655,7 @@ export function LandingPage() {
       {/* Auth Modal */}
       {showAuth && (
         <AuthModal
+          initialMode={authInitialMode}
           onClose={() => setShowAuth(false)}
           onSuccess={handleAuthSuccess}
         />

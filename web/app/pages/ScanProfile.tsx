@@ -2,53 +2,42 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import { motion } from "motion/react";
 import { ArrowLeft, Heart, Sparkles, MapPin, User } from "lucide-react";
-import { UserProfile, currentUser, calculateCompatibility } from "../utils/compatibilityAI";
-import { saveScanEvent } from "../utils/scanEvents";
-import { datingProfiles } from "../data/profiles";
+import { UserProfile, calculateCompatibility } from "../utils/compatibilityAI";
 import matreshkaLogo from "../../imports/1775050275_(1)_3_(1)-1.png";
+import { getCurrentUser, getUserById } from "../services/usersService";
+import { mapApiProfileToUserProfile } from "../utils/mapApiProfile";
 
 export function ScanProfile() {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   const [scannedUser, setScannedUser] = useState<UserProfile | null>(null);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [compatibility, setCompatibility] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate loading
-    setTimeout(() => {
-      if (userId) {
-        const userIdNum = parseInt(userId);
-        
-        // Find user in profiles or use current user if it's their own QR
-        let foundUser: UserProfile | undefined;
-        
-        if (userIdNum === currentUser.id) {
-          foundUser = currentUser;
-        } else {
-          foundUser = datingProfiles.find(p => p.id === userIdNum);
-        }
-
-        if (foundUser) {
-          setScannedUser(foundUser);
-          
-          // Calculate compatibility
-          const comp = calculateCompatibility(currentUser, foundUser);
-          setCompatibility(comp);
-          
-          // Save scan event (scanner scans scannedUser)
-          // This creates a notification for the scanned user
-          saveScanEvent({
-            scannedUserId: userIdNum,
-            scannerUserId: currentUser.id,
-            scannerProfile: currentUser,
-            compatibility: comp,
-            viewed: false,
-          });
-        }
+    let cancelled = false;
+    (async () => {
+      if (!userId) {
+        setIsLoading(false);
+        return;
       }
+      const [meRes, scannedRes] = await Promise.all([getCurrentUser(), getUserById(userId)]);
+      if (cancelled) return;
+      if (!meRes.data || !scannedRes.data) {
+        setIsLoading(false);
+        return;
+      }
+      const me = mapApiProfileToUserProfile(meRes.data);
+      const scanned = mapApiProfileToUserProfile(scannedRes.data);
+      setCurrentUser(me);
+      setScannedUser(scanned);
+      setCompatibility(calculateCompatibility(me, scanned));
       setIsLoading(false);
-    }, 1000);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [userId]);
 
   if (isLoading) {
@@ -95,7 +84,7 @@ export function ScanProfile() {
   }
 
   // If scanning own QR code
-  if (scannedUser.id === currentUser.id) {
+  if (currentUser && scannedUser.id === currentUser.id) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 via-amber-50 to-yellow-50 flex items-center justify-center p-4">
         <div className="text-center max-w-md">

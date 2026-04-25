@@ -1,16 +1,18 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_completed_user
+from app.core.chat_ws import chat_ws_manager
+from app.core.security import decode_access_token
 from app.config.settings import get_settings
 from app.core.envelope import Envelope
-from app.db.models import Conversation, ConversationMember, Message, User
+from app.db.models import Conversation, ConversationMember, Message, Notification, User
 from app.db.session import get_db
 from app.schemas.profile import CreateConversationBody, SendMessageBody
 
@@ -51,7 +53,7 @@ async def _find_direct_conversation(db: AsyncSession, a: UUID, b: UUID) -> Conve
 @router.get("/conversations")
 async def list_conversations(
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_current_completed_user),
 ):
     result = await db.execute(
         select(Conversation)
@@ -97,7 +99,7 @@ async def list_conversations(
 async def create_conversation(
     body: CreateConversationBody,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_current_completed_user),
 ):
     if body.user_id == user.id:
         return JSONResponse(status_code=400, content=Envelope.err("Нельзя открыть беседу с самим собой"))
@@ -124,7 +126,7 @@ async def create_conversation(
 async def get_messages(
     conversation_id: UUID,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_current_completed_user),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
 ):
@@ -172,7 +174,7 @@ async def post_message(
     conversation_id: UUID,
     body: SendMessageBody,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_current_completed_user),
 ):
     mem = (
         await db.execute(
@@ -205,24 +207,55 @@ async def post_message(
     await db.flush()
     await db.refresh(msg)
     mtype = "text" if not media else (body.media_type or "image")
-    return Envelope.ok(
+    payload = {
+        "id": str(msg.id),
+        "text": msg.body,
+        "type": mtype,
+        "sender": "me",
+        "time": _msg_time(msg.created_at),
+        "mediaUrl": msg.media_url,
+        "duration": None,
+    }
+    # Create notification for conversation peers
+    members = (
+        await db.execute(
+            select(ConversationMember).where(ConversationMember.conversation_id == conversation_id)
+        )
+    ).scalars().all()
+    for member in members:
+        if member.user_id == user.id:
+            continue
+        db.add(
+            Notification(
+                user_id=member.user_id,
+                type="message",
+                title="Новое сообщение",
+                message=f"{user.display_name}: {(msg.body or 'медиа')[:120]}",
+                payload={
+                    "conversationId": str(conversation_id),
+                    "peerUserId": str(user.id),
+                },
+            )
+        )
+    await chat_ws_manager.broadcast(
+        conversation_id,
         {
-            "id": str(msg.id),
-            "text": msg.body,
-            "type": mtype,
-            "sender": "me",
-            "time": _msg_time(msg.created_at),
-            "mediaUrl": msg.media_url,
-            "duration": None,
-        }
+            "event": "message",
+            "conversationId": str(conversation_id),
+            "message": {
+                **payload,
+                "sender": "other",
+            },
+        },
     )
+    return Envelope.ok(payload)
 
 
 @router.delete("/messages/{message_id}")
 async def delete_message(
     message_id: UUID,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_current_completed_user),
 ):
     msg = (await db.execute(select(Message).where(Message.id == message_id))).scalar_one_or_none()
     if msg is None:
@@ -242,3 +275,33 @@ async def delete_message(
     msg.is_deleted = True
     await db.flush()
     return Envelope.ok({"ok": True})
+
+
+@router.websocket("/ws/chats/{conversation_id}")
+async def chat_ws(conversation_id: UUID, websocket: WebSocket):
+    token = websocket.query_params.get("token") or ""
+    uid = decode_access_token(token)
+    if uid is None:
+        await websocket.close(code=4401)
+        return
+
+    from app.db.session import get_session_factory
+
+    async with get_session_factory()() as db:
+        mem = (
+            await db.execute(
+                select(ConversationMember).where(
+                    ConversationMember.conversation_id == conversation_id,
+                    ConversationMember.user_id == uid,
+                )
+            )
+        ).scalar_one_or_none()
+        if mem is None:
+            await websocket.close(code=4403)
+            return
+    await chat_ws_manager.connect(conversation_id, websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        await chat_ws_manager.disconnect(conversation_id, websocket)
