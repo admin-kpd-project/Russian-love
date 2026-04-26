@@ -132,3 +132,29 @@ jobs:
         env:
           VITE_API_BASE_URL: http://localhost:8000
         run: npm run build
+      - name: Archive Web Dist
+        run: tar -czf web-dist.tar.gz dist/
+      - name: Compute SHA256
+        shell: bash
+        run: |
+          SHA256=$(openssl dgst -sha256 "web-dist.tar.gz" | awk '{print $2}')
+          echo "FILE_SHA256=${SHA256}" >> $GITHUB_ENV
+      - name: Upload to YC Registry
+        shell: bash
+        run: |
+          curl \
+            --fail \
+            --request PUT \
+            --user "api_key:${{ secrets.YC_API_KEY }}" \
+            --header "X-Checksum-SHA256: ${FILE_SHA256}" \
+            --upload-file "web-dist.tar.gz" \
+          "https://registry.yandexcloud.net/binaries/${{ secrets.REGISTRY_WEB_ARCHIVE }}/frontend/${{ github.sha }}/web-dist.tar.gz"
+
+      - name: Summary
+        shell: bash
+        run: |
+          echo "### ✅ Binary uploaded to YC Registry" >> $GITHUB_STEP_SUMMARY
+          echo "- **Artifact:** \`frontend\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **File:** \`web-dist.tar.gz\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **SHA256:** \`${FILE_SHA256}\`" >> $GITHUB_STEP_SUMMARY
