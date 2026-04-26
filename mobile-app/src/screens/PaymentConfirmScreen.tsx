@@ -1,11 +1,14 @@
 import { useMemo, useEffect, useState } from "react";
-import { View, Text, Pressable, StyleSheet, Linking } from "react-native";
+import { View, Text, StyleSheet, Linking, Platform } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { CheckCircle2 } from "lucide-react-native";
 
 import type { RootStackParamList } from "../navigation/types";
+import { FadeInView, LoopingView } from "../components/ui/Motion";
+import { GradientButton } from "../components/ui/GradientButton";
+import { brandGradients } from "../theme/designTokens";
 
 type Props = NativeStackScreenProps<RootStackParamList, "PaymentConfirm">;
 
@@ -37,22 +40,18 @@ export function PaymentConfirmScreen({ route, navigation }: Props) {
   }, [orderId]);
 
   return (
-    <LinearGradient colors={["#fef2f2", "#fffbeb", "#fefce8"]} style={styles.page}>
-      <View style={[styles.box, { marginTop: insets.top + 40, marginBottom: insets.bottom + 24 }]}>
-        <View style={styles.ico}>
+    <LinearGradient colors={[...brandGradients.page]} style={styles.page}>
+      <FadeInView style={[styles.box, { marginTop: insets.top + 40, marginBottom: insets.bottom + 24 }]}>
+        <LoopingView kind="pulse" style={styles.ico}>
           <CheckCircle2 size={48} color="#16a34a" />
-        </View>
+        </LoopingView>
         <Text style={styles.h1}>Платёж создан</Text>
         <Text style={styles.p}>
           Заказ передан в обработку. Статус обновится автоматически после ответа платёжного провайдера.
         </Text>
         {shortOrderId ? <Text style={styles.order}>Order ID: {shortOrderId}</Text> : null}
-        <Pressable onPress={() => navigation.replace("Main")} style={styles.btnWrap}>
-          <LinearGradient colors={["#ef4444", "#f59e0b"]} style={styles.btn}>
-            <Text style={styles.btnT}>Вернуться в приложение</Text>
-          </LinearGradient>
-        </Pressable>
-      </View>
+        <GradientButton title="Вернуться в приложение" onPress={() => navigation.replace("Main")} style={styles.btnWrap} />
+      </FadeInView>
     </LinearGradient>
   );
 }
@@ -67,6 +66,10 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     alignSelf: "center",
     width: "100%",
+    ...Platform.select({
+      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.12, shadowRadius: 24 },
+      android: { elevation: 8 },
+    }),
   },
   ico: {
     width: 72,
@@ -80,7 +83,5 @@ const styles = StyleSheet.create({
   h1: { fontSize: 22, fontWeight: "800", color: "#171717", marginBottom: 10, textAlign: "center" },
   p: { fontSize: 15, color: "#57534e", textAlign: "center", lineHeight: 22, marginBottom: 8 },
   order: { fontSize: 12, color: "#78716c", marginBottom: 22 },
-  btnWrap: { width: "100%", borderRadius: 14, overflow: "hidden" },
-  btn: { paddingVertical: 14, alignItems: "center" },
-  btnT: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  btnWrap: { width: "100%" },
 });

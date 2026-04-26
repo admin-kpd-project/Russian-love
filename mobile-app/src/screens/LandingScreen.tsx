@@ -15,8 +15,9 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Heart, Sparkles, Shield, MessageCircle, Zap, Globe, Download, ArrowRight, LogIn, UsersRound, Star } from "lucide-react-native";
 import type { RootStackParamList } from "../navigation/types";
 import { MatreshkaLogo } from "../components/MatreshkaLogo";
-import { FadeInView, ScalePressable } from "../components/ui/Motion";
+import { FadeInView, LoopingView, ScalePressable } from "../components/ui/Motion";
 import { GradientButton } from "../components/ui/GradientButton";
+import { GradientText } from "../components/ui/GradientText";
 import { brandGradients } from "../theme/designTokens";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Landing">;
@@ -34,6 +35,12 @@ const mvpHighlights = [
   { value: "MVP", label: "Сервис в развитии" },
   { value: "AI", label: "Совместимость и аналитика" },
   { value: "24/7", label: "Доступ к приложению" },
+];
+
+const howSteps = [
+  { title: "Создайте профиль", text: "Расскажите о себе и добавьте фото" },
+  { title: "Смотрите совместимость", text: "AI подскажет, насколько вы подходите друг другу" },
+  { title: "Начните общение", text: "Match открывает безопасный чат" },
 ];
 
 export function LandingScreen({ navigation }: Props) {
@@ -197,7 +204,74 @@ export function LandingScreen({ navigation }: Props) {
               </View>
             </View>
           );})}
+          <FadeInView delay={180} style={styles.phoneMock}>
+            <LoopingView kind="pulse" style={styles.mockHeart}>
+              <Heart size={38} color="#fff" fill="#fff" />
+            </LoopingView>
+            <Text style={styles.mockTitle}>95% совместимость</Text>
+            <View style={styles.mockDots}>
+              {[0, 1, 2].map((i) => (
+                <FadeInView key={i} delay={220 + i * 90} style={styles.mockDot} />
+              ))}
+            </View>
+          </FadeInView>
         </View>
+
+        <View style={styles.howSec}>
+          <Text style={styles.simpleH}>Как это работает?</Text>
+          <Text style={styles.simpleP}>Три шага, как на веб-лендинге</Text>
+          {[
+            ["1", "Создайте профиль", "Добавьте фото, интересы и расскажите о себе"],
+            ["2", "Получайте рекомендации", "AI подберёт людей с близкими ценностями"],
+            ["3", "Общайтесь после match", "Пишите только тем, с кем есть взаимная симпатия"],
+          ].map(([n, title, desc], index) => (
+            <FadeInView key={n} delay={index * 90} style={styles.stepRow}>
+              <LinearGradient colors={[...brandGradients.primary]} style={styles.stepNum}>
+                <Text style={styles.stepNumT}>{n}</Text>
+              </LinearGradient>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.simpleRowT}>{title}</Text>
+                <Text style={styles.simpleRowD}>{desc}</Text>
+              </View>
+            </FadeInView>
+          ))}
+        </View>
+
+        <LinearGradient colors={[...brandGradients.apk]} style={styles.apkSec}>
+          <Text style={styles.simpleH}>Приложение для Android</Text>
+          <Text style={styles.simpleP}>APK можно подключить через VITE_APP_DOWNLOAD_URL на вебе; в мобильной версии оставлен тот же промо-блок.</Text>
+          <GradientButton
+            title="Скачать APK"
+            left={<Download size={20} color="#fff" />}
+            right={<ArrowRight size={20} color="#fff" />}
+            onPress={() => Linking.openURL("https://forruss.ru")}
+            style={styles.heroCta}
+          />
+        </LinearGradient>
+
+        <View style={styles.successSec}>
+          <Text style={styles.simpleH}>Истории успеха</Text>
+          <Text style={styles.simpleP}>MVP развивается: реальные истории появятся после первых стабильных матчей.</Text>
+        </View>
+
+        <LinearGradient colors={[...brandGradients.primary]} style={styles.ctaSec}>
+          <Text style={styles.ctaH}>Готовы найти свою половинку?</Text>
+          <Text style={styles.ctaP}>Начните знакомство с русской душой уже сейчас</Text>
+          <GradientButton
+            title="Начать знакомство"
+            variant="light"
+            onPress={() => navigation.navigate("Register")}
+            right={<ArrowRight size={20} color="#292524" />}
+            style={styles.heroLogin}
+          />
+        </LinearGradient>
+
+        <View style={styles.footer}>
+          <MatreshkaLogo size={42} variant="onGradient" />
+          <Text style={styles.footerBrand}>Любить по-russки</Text>
+          <Text style={styles.footerText}>forruss.ru · АО «КПД» · © 2025</Text>
+        </View>
+
       </ScrollView>
     </View>
   );
@@ -242,6 +316,7 @@ const styles = StyleSheet.create({
   hero: { paddingHorizontal: 16, paddingTop: 28, alignItems: "center" },
   heroLogoWrap: { width: 128, height: 128, alignItems: "center", justifyContent: "center", marginBottom: 20 },
   heroGlow: { position: "absolute", width: 140, height: 140, borderRadius: 70, opacity: 0.25 },
+  heroGlowSoft: { position: "absolute", width: 148, height: 148, borderRadius: 74, opacity: 0.2 },
   heroLogoMat: { borderWidth: 3, borderColor: "#fff" },
   heroTitle: { fontSize: 28, fontWeight: "800", textAlign: "center", marginBottom: 12 },
   heroLead: { fontSize: 17, fontWeight: "600", color: "#292524", textAlign: "center", marginBottom: 8, maxWidth: 360 },
@@ -335,4 +410,54 @@ const styles = StyleSheet.create({
   simpleIco: { width: 48, height: 48, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   simpleRowT: { fontSize: 17, fontWeight: "800", color: "#171717", marginBottom: 4 },
   simpleRowD: { fontSize: 15, color: "#57534e", lineHeight: 22 },
+  phoneMock: {
+    alignSelf: "center",
+    width: "88%",
+    maxWidth: 320,
+    minHeight: 150,
+    borderRadius: 28,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.14,
+    shadowRadius: 22,
+    elevation: 8,
+  },
+  mockHeart: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: "#ef4444",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  mockTitle: { fontSize: 18, fontWeight: "900", color: "#dc2626" },
+  mockDots: { flexDirection: "row", gap: 8, marginTop: 12 },
+  mockDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#f59e0b" },
+  howSec: { backgroundColor: "#fff", paddingVertical: 34, paddingHorizontal: 16, marginTop: 8 },
+  stepRow: {
+    flexDirection: "row",
+    gap: 14,
+    alignItems: "center",
+    backgroundColor: "#fff7ed",
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#fed7aa",
+  },
+  stepNum: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
+  stepNumT: { color: "#fff", fontSize: 18, fontWeight: "900" },
+  apkSec: { paddingVertical: 34, paddingHorizontal: 16, marginTop: 8 },
+  successSec: { backgroundColor: "#fff", paddingVertical: 34, paddingHorizontal: 16, marginTop: 8 },
+  ctaSec: { margin: 16, borderRadius: 24, padding: 24, alignItems: "center" },
+  ctaH: { color: "#fff", fontSize: 25, fontWeight: "900", textAlign: "center", marginBottom: 8 },
+  ctaP: { color: "rgba(255,255,255,0.92)", fontSize: 16, textAlign: "center", lineHeight: 23, marginBottom: 18 },
+  footer: { backgroundColor: "#111827", alignItems: "center", paddingVertical: 30, paddingHorizontal: 16, gap: 8 },
+  footerBrand: { color: "#fff", fontSize: 18, fontWeight: "900" },
+  footerText: { color: "rgba(255,255,255,0.72)", fontSize: 12, textAlign: "center" },
 });

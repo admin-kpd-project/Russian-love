@@ -45,6 +45,11 @@ export const brandGradients = {
   superLike: ["#60a5fa", "#2563eb"] as const,
   favorite: ["#fbbf24", "#d97706"] as const,
   softRed: ["#fff1f2", "#fffbeb"] as const,
+  premium: ["#9333ea", "#ec4899", "#ef4444"] as const,
+  shop: ["#f97316", "#ef4444", "#ec4899"] as const,
+  apk: ["#fffbeb", "#ffffff"] as const,
+  blueInfo: ["#eff6ff", "#dbeafe"] as const,
+  greenSuccess: ["#dcfce7", "#bbf7d0"] as const,
 } as const;
 
 export const motionTiming = {

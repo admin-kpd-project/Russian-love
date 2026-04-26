@@ -12,7 +12,6 @@ import {
   PermissionsAndroid,
   Linking,
   KeyboardAvoidingView,
-  Modal,
   ScrollView,
   Alert,
 } from "react-native";
@@ -28,8 +27,10 @@ import { presignAuth, putFileToPresignedUrl, createChatWebSocket } from "../api/
 import { getPaymentsStatus, initTbankPayment } from "../api/paymentsApi";
 import { getApiBaseUrl } from "../api/apiBase";
 import { resolveMediaUrl } from "../utils/mediaUrl";
-import { tw } from "../theme/designTokens";
+import { brandGradients, tw } from "../theme/designTokens";
 import type { RootStackParamList } from "../navigation/types";
+import { ScalePressable } from "../components/ui/Motion";
+import { MotionModal } from "../components/ui/MotionModal";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Chat">;
 
@@ -288,7 +289,7 @@ export function ChatScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.shell}>
-      <LinearGradient colors={["#ef4444", "#f59e0b"]} style={[styles.topBar, { paddingTop: insets.top + 10 }]}>
+      <LinearGradient colors={[...brandGradients.primary]} style={[styles.topBar, { paddingTop: insets.top + 10 }]}>
         <View style={styles.topRow}>
           <View style={styles.peer}>
             {resolvedAvatar ? (
@@ -301,9 +302,9 @@ export function ChatScreen({ route, navigation }: Props) {
               <Text style={styles.peerSub}>онлайн</Text>
             </View>
           </View>
-          <Pressable onPress={() => navigation.goBack()} style={styles.closeHit}>
+          <ScalePressable onPress={() => navigation.goBack()} style={styles.closeHit}>
             <X size={26} color="#fff" />
-          </Pressable>
+          </ScalePressable>
         </View>
       </LinearGradient>
 
@@ -334,9 +335,9 @@ export function ChatScreen({ route, navigation }: Props) {
                     <Image source={{ uri: m.mediaUrl }} style={styles.img} resizeMode="cover" />
                   ) : null}
                   {m.type === "voice" && m.mediaUrl ? (
-                    <Pressable onPress={() => void Linking.openURL(m.mediaUrl!)} style={styles.voiceL}>
+                    <ScalePressable onPress={() => void Linking.openURL(m.mediaUrl!)} style={styles.voiceL}>
                       <Text style={[styles.voiceLtxt, mine && styles.tMine]}>▶ {m.duration || "аудио"}</Text>
-                    </Pressable>
+                    </ScalePressable>
                   ) : null}
                   {m.type === "video" && m.mediaUrl ? (
                     <Text style={[styles.t, mine && styles.tMine]}>Видео: откройте ссылку</Text>
@@ -347,7 +348,7 @@ export function ChatScreen({ route, navigation }: Props) {
               return (
                 <View style={[styles.row, mine ? styles.rowMe : styles.rowThem]}>
                   {mine ? (
-                    <LinearGradient colors={["#ef4444", "#f59e0b"]} style={[styles.bub, styles.bubMe]}>
+                    <LinearGradient colors={[...brandGradients.primary]} style={[styles.bub, styles.bubMe]}>
                       {bubble}
                     </LinearGradient>
                   ) : (
@@ -363,23 +364,23 @@ export function ChatScreen({ route, navigation }: Props) {
           <View style={styles.recBar}>
             <View style={styles.recDot} />
             <Text style={styles.recTxt}>Запись голоса</Text>
-            <Pressable onPress={() => void stopVoice(true)} style={styles.recCancel}>
+            <ScalePressable onPress={() => void stopVoice(true)} style={styles.recCancel}>
               <Text style={styles.recCancelT}>Отмена</Text>
-            </Pressable>
-            <Pressable onPress={() => void stopVoice(false)} style={styles.recSend}>
+            </ScalePressable>
+            <ScalePressable onPress={() => void stopVoice(false)} style={styles.recSend}>
               <Text style={styles.recSendT}>Отправить</Text>
-            </Pressable>
+            </ScalePressable>
           </View>
         ) : null}
 
         <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
           <View style={styles.quickRow}>
-            <Pressable onPress={() => void sendQuick("👋 Привет")} style={styles.quickPill} disabled={sending}>
+            <ScalePressable onPress={() => void sendQuick("👋 Привет")} style={styles.quickPill} disabled={sending}>
               <Text style={styles.quickPillT}>👋 Привет</Text>
-            </Pressable>
-            <Pressable onPress={() => void sendQuick("❤️ Нравится")} style={styles.quickPill} disabled={sending}>
+            </ScalePressable>
+            <ScalePressable onPress={() => void sendQuick("❤️ Нравится")} style={styles.quickPill} disabled={sending}>
               <Text style={styles.quickPillT}>❤️ Нравится</Text>
-            </Pressable>
+            </ScalePressable>
           </View>
           <View style={styles.inputRow}>
             <TextInput
@@ -392,22 +393,22 @@ export function ChatScreen({ route, navigation }: Props) {
               editable={!sending}
             />
             {hasText ? (
-              <Pressable onPress={() => void sendText()} style={styles.sendHit} disabled={sending}>
-                <LinearGradient colors={["#ef4444", "#f59e0b"]} style={styles.sendGrad}>
+              <ScalePressable onPress={() => void sendText()} style={styles.sendHit} disabled={sending}>
+                <LinearGradient colors={[...brandGradients.primary]} style={styles.sendGrad}>
                   <Send size={22} color="#fff" />
                 </LinearGradient>
-              </Pressable>
+              </ScalePressable>
             ) : (
-              <Pressable onPress={() => void startVoice()} style={styles.sendHit} disabled={sending}>
-                <LinearGradient colors={["#ef4444", "#f59e0b"]} style={styles.sendGrad}>
+              <ScalePressable onPress={() => void startVoice()} style={styles.sendHit} disabled={sending}>
+                <LinearGradient colors={[...brandGradients.primary]} style={styles.sendGrad}>
                   <Mic size={22} color="#fff" />
                 </LinearGradient>
-              </Pressable>
+              </ScalePressable>
             )}
           </View>
           <View style={styles.toolRow}>
             <View style={styles.toolRel}>
-              <Pressable
+              <ScalePressable
                 onPress={() => {
                   setShowAttachMenu((v) => !v);
                   setShowEmojiPicker(false);
@@ -416,18 +417,18 @@ export function ChatScreen({ route, navigation }: Props) {
                 disabled={sending || recording}
               >
                 <ImageIcon size={22} color="#78716c" />
-              </Pressable>
+              </ScalePressable>
               {showAttachMenu ? (
                 <View style={styles.attachPop}>
-                  <Pressable
+                  <ScalePressable
                     style={styles.attachRow}
                     onPress={() => void sendImage()}
                     disabled={sending || recording}
                   >
                     <ImageIcon size={18} color="#ef4444" />
                     <Text style={styles.attachTxt}>Фото</Text>
-                  </Pressable>
-                  <Pressable
+                  </ScalePressable>
+                  <ScalePressable
                     style={styles.attachRow}
                     onPress={() => {
                       setShowAttachMenu(false);
@@ -436,15 +437,15 @@ export function ChatScreen({ route, navigation }: Props) {
                   >
                     <Video size={18} color="#ef4444" />
                     <Text style={styles.attachTxt}>Видео кружочек</Text>
-                  </Pressable>
-                  <Pressable style={styles.attachRow} onPress={() => void startVoice()} disabled={sending || recording}>
+                  </ScalePressable>
+                  <ScalePressable style={styles.attachRow} onPress={() => void startVoice()} disabled={sending || recording}>
                     <Mic size={18} color="#ef4444" />
                     <Text style={styles.attachTxt}>Голосовое</Text>
-                  </Pressable>
+                  </ScalePressable>
                 </View>
               ) : null}
             </View>
-            <Pressable
+            <ScalePressable
               onPress={() => {
                 setShowEmojiPicker((v) => !v);
                 setShowAttachMenu(false);
@@ -453,8 +454,8 @@ export function ChatScreen({ route, navigation }: Props) {
               disabled={sending || recording}
             >
               <Smile size={22} color="#78716c" />
-            </Pressable>
-            <Pressable
+            </ScalePressable>
+            <ScalePressable
               onPress={() => {
                 if (paymentsEnabled === false) return;
                 setShowGiftModal(true);
@@ -465,18 +466,16 @@ export function ChatScreen({ route, navigation }: Props) {
               disabled={paymentsEnabled === false || sending || recording}
             >
               <Gift size={22} color="#78716c" />
-            </Pressable>
+            </ScalePressable>
           </View>
         </View>
       </KeyboardAvoidingView>
 
-      <Modal visible={showEmojiPicker} transparent animationType="fade" onRequestClose={() => setShowEmojiPicker(false)}>
-        <Pressable style={styles.emojiBack} onPress={() => setShowEmojiPicker(false)}>
-          <Pressable style={styles.emojiSheet} onPress={(e) => e.stopPropagation()}>
+      <MotionModal visible={showEmojiPicker} onClose={() => setShowEmojiPicker(false)} sheetStyle={styles.emojiSheet}>
             <Text style={styles.emojiH}>Эмодзи</Text>
             <ScrollView contentContainerStyle={styles.emojiGrid}>
               {CHAT_EMOJIS.map((em) => (
-                <Pressable
+                <ScalePressable
                   key={em}
                   style={styles.emojiCell}
                   onPress={() => {
@@ -485,19 +484,15 @@ export function ChatScreen({ route, navigation }: Props) {
                   }}
                 >
                   <Text style={styles.emojiChar}>{em}</Text>
-                </Pressable>
+                </ScalePressable>
               ))}
             </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      </MotionModal>
 
-      <Modal visible={showGiftModal} transparent animationType="fade" onRequestClose={() => setShowGiftModal(false)}>
-        <Pressable style={styles.giftBack} onPress={() => setShowGiftModal(false)}>
-          <Pressable style={styles.giftSheet} onPress={(e) => e.stopPropagation()}>
-            <Pressable style={styles.giftX} onPress={() => setShowGiftModal(false)}>
+      <MotionModal visible={showGiftModal} onClose={() => setShowGiftModal(false)} sheetStyle={styles.giftSheet}>
+            <ScalePressable style={styles.giftX} onPress={() => setShowGiftModal(false)}>
               <X size={20} color="#78716c" />
-            </Pressable>
+            </ScalePressable>
             <View style={styles.giftIco}>
               <Gift size={32} color="#ef4444" />
             </View>
@@ -511,7 +506,7 @@ export function ChatScreen({ route, navigation }: Props) {
             ) : null}
             <View style={styles.giftGrid}>
               {CHAT_GIFTS.map((gift) => (
-                <Pressable
+                <ScalePressable
                   key={gift.id}
                   style={styles.giftCard}
                   disabled={paymentsEnabled === false}
@@ -520,12 +515,10 @@ export function ChatScreen({ route, navigation }: Props) {
                   <Text style={styles.giftEm}>{gift.emoji}</Text>
                   <Text style={styles.giftName}>{gift.name}</Text>
                   <Text style={styles.giftPrice}>({gift.price} ₽)</Text>
-                </Pressable>
+                </ScalePressable>
               ))}
             </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      </MotionModal>
     </View>
   );
 }

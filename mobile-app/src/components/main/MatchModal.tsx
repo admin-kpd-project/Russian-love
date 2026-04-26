@@ -1,14 +1,14 @@
-import React, { useEffect, useState } from "react";
-import { Modal, View, Text, Pressable, StyleSheet, Image, ScrollView } from "react-native";
+import React, { useState } from "react";
+import { View, Text, Pressable, StyleSheet, Image, ScrollView } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import { X, Heart, MessageCircle, ChevronRight, UserPlus, Calendar } from "lucide-react-native";
-import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
 
 import type { UserProfile } from "../../utils/compatibilityAI";
 import { EventsPickerModal } from "./EventsPickerModal";
-import { ScalePressable } from "../ui/Motion";
+import { LoopingView, ScalePressable } from "../ui/Motion";
 import { GradientButton } from "../ui/GradientButton";
 import { brandGradients } from "../../theme/designTokens";
+import { MotionModal } from "../ui/MotionModal";
 
 type Props = {
   visible: boolean;
@@ -36,33 +36,27 @@ export function MatchModal({
   onEventInvite,
 }: Props) {
   const [eventsOpen, setEventsOpen] = useState(false);
-  const opacity = useSharedValue(0);
-  const scale = useSharedValue(0.92);
-
-  useEffect(() => {
-    opacity.value = withTiming(visible ? 1 : 0, { duration: 180 });
-    scale.value = visible ? withSpring(1, { damping: 16, stiffness: 170 }) : withTiming(0.92, { duration: 160 });
-  }, [opacity, scale, visible]);
-
-  const backAnim = useAnimatedStyle(() => ({ opacity: opacity.value }));
-  const sheetAnim = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
   if (!profile) return null;
 
   return (
     <>
-      <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
-        <Animated.View style={[styles.back, backAnim]}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-          <Animated.View style={[styles.sheet, sheetAnim]}>
+      <MotionModal visible={visible} onClose={onClose} sheetStyle={styles.sheet}>
             <ScalePressable style={styles.closeX} onPress={onClose}>
               <X size={20} color="#78716c" />
             </ScalePressable>
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={styles.heartWrap}>
-                <LinearGradient colors={[...brandGradients.primary]} style={styles.heartCircle}>
-                  <Heart size={48} color="#fff" fill="#fff" />
-                </LinearGradient>
+                {[0, 1, 2, 3, 4, 5].map((i) => (
+                  <LoopingView key={i} kind="float" duration={1400 + i * 120} style={[styles.orbitHeart, orbitStyles[i]]}>
+                    <Heart size={16} color="#ef4444" fill="#ef4444" />
+                  </LoopingView>
+                ))}
+                <LoopingView kind="pulse">
+                  <LinearGradient colors={[...brandGradients.primary]} style={styles.heartCircle}>
+                    <Heart size={48} color="#fff" fill="#fff" />
+                  </LinearGradient>
+                </LoopingView>
               </View>
               <Text style={styles.title}>{isMatch ? "Это Match!" : "Вы понравились друг другу"}</Text>
               <Text style={styles.sub}>Вы и {profile.name} понравились друг другу</Text>
@@ -116,9 +110,7 @@ export function MatchModal({
                 ) : null}
               </View>
             </ScrollView>
-          </Animated.View>
-        </Animated.View>
-      </Modal>
+      </MotionModal>
 
       <EventsPickerModal
         visible={eventsOpen}
@@ -135,12 +127,6 @@ export function MatchModal({
 }
 
 const styles = StyleSheet.create({
-  back: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    padding: 16,
-  },
   sheet: {
     backgroundColor: "#fff",
     borderRadius: 24,
@@ -148,7 +134,8 @@ const styles = StyleSheet.create({
     maxHeight: "90%",
   },
   closeX: { position: "absolute", top: 12, right: 12, zIndex: 2, padding: 8 },
-  heartWrap: { alignItems: "center", marginBottom: 16 },
+  heartWrap: { alignItems: "center", justifyContent: "center", marginBottom: 16, height: 112 },
+  orbitHeart: { position: "absolute" },
   heartCircle: {
     width: 96,
     height: 96,
@@ -222,3 +209,12 @@ const styles = StyleSheet.create({
   },
   fullOutlineRedT: { fontWeight: "600", color: "#dc2626", fontSize: 15 },
 });
+
+const orbitStyles = [
+  { top: 4, left: "24%" },
+  { top: 18, right: "20%" },
+  { bottom: 14, left: "18%" },
+  { bottom: 6, right: "26%" },
+  { top: 42, left: "8%" },
+  { top: 48, right: "8%" },
+] as const;

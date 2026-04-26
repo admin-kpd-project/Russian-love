@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text, Pressable, StyleSheet, Image, Platform } from "react-native";
+import { View, Text, StyleSheet, Image, Platform } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -11,6 +11,9 @@ import { getApiBaseUrl } from "../api/apiBase";
 import { mapApiProfileToUserProfile } from "../utils/mapApiProfile";
 import { calculateCompatibility, type UserProfile } from "../utils/compatibilityAI";
 import { MatreshkaLogo } from "../components/MatreshkaLogo";
+import { FadeInView, LoopingView, ScalePressable } from "../components/ui/Motion";
+import { GradientButton } from "../components/ui/GradientButton";
+import { brandGradients } from "../theme/designTokens";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ScanProfile">;
 
@@ -46,9 +49,11 @@ export function ScanProfileScreen({ route, navigation }: Props) {
 
   if (loading) {
     return (
-      <LinearGradient colors={["#fef2f2", "#fffbeb", "#fefce8"]} style={styles.page}>
+      <LinearGradient colors={[...brandGradients.page]} style={styles.page}>
         <View style={[styles.center, { paddingTop: insets.top + 24 }]}>
-          <MatreshkaLogo size={72} variant="onGradient" />
+          <LoopingView kind="rotate">
+            <MatreshkaLogo size={72} variant="onGradient" />
+          </LoopingView>
           <Text style={styles.loadT}>Загрузка профиля...</Text>
         </View>
       </LinearGradient>
@@ -57,35 +62,33 @@ export function ScanProfileScreen({ route, navigation }: Props) {
 
   if (!scannedUser || !currentUser) {
     return (
-      <LinearGradient colors={["#fef2f2", "#fffbeb", "#fefce8"]} style={styles.page}>
+      <LinearGradient colors={[...brandGradients.page]} style={styles.page}>
         <View style={[styles.center, { paddingTop: insets.top + 24, paddingHorizontal: 20 }]}>
           <View style={styles.icoWrap}>
             <User size={40} color="#ef4444" />
           </View>
           <Text style={styles.errH}>Пользователь не найден</Text>
           <Text style={styles.errS}>К сожалению, этот профиль недоступен</Text>
-          <Pressable onPress={() => navigation.replace("Main")} style={styles.btnWrap}>
-            <LinearGradient colors={["#ef4444", "#f59e0b"]} style={styles.btn}>
-              <Text style={styles.btnT}>В приложение</Text>
-            </LinearGradient>
-          </Pressable>
+          <GradientButton title="В приложение" onPress={() => navigation.replace("Main")} style={styles.btnWrap} />
         </View>
       </LinearGradient>
     );
   }
 
   return (
-    <LinearGradient colors={["#fef2f2", "#fffbeb", "#fefce8"]} style={styles.page}>
+    <LinearGradient colors={[...brandGradients.page]} style={styles.page}>
       <View style={[styles.top, { paddingTop: insets.top + 8 }]}>
-        <Pressable onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.replace("Main")} style={styles.backHit}>
+        <ScalePressable onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.replace("Main")} style={styles.backHit}>
           <ArrowLeft size={24} color="#44403c" />
-        </Pressable>
+        </ScalePressable>
       </View>
 
-      <View style={styles.card}>
-        <LinearGradient colors={["#ef4444", "#f59e0b"]} style={styles.ring}>
-          <Text style={styles.pct}>{compatibility}%</Text>
-        </LinearGradient>
+      <FadeInView style={styles.card}>
+        <LoopingView kind="pulse">
+          <LinearGradient colors={[...brandGradients.primary]} style={styles.ring}>
+            <Text style={styles.pct}>{compatibility}%</Text>
+          </LinearGradient>
+        </LoopingView>
         <Text style={styles.h1}>Совместимость</Text>
         <Text style={styles.sub}>По AI-алгоритму с {scannedUser.name}</Text>
 
@@ -107,14 +110,9 @@ export function ScanProfileScreen({ route, navigation }: Props) {
         </View>
 
         <View style={styles.actions}>
-          <Pressable onPress={() => navigation.replace("Main")} style={styles.btnWrap}>
-            <LinearGradient colors={["#ef4444", "#f59e0b"]} style={styles.btn}>
-              <Heart size={20} color="#fff" fill="#fff" />
-              <Text style={styles.btnT}>В ленту</Text>
-            </LinearGradient>
-          </Pressable>
+          <GradientButton title="В ленту" onPress={() => navigation.replace("Main")} left={<Heart size={20} color="#fff" fill="#fff" />} style={styles.btnWrap} />
         </View>
-      </View>
+      </FadeInView>
 
       <View style={styles.hint}>
         <Sparkles size={16} color="#d97706" />
