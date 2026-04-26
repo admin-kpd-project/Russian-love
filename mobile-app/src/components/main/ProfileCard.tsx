@@ -44,15 +44,22 @@ export function ProfileCard({ profile, compatibility, superLikesRemaining, likes
         ) : (
           <View style={[styles.photo, styles.photoPh]} />
         )}
-        <LinearGradient colors={["transparent", "rgba(0,0,0,0.65)"]} style={styles.photoGrad} />
+        {/* Веб: `bg-gradient-to-t from-black/60 via-transparent` — затемнение снизу для читаемости */}
+        <LinearGradient
+          colors={["rgba(0,0,0,0.6)", "rgba(0,0,0,0.12)", "transparent"]}
+          locations={[0, 0.45, 1]}
+          start={{ x: 0.5, y: 1 }}
+          end={{ x: 0.5, y: 0 }}
+          style={styles.photoGrad}
+        />
 
         <View style={styles.statsCol}>
-          <LinearGradient colors={["#3b82f6", "#2563eb"]} style={styles.statPill}>
-            <Star size={14} color="#fff" fill="#fff" />
+          <LinearGradient colors={["#3b82f6", tw.blue600]} style={styles.statPill}>
+            <Star size={16} color="#fff" fill="#fff" />
             <Text style={styles.statTxt}>{superLikesRemaining}</Text>
           </LinearGradient>
           <LinearGradient colors={["#ef4444", "#ec4899"]} style={styles.statPill}>
-            <Heart size={14} color="#fff" fill="#fff" />
+            <Heart size={16} color="#fff" fill="#fff" />
             <Text style={styles.statTxt}>{likesCount}</Text>
           </LinearGradient>
         </View>
@@ -70,11 +77,11 @@ export function ProfileCard({ profile, compatibility, superLikesRemaining, likes
         </View>
 
         <View style={styles.nameBlock}>
-          <Text style={styles.name}>
+          <Text style={styles.name} numberOfLines={2}>
             {profile.name}, {profile.age}
           </Text>
           <View style={styles.locRow}>
-            <MapPin size={14} color="rgba(255,255,255,0.9)" />
+            <MapPin size={16} color="rgba(255,255,255,0.9)" />
             <Text style={styles.loc}>{profile.location || "—"}</Text>
           </View>
         </View>
@@ -91,7 +98,7 @@ export function ProfileCard({ profile, compatibility, superLikesRemaining, likes
           </LinearGradient>
           {onOpenDetailedAnalysis ? (
             <ScalePressable onPress={onOpenDetailedAnalysis}>
-              <LinearGradient colors={["#a855f7", "#9333ea"]} style={styles.detailBtn}>
+              <LinearGradient colors={[...brandGradients.detailCta]} style={styles.detailBtn}>
                 <Sparkles size={16} color="#fff" />
                 <Text style={styles.detailBtnT}>Детально</Text>
               </LinearGradient>
@@ -99,12 +106,12 @@ export function ProfileCard({ profile, compatibility, superLikesRemaining, likes
           ) : null}
         </View>
         <View style={styles.intHRow}>
-          <Briefcase size={14} color="#78716c" />
-          <Text style={styles.intH}> Интересы</Text>
+          <Briefcase size={14} color={tw.gray500} />
+          <Text style={styles.intH}>Интересы</Text>
         </View>
         <View style={styles.tags}>
           {(profile.interests || []).map((t, i) => (
-            <LinearGradient key={`${t}-${i}`} colors={["#fee2e2", "#fef3c7"]} style={styles.tag}>
+            <LinearGradient key={`${t}-${i}`} colors={[...brandGradients.interestTag]} style={styles.tag}>
               <Text style={styles.tagT}>{t}</Text>
             </LinearGradient>
           ))}
@@ -120,17 +127,15 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: 24,
     overflow: "hidden",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "#e7e5e4",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    elevation: 10,
   },
   photoWrap: { flex: 1, minHeight: 220, position: "relative" },
   photo: { ...StyleSheet.absoluteFillObject },
-  photoPh: { backgroundColor: "#e7e5e4" },
+  photoPh: { backgroundColor: tw.gray100 },
   photoGrad: { ...StyleSheet.absoluteFillObject },
   statsCol: { position: "absolute", bottom: 12, right: 12, gap: 8, alignItems: "flex-end" },
   statPill: {
@@ -139,9 +144,9 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 10,
+    borderRadius: 8,
   },
-  statTxt: { color: "#fff", fontWeight: "800", fontSize: 13 },
+  statTxt: { color: "#fff", fontWeight: "800", fontSize: 12 },
   compatWrap: { position: "absolute", top: 12, right: 12 },
   compatInner: {
     flexDirection: "row",
@@ -151,15 +156,16 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 16,
   },
-  compatPct: { color: "#fff", fontSize: 22, fontWeight: "800" },
-  compatSub: { color: "rgba(255,255,255,0.92)", fontSize: 10 },
-  nameBlock: { position: "absolute", bottom: 12, left: 12, right: 72 },
+  compatPct: { color: "#fff", fontSize: 24, fontWeight: "800" },
+  compatSub: { color: "rgba(255,255,255,0.9)", fontSize: 10 },
+  /** зона не заезжает на колонку счётчиков (веб: имя + локация снизу с `left-3`/`right-3`) */
+  nameBlock: { position: "absolute", bottom: 12, left: 12, maxWidth: "68%" },
   name: { color: "#fff", fontSize: tw.text3xl, fontWeight: "800" },
   locRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
-  loc: { color: "rgba(255,255,255,0.9)", fontSize: 13 },
+  loc: { color: "rgba(255,255,255,0.9)", fontSize: 14 },
   info: { maxHeight: "40%" },
-  infoIn: { padding: tw.p4, paddingBottom: 24 },
-  bio: { color: "#44403c", fontSize: tw.textBase, lineHeight: 24, marginBottom: 12 },
+  infoIn: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 24 },
+  bio: { color: tw.gray700, fontSize: 15, lineHeight: 22, marginBottom: 12 },
   compatRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },
   compatLabel: {
     flex: 1,
@@ -170,7 +176,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 12,
   },
-  compatLabelT: { color: "#44403c", fontSize: 13, fontWeight: "600", flex: 1 },
+  compatLabelT: { color: tw.gray700, fontSize: 13, fontWeight: "600", flex: 1 },
   detailBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -181,7 +187,7 @@ const styles = StyleSheet.create({
   },
   detailBtnT: { color: "#fff", fontWeight: "700", fontSize: 12 },
   intHRow: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 8 },
-  intH: { fontSize: 12, fontWeight: "700", color: "#78716c" },
+  intH: { fontSize: 12, fontWeight: "600", color: tw.gray500, marginLeft: 2 },
   tags: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   tag: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
   tagT: { color: "#b91c1c", fontSize: 12, fontWeight: "600" },

@@ -32,3 +32,32 @@ export async function createConversation(
     body: JSON.stringify({ user_id: userId }),
   });
 }
+
+export type MarkConversationsReadBody =
+  | { all: true }
+  | { all: false; conversationIds: string[] };
+
+export async function markConversationRead(
+  conversationId: string
+): Promise<ApiResponse<{ ok: boolean }>> {
+  return apiFetch<{ ok: boolean }>(`/api/conversations/${conversationId}/read`, {
+    method: "POST",
+  });
+}
+
+export async function markConversationsRead(
+  body: MarkConversationsReadBody
+): Promise<ApiResponse<{ ok: boolean }>> {
+  return apiFetch<{ ok: boolean }>("/api/conversations/mark-read", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function deleteConversation(
+  conversationId: string
+): Promise<ApiResponse<{ ok: boolean }>> {
+  return apiFetch<{ ok: boolean }>(`/api/conversations/${conversationId}`, {
+    method: "DELETE",
+  });
+}

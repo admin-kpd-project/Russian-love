@@ -9,7 +9,11 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
+  useWindowDimensions,
+  Platform,
+  KeyboardAvoidingView,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import LinearGradient from "react-native-linear-gradient";
 import { launchImageLibrary } from "react-native-image-picker";
 import { X, QrCode, LogOut, Camera, MapPin, Mail, Heart, Sparkles, Cake, Server } from "lucide-react-native";
@@ -20,6 +24,7 @@ import { presignAuth, putFileToPresignedUrl } from "../../api/uploadApi";
 import { getAdultMaxDate, ageFromBirthDate } from "../../utils/profileDates";
 import { getApiBaseUrl } from "../../api/apiBase";
 import { resolveMediaUrl } from "../../utils/mediaUrl";
+import { brandGradients, profileStatsPlaceholder, tw } from "../../theme/designTokens";
 
 type Props = {
   visible: boolean;
@@ -42,6 +47,13 @@ export function ProfileSettingsModal({
   onLogout,
   onProfileSaved,
 }: Props) {
+  const insets = useSafeAreaInsets();
+  const { height: winH } = useWindowDimensions();
+  /** Иначе ScrollView с `flex:1` внутриPressable без высоты схлопывается в 0 — виден только «угол» sheet */
+  const sheetMaxH = winH * 0.92;
+  const heroBlockH = 128;
+  const scrollMaxH = Math.max(220, sheetMaxH - heroBlockH - insets.bottom);
+
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -162,17 +174,38 @@ export function ProfileSettingsModal({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.back} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-          <View style={styles.hero}>
-            <LinearGradient colors={["#ef4444", "#f59e0b"]} style={StyleSheet.absoluteFill} />
-            <Pressable style={styles.qrFab} onPress={() => { onClose(); onOpenQR(); }}>
-              <QrCode size={22} color="#fff" />
+      <View style={styles.back}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel="Закрыть" />
+        <View
+          style={[
+            styles.sheet,
+            {
+              maxHeight: sheetMaxH,
+              minHeight: Math.min(sheetMaxH, winH * 0.56),
+            },
+          ]}
+        >
+          <View style={styles.heroSection}>
+            <LinearGradient
+              colors={[...brandGradients.primary]}
+              style={styles.heroGradient}
+            />
+            <Pressable
+              style={({ pressed }) => [styles.qrFab, pressed && styles.headerFabPressed]}
+              onPress={() => {
+                onClose();
+                onOpenQR();
+              }}
+            >
+              <QrCode size={24} color="#fff" />
             </Pressable>
-            <Pressable style={styles.xFab} onPress={onClose}>
-              <X size={22} color="#fff" />
+            <Pressable
+              style={({ pressed }) => [styles.xFab, pressed && styles.headerFabPressed]}
+              onPress={onClose}
+            >
+              <X size={24} color="#fff" />
             </Pressable>
-            <View style={styles.avatarWrap}>
+            <View style={styles.avatarWrap} pointerEvents="box-none">
               {displayAvatarUri ? <Image source={{ uri: displayAvatarUri }} style={styles.avatar} /> : <View style={[styles.avatar, styles.avatarPh]} />}
               {editing ? (
                 <Pressable style={styles.camOverlay} onPress={pickAvatar}>
@@ -182,7 +215,21 @@ export function ProfileSettingsModal({
             </View>
           </View>
 
-          <ScrollView style={styles.body} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <KeyboardAvoidingView
+            style={[styles.kav, { maxHeight: scrollMaxH }]}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            keyboardVerticalOffset={insets.top + 8}
+          >
+            <ScrollView
+              style={styles.bodyScroll}
+              contentContainerStyle={[
+                styles.bodyContent,
+                { paddingBottom: Math.max(20, 12 + insets.bottom) },
+              ]}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              bounces
+            >
             {editing ? (
               <View style={styles.form}>
                 <Text style={styles.lbl}>Имя</Text>
@@ -209,21 +256,21 @@ export function ProfileSettingsModal({
 
             {!editing ? (
               <View style={styles.stats}>
-                <View style={styles.statCell}>
-                  <Heart size={20} color="#ef4444" />
-                  <Text style={styles.statN}>—</Text>
+                <LinearGradient colors={[...brandGradients.featureCard]} style={styles.statCell}>
+                  <Heart size={20} color={tw.red500} />
+                  <Text style={styles.statN}>{profileStatsPlaceholder.likes}</Text>
                   <Text style={styles.statL}>Лайки</Text>
-                </View>
-                <View style={styles.statCell}>
-                  <Sparkles size={20} color="#f59e0b" />
-                  <Text style={styles.statN}>—</Text>
+                </LinearGradient>
+                <LinearGradient colors={[...brandGradients.featureCard]} style={styles.statCell}>
+                  <Sparkles size={20} color={tw.amber500} />
+                  <Text style={styles.statN}>{profileStatsPlaceholder.matches}</Text>
                   <Text style={styles.statL}>Матчи</Text>
-                </View>
-                <View style={styles.statCell}>
+                </LinearGradient>
+                <LinearGradient colors={[...brandGradients.featureCard]} style={styles.statCell}>
                   <Cake size={20} color="#ea580c" />
                   <Text style={styles.statN}>{displayAge}</Text>
                   <Text style={styles.statL}>Лет</Text>
-                </View>
+                </LinearGradient>
               </View>
             ) : null}
 
@@ -245,8 +292,12 @@ export function ProfileSettingsModal({
               <>
                 <View style={styles.tags}>
                   {interestTags.map((t) => (
-                    <Pressable key={t} style={styles.tag} onPress={() => setInterestTags((x) => x.filter((y) => y !== t))}>
-                      <Text style={styles.tagT}>{t} ×</Text>
+                    <Pressable key={t} onPress={() => setInterestTags((x) => x.filter((y) => y !== t))}>
+                      <LinearGradient colors={[...brandGradients.interestTag]} style={styles.tagRo}>
+                        <Text style={styles.tagT}>
+                          {t} ×
+                        </Text>
+                      </LinearGradient>
                     </Pressable>
                   ))}
                 </View>
@@ -265,9 +316,9 @@ export function ProfileSettingsModal({
               <View style={styles.tags}>
                 {(user.interests || []).length ? (
                   (user.interests || []).map((t) => (
-                    <View key={t} style={styles.tagRo}>
+                    <LinearGradient key={t} colors={[...brandGradients.interestTag]} style={styles.tagRo}>
                       <Text style={styles.tagT}>{t}</Text>
-                    </View>
+                    </LinearGradient>
                   ))
                 ) : (
                   <Text style={styles.muted}>Добавьте интересы в режиме редактирования</Text>
@@ -279,7 +330,7 @@ export function ProfileSettingsModal({
               <View style={styles.contacts}>
                 <Text style={styles.secH}>Контакты</Text>
                 <View style={styles.mailRow}>
-                  <Mail size={18} color="#ef4444" />
+                  <Mail size={18} color={tw.red500} />
                   <Text style={styles.mailT}>{user.email || "Email не указан"}</Text>
                 </View>
               </View>
@@ -289,8 +340,10 @@ export function ProfileSettingsModal({
 
             {editing ? (
               <View style={styles.btnRow}>
-                <Pressable style={styles.save} onPress={() => void handleSave()} disabled={!canSave}>
-                  {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveT}>Сохранить</Text>}
+                <Pressable style={({ pressed }) => [pressed && { opacity: canSave ? 0.92 : 0.5 }]} onPress={() => void handleSave()} disabled={!canSave}>
+                  <LinearGradient colors={[...brandGradients.primary]} style={styles.save}>
+                    {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveT}>Сохранить</Text>}
+                  </LinearGradient>
                 </Pressable>
                 <Pressable
                   style={styles.cancel}
@@ -315,16 +368,20 @@ export function ProfileSettingsModal({
             ) : (
               <>
                 <View style={styles.btnRow}>
-                  <Pressable style={styles.save} onPress={() => setEditing(true)}>
-                    <Text style={styles.saveT}>Редактировать</Text>
+                  <Pressable onPress={() => setEditing(true)}>
+                    <LinearGradient colors={[...brandGradients.primary]} style={styles.save}>
+                      <Text style={styles.saveT}>Редактировать</Text>
+                    </LinearGradient>
                   </Pressable>
                   <Pressable style={styles.cancel} onPress={() => { onClose(); onOpenSettings(); }}>
                     <Text style={styles.cancelT}>Настройки</Text>
                   </Pressable>
                 </View>
-                <Pressable style={styles.qrFull} onPress={() => { onClose(); onOpenQR(); }}>
-                  <QrCode size={20} color="#fff" />
-                  <Text style={styles.qrFullT}>Поделиться QR-кодом</Text>
+                <Pressable onPress={() => { onClose(); onOpenQR(); }}>
+                  <LinearGradient colors={[...brandGradients.qrShareCta]} style={styles.qrFull}>
+                    <QrCode size={20} color="#fff" />
+                    <Text style={styles.qrFullT}>Поделиться QR-кодом</Text>
+                  </LinearGradient>
                 </Pressable>
                 <Pressable style={styles.srv} onPress={() => { onClose(); onServer(); }}>
                   <Server size={20} color="#c2410c" />
@@ -336,37 +393,68 @@ export function ProfileSettingsModal({
                 </Pressable>
               </>
             )}
-            <View style={{ height: 28 }} />
-          </ScrollView>
-        </Pressable>
-      </Pressable>
+            <View style={{ height: 12 }} />
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </View>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   back: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" },
-  sheet: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "94%" },
-  hero: { height: 120, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: "hidden" },
-  qrFab: { position: "absolute", left: 14, top: 14, zIndex: 2, padding: 10, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.22)" },
-  xFab: { position: "absolute", right: 14, top: 14, zIndex: 2, padding: 10, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.22)" },
+  sheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    width: "100%",
+    overflow: "hidden",
+  },
+  /**
+   * Шапка и аватар (в т.ч. вылезающий вниз) рисуются *поверх* белого ScrollView — иначе сосед
+   * `bodyScroll` с непрозрачным фоном перекрывает круг. На Android важен elevation.
+   */
+  heroSection: { height: 128, position: "relative", zIndex: 10, ...Platform.select({ android: { elevation: 8 } }) },
+  heroGradient: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    height: 128,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
+  headerFabPressed: { opacity: 0.9 },
+  qrFab: { position: "absolute", left: 16, top: 16, zIndex: 2, padding: 10, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.2)" },
+  xFab: { position: "absolute", right: 16, top: 16, zIndex: 2, padding: 10, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.2)" },
+  /** size-32 (128) + -bottom-12 (48) как в веб `ProfileSettingsModal` */
   avatarWrap: {
     position: "absolute",
     left: "50%",
-    marginLeft: -56,
-    bottom: -56,
-    width: 112,
-    height: 112,
-    borderRadius: 56,
+    marginLeft: -64,
+    bottom: -48,
+    width: 128,
+    height: 128,
+    borderRadius: 64,
     borderWidth: 4,
     borderColor: "#fff",
     backgroundColor: "#fff",
+    zIndex: 3,
     overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
   },
   avatar: { width: "100%", height: "100%" },
   avatarPh: { backgroundColor: "#e7e5e4" },
-  camOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.45)", alignItems: "center", justifyContent: "center" },
-  body: { paddingHorizontal: 18, paddingTop: 68 },
+  camOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center" },
+  kav: { zIndex: 0, width: "100%" },
+  bodyScroll: { zIndex: 0, backgroundColor: "#fff", ...Platform.select({ android: { elevation: 0 } }) },
+  /** `pt-20` + `px-6` как в веб; paddingBottom дополняется safe area в компоненте */
+  bodyContent: { flexGrow: 1, backgroundColor: "#fff", paddingTop: 80, paddingHorizontal: 24 },
   form: { marginBottom: 12 },
   lbl: { fontSize: 13, fontWeight: "600", color: "#57534e", marginBottom: 4 },
   inp: {
@@ -381,7 +469,7 @@ const styles = StyleSheet.create({
   },
   hint: { fontSize: 11, color: "#a8a29e", marginBottom: 8 },
   centerHead: { alignItems: "center", marginBottom: 12 },
-  title: { fontSize: 22, fontWeight: "800", color: "#292524" },
+  title: { fontSize: 24, fontWeight: "800", color: "#1f2937" },
   locRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6 },
   loc: { fontSize: 14, color: "#78716c" },
   stats: { flexDirection: "row", gap: 10, marginBottom: 16 },
@@ -389,16 +477,14 @@ const styles = StyleSheet.create({
     flex: 1,
     aspectRatio: 1,
     maxHeight: 100,
-    borderRadius: 14,
-    backgroundColor: "#fffbeb",
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#fef3c7",
+    padding: 8,
   },
-  statN: { fontSize: 18, fontWeight: "800", color: "#292524", marginTop: 4 },
-  statL: { fontSize: 11, color: "#78716c" },
-  secH: { fontSize: 16, fontWeight: "800", color: "#292524", marginBottom: 8 },
+  statN: { fontSize: 18, fontWeight: "800", color: "#1f2937", marginTop: 4 },
+  statL: { fontSize: 12, color: "#4b5563" },
+  secH: { fontSize: 16, fontWeight: "800", color: "#1f2937", marginBottom: 8 },
   bio: {
     borderWidth: 1,
     borderColor: "#d6d3d1",
@@ -410,13 +496,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#1c1917",
   },
-  bioRead: { fontSize: 15, color: "#44403c", lineHeight: 22, marginBottom: 14 },
+  bioRead: { fontSize: 15, color: "#374151", lineHeight: 22, marginBottom: 14 },
   tags: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 10 },
-  tag: { backgroundColor: "#ffedd5", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
-  tagRo: { backgroundColor: "#ffedd5", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
-  tagT: { fontSize: 13, color: "#9a3412", fontWeight: "600" },
+  tagRo: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, overflow: "hidden" },
+  tagT: { fontSize: 12, color: "#b91c1c", fontWeight: "600" },
   addRow: { flexDirection: "row", gap: 8, marginBottom: 10 },
-  plus: { width: 48, borderRadius: 12, backgroundColor: "#ef4444", alignItems: "center", justifyContent: "center" },
+  plus: { width: 48, borderRadius: 12, backgroundColor: tw.red500, alignItems: "center", justifyContent: "center" },
   plusT: { color: "#fff", fontSize: 22, fontWeight: "700" },
   extraPho: {
     flexDirection: "row",
@@ -438,20 +523,22 @@ const styles = StyleSheet.create({
   btnRow: { flexDirection: "row", gap: 10, marginTop: 8 },
   save: {
     flex: 1,
-    backgroundColor: "#ea580c",
-    paddingVertical: 14,
-    borderRadius: 14,
+    minHeight: 48,
+    paddingVertical: 12,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },
   saveT: { color: "#fff", fontWeight: "800", fontSize: 16 },
   cancel: {
     flex: 1,
+    minHeight: 48,
     borderWidth: 2,
-    borderColor: "#e7e5e4",
-    paddingVertical: 14,
-    borderRadius: 14,
+    borderColor: "#e5e7eb",
+    paddingVertical: 12,
+    borderRadius: 12,
     alignItems: "center",
+    justifyContent: "center",
   },
   cancelT: { color: "#44403c", fontWeight: "700", fontSize: 16 },
   qrFull: {
@@ -459,9 +546,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: "#f59e0b",
-    paddingVertical: 14,
-    borderRadius: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
     marginTop: 10,
   },
   qrFullT: { color: "#fff", fontWeight: "800", fontSize: 16 },
@@ -483,7 +569,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: "#ef4444",
+    backgroundColor: tw.red500,
     paddingVertical: 14,
     borderRadius: 14,
     marginTop: 10,

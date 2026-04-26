@@ -195,6 +195,10 @@ export type GeneratedEventPick = {
   location: string;
   hours?: string;
   dateLine: string;
+  /** YYYY-MM-DD for календаря и фильтра по дню */
+  dateKey: string;
+  isFree: boolean;
+  tags: string[];
   category: EventCategoryRu;
   priceLine?: string;
   organizer: string;
@@ -209,6 +213,10 @@ export function generateEventPicksForProfile(_profileName: string): GeneratedEve
     const eventDate = new Date(today);
     eventDate.setDate(today.getDate() + daysOffset);
     const dateLine = eventDate.toLocaleDateString("ru-RU", { day: "numeric", month: "long", weekday: "short" });
+    const y = eventDate.getFullYear();
+    const m = String(eventDate.getMonth() + 1).padStart(2, "0");
+    const d = String(eventDate.getDate()).padStart(2, "0");
+    const dateKey = `${y}-${m}-${d}`;
     const priceLine = t.isFree ? "Бесплатно" : t.price;
     return {
       id: t.id,
@@ -217,6 +225,9 @@ export function generateEventPicksForProfile(_profileName: string): GeneratedEve
       location: t.location,
       hours: t.workingHours,
       dateLine,
+      dateKey,
+      isFree: t.isFree,
+      tags: [...t.tags],
       category: t.category,
       priceLine,
       organizer: t.organizer,

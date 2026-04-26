@@ -180,6 +180,12 @@ class SendMessageBody(BaseModel):
     duration_sec: int | None = Field(default=None, alias="durationSec", ge=0, le=3600)
 
 
+class MarkConversationsReadBody(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    all: bool = False
+    conversation_ids: list[UUID] | None = Field(default=None, alias="conversationIds")
+
+
 class UploadPresignBody(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
     content_type: str = Field(alias="contentType")

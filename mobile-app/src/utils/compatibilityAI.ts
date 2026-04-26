@@ -1,4 +1,5 @@
 // Synced with web/app/utils/compatibilityAI.ts (AI compatibility for cards)
+// UI: отдельного экрана «опроса» (poll) в приложении нет; аналитика — модалки совместимости/детального анализа.
 export interface UserProfile {
   id: number | string;
   name: string;

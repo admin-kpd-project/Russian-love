@@ -1,8 +1,10 @@
 import React from "react";
-import { Modal, View, Text, Pressable, StyleSheet, ScrollView } from "react-native";
+import { Modal, View, Text, Pressable, StyleSheet, ScrollView, Platform } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import LinearGradient from "react-native-linear-gradient";
 import { X, Brain, Heart, MapPin, Calendar, Sparkles } from "lucide-react-native";
 
+import { brandGradients } from "../../theme/designTokens";
 import type { CompatibilityDetails } from "../../utils/compatibilityAI";
 
 const traitLabels: Record<string, string> = {
@@ -23,13 +25,14 @@ type Props = {
 };
 
 export function CompatibilityDetailsModal({ visible, details, userName, compatibility, onClose, onOpenDetailedAnalysis }: Props) {
+  const insets = useSafeAreaInsets();
   if (!details) return null;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.back} onPress={onClose}>
         <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-          <LinearGradient colors={["#ef4444", "#f59e0b"]} style={styles.head}>
+          <LinearGradient colors={[...brandGradients.primary]} style={styles.head}>
             <Pressable style={styles.x} onPress={onClose}>
               <X size={22} color="#fff" />
             </Pressable>
@@ -37,16 +40,18 @@ export function CompatibilityDetailsModal({ visible, details, userName, compatib
             <Text style={styles.headS}>Детальный расчёт AI</Text>
           </LinearGradient>
 
-          <ScrollView style={styles.scroll}>
+          <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 20 + insets.bottom }}>
             <View style={styles.total}>
               <LinearGradient colors={["#fee2e2", "#fef3c7"]} style={styles.totalRing}>
                 <Text style={styles.totalN}>{compatibility}%</Text>
               </LinearGradient>
               <Text style={styles.totalL}>Общая совместимость с {userName}</Text>
               {onOpenDetailedAnalysis ? (
-                <Pressable onPress={onOpenDetailedAnalysis} style={styles.purpleBtn}>
-                  <Sparkles size={18} color="#fff" />
-                  <Text style={styles.purpleBtnT}>Получить детальный анализ</Text>
+                <Pressable onPress={onOpenDetailedAnalysis} accessibilityRole="button" style={styles.purpleBtnWrap}>
+                  <LinearGradient colors={[...brandGradients.detailCta]} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={styles.purpleBtn}>
+                    <Sparkles size={18} color="#fff" />
+                    <Text style={styles.purpleBtnT}>Получить детальный анализ</Text>
+                  </LinearGradient>
                 </Pressable>
               ) : null}
             </View>
@@ -145,26 +150,48 @@ function Row({
 
 const styles = StyleSheet.create({
   back: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 14 },
-  sheet: { backgroundColor: "#fff", borderRadius: 24, maxHeight: "90%", overflow: "hidden" },
+  sheet: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    maxHeight: "90%",
+    overflow: "hidden",
+    ...Platform.select({
+      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.2, shadowRadius: 20 },
+      android: { elevation: 12 },
+    }),
+  },
   head: { padding: 18, paddingTop: 44 },
   x: { position: "absolute", top: 10, right: 10, padding: 8, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.25)" },
   headT: { fontSize: 20, fontWeight: "800", color: "#fff" },
   headS: { fontSize: 13, color: "rgba(255,255,255,0.9)", marginTop: 4 },
   scroll: { paddingHorizontal: 16, paddingTop: 12 },
   total: { alignItems: "center", paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: "#f5f5f4", marginBottom: 12 },
-  totalRing: { width: 96, height: 96, borderRadius: 48, alignItems: "center", justifyContent: "center", marginBottom: 8 },
-  totalN: { fontSize: 32, fontWeight: "800", color: "#dc2626" },
-  totalL: { fontSize: 13, color: "#78716c", marginBottom: 10, textAlign: "center" },
+  totalRing: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+    borderWidth: 3,
+    borderColor: "#fff",
+    ...Platform.select({
+      ios: { shadowColor: "#dc2626", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8 },
+    }),
+  },
+  totalN: { fontSize: 34, fontWeight: "800", color: "#dc2626" },
+  totalL: { fontSize: 14, color: "#78716c", marginBottom: 12, textAlign: "center" },
+  purpleBtnWrap: { width: "100%" },
   purpleBtn: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 8,
     paddingHorizontal: 18,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderRadius: 14,
-    backgroundColor: "#9333ea",
   },
-  purpleBtnT: { color: "#fff", fontWeight: "800", fontSize: 14 },
+  purpleBtnT: { color: "#fff", fontWeight: "800", fontSize: 15 },
   sec: { marginBottom: 16 },
   secHead: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 },
   secIco: { width: 40, height: 40, borderRadius: 10, alignItems: "center", justifyContent: "center" },

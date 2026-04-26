@@ -42,7 +42,7 @@ export function RecommendModal({ onClose, profileToRecommend, availableFriends }
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-500 to-amber-500 p-6 text-white relative">
+        <div className="bg-gradient-to-r from-red-600 to-amber-500 p-6 text-white relative">
           <button
             onClick={onClose}
             className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition-colors"
@@ -89,9 +89,9 @@ export function RecommendModal({ onClose, profileToRecommend, availableFriends }
               {availableFriends.map((friend) => (
                 <button
                   key={friend.id}
-                  onClick={() => setSelectedFriend(friend.id)}
+                  onClick={() => setSelectedFriend(String(friend.id))}
                   className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${
-                    selectedFriend === friend.id
+                    selectedFriend === String(friend.id)
                       ? "bg-gradient-to-r from-red-100 to-amber-100 border-2 border-red-500"
                       : "bg-gray-50 hover:bg-gray-100 border-2 border-transparent"
                   }`}
@@ -109,7 +109,7 @@ export function RecommendModal({ onClose, profileToRecommend, availableFriends }
                     </h4>
                     <p className="text-xs text-gray-600">{friend.location}</p>
                   </div>
-                  {selectedFriend === friend.id && (
+                  {selectedFriend === String(friend.id) && (
                     <Check className="size-5 text-red-500" />
                   )}
                 </button>
@@ -123,7 +123,7 @@ export function RecommendModal({ onClose, profileToRecommend, availableFriends }
             disabled={!selectedFriend || showSuccess}
             className={`w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-medium transition-all ${
               selectedFriend && !showSuccess
-                ? "bg-gradient-to-r from-red-500 to-amber-500 text-white hover:shadow-lg"
+                ? "bg-gradient-to-r from-red-600 to-amber-500 text-white hover:shadow-lg"
                 : "bg-gray-200 text-gray-400 cursor-not-allowed"
             }`}
           >

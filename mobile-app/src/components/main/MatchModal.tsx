@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, Pressable, StyleSheet, Image, ScrollView } from "react-native";
+import { View, Text, Pressable, StyleSheet, Image, ScrollView, Platform } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import { X, Heart, MessageCircle, ChevronRight, UserPlus, Calendar } from "lucide-react-native";
 
@@ -58,7 +58,14 @@ export function MatchModal({
                   </LinearGradient>
                 </LoopingView>
               </View>
-              <Text style={styles.title}>{isMatch ? "Это Match!" : "Вы понравились друг другу"}</Text>
+              <LinearGradient
+                colors={[...brandGradients.titleText]}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
+                style={styles.titlePad}
+              >
+                <Text style={styles.titleGradT}>{isMatch ? "Это Match!" : "Вы понравились друг другу"}</Text>
+              </LinearGradient>
               <Text style={styles.sub}>Вы и {profile.name} понравились друг другу</Text>
 
               <Pressable
@@ -75,7 +82,7 @@ export function MatchModal({
                 </LinearGradient>
               </Pressable>
 
-              <View style={styles.preview}>
+              <View style={styles.previewCard}>
                 {profile.photo ? (
                   <Image source={{ uri: profile.photo }} style={styles.avatar} />
                 ) : (
@@ -143,27 +150,39 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  title: {
-    fontSize: 28,
+  titlePad: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+    alignSelf: "center",
+    marginBottom: 10,
+  },
+  titleGradT: {
+    fontSize: 26,
     fontWeight: "800",
     textAlign: "center",
-    marginBottom: 8,
-    color: "#dc2626",
+    color: "#fff",
   },
-  sub: { textAlign: "center", color: "#57534e", marginBottom: 16 },
+  sub: { textAlign: "center", color: "#57534e", marginBottom: 16, fontSize: 15, lineHeight: 22, paddingHorizontal: 8 },
   compatOuter: { marginBottom: 16 },
   compatBox: { borderRadius: 16, padding: 16, alignItems: "center" },
   compatNum: { fontSize: 36, fontWeight: "800", color: "#dc2626" },
   compatHintRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
   compatHint: { fontSize: 13, color: "#57534e" },
-  preview: {
+  previewCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    padding: 12,
-    backgroundColor: "#f5f5f4",
-    borderRadius: 16,
+    padding: 14,
+    backgroundColor: "#fff",
+    borderRadius: 20,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#e7e5e4",
+    ...Platform.select({
+      ios: { shadowColor: "#1c1917", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12 },
+      android: { elevation: 4 },
+    }),
   },
   avatar: { width: 64, height: 64, borderRadius: 32 },
   avatarPh: { backgroundColor: "#d6d3d1" },

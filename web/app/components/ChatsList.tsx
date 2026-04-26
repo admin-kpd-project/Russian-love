@@ -1,11 +1,15 @@
 import { motion, AnimatePresence } from "motion/react";
 import { X, MessageCircle, CheckCheck, Trash2, Check } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { ru } from "date-fns/locale";
 
 import type { OpenChatParams } from "../types/chat";
-import { getConversations } from "../services/conversationsService";
+import {
+  getConversations,
+  markConversationsRead,
+  deleteConversation,
+} from "../services/conversationsService";
 
 interface Chat {
   id: string;
@@ -39,41 +43,49 @@ export function ChatsList({ onClose, onOpenChat }: ChatsListProps) {
   const [selectedChats, setSelectedChats] = useState<string[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
+  const [actionBusy, setActionBusy] = useState(false);
+
+  const loadConversations = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    const res = await getConversations();
+    setLoading(false);
+    if (res.error) {
+      setLoadError(res.error);
+      setChats([]);
+      return;
+    }
+    const rows = res.data ?? [];
+    setChats(
+      rows.map((c) => ({
+        id: c.id,
+        name: c.name,
+        avatar: c.avatar || "",
+        lastMessage: c.lastMessage || "",
+        timestamp: formatListTimestamp(c.timestamp),
+        unread: c.unread,
+      }))
+    );
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setLoadError(null);
-      const res = await getConversations();
-      if (cancelled) return;
-      setLoading(false);
-      if (res.error) {
-        setLoadError(res.error);
-        setChats([]);
-        return;
-      }
-      const rows = res.data ?? [];
-      setChats(
-        rows.map((c) => ({
-          id: c.id,
-          name: c.name,
-          avatar: c.avatar || "",
-          lastMessage: c.lastMessage || "",
-          timestamp: formatListTimestamp(c.timestamp),
-          unread: c.unread,
-        }))
-      );
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-  
-  const unreadCount = chats.filter(c => c.unread).length;
-  
-  const markAllAsRead = () => {
-    setChats(prevChats => prevChats.map(chat => ({ ...chat, unread: false })));
+    void loadConversations();
+  }, [loadConversations]);
+
+  const unreadCount = chats.filter((c) => c.unread).length;
+
+  const markAllAsRead = async () => {
+    if (chats.length === 0) return;
+    setActionBusy(true);
+    setLoadError(null);
+    const res = await markConversationsRead({ all: true });
+    if (res.error) {
+      setActionBusy(false);
+      setLoadError(res.error);
+      return;
+    }
+    setActionBusy(false);
+    await loadConversations();
   };
 
   const toggleSelection = (chatId: string) => {
@@ -84,16 +96,46 @@ export function ChatsList({ onClose, onOpenChat }: ChatsListProps) {
     );
   };
 
-  const deleteSelectedChats = () => {
-    setChats(prev => prev.filter(chat => !selectedChats.includes(chat.id)));
+  const deleteSelectedChats = async () => {
+    if (selectedChats.length === 0) {
+      setShowDeleteConfirm(false);
+      return;
+    }
+    setActionBusy(true);
+    setLoadError(null);
+    for (const id of selectedChats) {
+      const res = await deleteConversation(id);
+      if (res.error) {
+        setActionBusy(false);
+        setLoadError(res.error);
+        return;
+      }
+    }
+    setActionBusy(false);
+    setShowDeleteConfirm(false);
     setSelectedChats([]);
     setSelectionMode(false);
-    setShowDeleteConfirm(false);
+    await loadConversations();
   };
 
-  const deleteAllChats = () => {
-    setChats([]);
+  const deleteAllChats = async () => {
+    if (chats.length === 0) {
+      setShowClearAllConfirm(false);
+      return;
+    }
+    setActionBusy(true);
+    setLoadError(null);
+    for (const chat of chats) {
+      const res = await deleteConversation(chat.id);
+      if (res.error) {
+        setActionBusy(false);
+        setLoadError(res.error);
+        return;
+      }
+    }
+    setActionBusy(false);
     setShowClearAllConfirm(false);
+    await loadConversations();
   };
 
   const exitSelectionMode = () => {
@@ -118,7 +160,7 @@ export function ChatsList({ onClose, onOpenChat }: ChatsListProps) {
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-500 to-amber-500 p-6 text-white relative flex-shrink-0">
+        <div className="bg-gradient-to-r from-red-600 to-amber-500 p-6 text-white relative flex-shrink-0">
           <button
             onClick={onClose}
             className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center hover:bg-white/20 rounded-full transition-colors"
@@ -137,7 +179,9 @@ export function ChatsList({ onClose, onOpenChat }: ChatsListProps) {
                 <p className="text-white/80 text-sm">
                   {selectionMode
                     ? `из ${chats.length} чатов`
-                    : `${unreadCount} непрочитанных`}
+                    : unreadCount === 0
+                      ? "Нет непрочитанных"
+                      : `${unreadCount} непрочитанных`}
                 </p>
               </div>
             </div>
@@ -148,25 +192,31 @@ export function ChatsList({ onClose, onOpenChat }: ChatsListProps) {
             <div className="space-y-2">
               {unreadCount > 0 && (
                 <button
+                  type="button"
                   onClick={markAllAsRead}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white/20 hover:bg-white/30 rounded-xl transition-colors text-sm font-medium"
+                  disabled={loading || actionBusy}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white/20 hover:bg-white/30 disabled:opacity-50 disabled:pointer-events-none rounded-xl transition-colors text-sm font-medium"
                 >
                   <CheckCheck className="size-4" />
-                  Отметить все прочитанными
+                  {actionBusy ? "…" : "Отметить все прочитанными"}
                 </button>
               )}
               {chats.length > 0 && (
                 <div className="flex gap-2">
                   <button
+                    type="button"
                     onClick={() => setSelectionMode(true)}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-white/20 hover:bg-white/30 rounded-xl transition-colors text-sm font-medium"
+                    disabled={loading || actionBusy}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-white/20 hover:bg-white/30 disabled:opacity-50 disabled:pointer-events-none rounded-xl transition-colors text-sm font-medium"
                   >
                     <Check className="size-4" />
                     Выбрать
                   </button>
                   <button
+                    type="button"
                     onClick={() => setShowClearAllConfirm(true)}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-white/20 hover:bg-white/30 rounded-xl transition-colors text-sm font-medium"
+                    disabled={loading || actionBusy}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-white/20 hover:bg-white/30 disabled:opacity-50 disabled:pointer-events-none rounded-xl transition-colors text-sm font-medium"
                   >
                     <Trash2 className="size-4" />
                     Очистить все
@@ -177,15 +227,19 @@ export function ChatsList({ onClose, onOpenChat }: ChatsListProps) {
           ) : (
             <div className="flex gap-2">
               <button
+                type="button"
                 onClick={exitSelectionMode}
-                className="flex-1 px-4 py-2.5 bg-white/20 hover:bg-white/30 rounded-xl transition-colors text-sm font-medium"
+                disabled={actionBusy}
+                className="flex-1 px-4 py-2.5 bg-white/20 hover:bg-white/30 disabled:opacity-50 rounded-xl transition-colors text-sm font-medium"
               >
                 Отмена
               </button>
               {selectedChats.length > 0 && (
                 <button
+                  type="button"
                   onClick={() => setShowDeleteConfirm(true)}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-white/30 hover:bg-white/40 rounded-xl transition-colors text-sm font-medium"
+                  disabled={actionBusy}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-white/30 hover:bg-white/40 disabled:opacity-50 rounded-xl transition-colors text-sm font-medium"
                 >
                   <Trash2 className="size-4" />
                   Удалить ({selectedChats.length})
@@ -227,7 +281,7 @@ export function ChatsList({ onClose, onOpenChat }: ChatsListProps) {
                       <div
                         className={`size-6 rounded-full border-2 flex items-center justify-center transition-all ${
                           selectedChats.includes(chat.id)
-                            ? 'bg-gradient-to-r from-red-500 to-amber-500 border-red-500'
+                            ? 'bg-gradient-to-r from-red-600 to-amber-500 border-red-600'
                             : 'border-gray-300 bg-white'
                         }`}
                       >
@@ -316,10 +370,12 @@ export function ChatsList({ onClose, onOpenChat }: ChatsListProps) {
                   Отмена
                 </button>
                 <button
-                  onClick={deleteSelectedChats}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-amber-500 text-white rounded-2xl font-medium hover:shadow-lg transition-shadow"
+                  type="button"
+                  onClick={() => void deleteSelectedChats()}
+                  disabled={actionBusy}
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-red-600 to-amber-500 text-white rounded-2xl font-medium hover:shadow-lg disabled:opacity-50 transition-shadow"
                 >
-                  Удалить
+                  {actionBusy ? "…" : "Удалить"}
                 </button>
               </div>
             </motion.div>
@@ -362,10 +418,12 @@ export function ChatsList({ onClose, onOpenChat }: ChatsListProps) {
                   Отмена
                 </button>
                 <button
-                  onClick={deleteAllChats}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-amber-500 text-white rounded-2xl font-medium hover:shadow-lg transition-shadow"
+                  type="button"
+                  onClick={() => void deleteAllChats()}
+                  disabled={actionBusy}
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-red-600 to-amber-500 text-white rounded-2xl font-medium hover:shadow-lg disabled:opacity-50 transition-shadow"
                 >
-                  Удалить всё
+                  {actionBusy ? "…" : "Удалить всё"}
                 </button>
               </div>
             </motion.div>

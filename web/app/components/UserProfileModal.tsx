@@ -42,7 +42,7 @@ export function UserProfileModal({ profile, user, onClose }: UserProfileModalPro
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header with Photo */}
-        <div className="relative h-32 bg-gradient-to-br from-red-500 to-amber-500 flex-shrink-0 rounded-t-3xl">
+        <div className="relative h-32 bg-gradient-to-br from-red-600 to-amber-500 flex-shrink-0 rounded-t-3xl">
           <button
             onClick={onClose}
             className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-colors z-10"

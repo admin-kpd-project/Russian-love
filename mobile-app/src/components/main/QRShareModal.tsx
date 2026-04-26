@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { Modal, View, Text, Pressable, StyleSheet, Share, Platform, Alert } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import LinearGradient from "react-native-linear-gradient";
 import QRCode from "react-native-qrcode-svg";
 import { X, Share2, Copy } from "lucide-react-native";
 
 import { getApiBaseUrl } from "../../api/apiBase";
+import { brandGradients } from "../../theme/designTokens";
 
 type Props = { visible: boolean; userId: string | undefined; onClose: () => void };
 
@@ -18,6 +20,7 @@ function originFromApiBase(base: string): string {
 }
 
 export function QRShareModal({ visible, userId, onClose }: Props) {
+  const insets = useSafeAreaInsets();
   const [qrUrl, setQrUrl] = useState("");
 
   useEffect(() => {
@@ -49,14 +52,14 @@ export function QRShareModal({ visible, userId, onClose }: Props) {
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.back} onPress={onClose}>
         <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-          <LinearGradient colors={["#ef4444", "#f59e0b"]} style={styles.head}>
+          <LinearGradient colors={[...brandGradients.primary]} style={styles.head}>
             <Pressable style={styles.x} onPress={onClose}>
               <X size={24} color="#fff" />
             </Pressable>
             <Text style={styles.headT}>Ваш QR-код</Text>
             <Text style={styles.headS}>Поделитесь профилем с друзьями</Text>
           </LinearGradient>
-          <View style={styles.body}>
+          <View style={[styles.body, { paddingBottom: 20 + insets.bottom }]}>
             {qrUrl ? (
               <View style={styles.qrBox}>
                 <QRCode value={qrUrl} size={200} backgroundColor="#fff" color="#1c1917" />

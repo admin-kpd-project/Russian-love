@@ -14,7 +14,7 @@ from app.config.settings import get_settings
 from app.core.envelope import Envelope
 from app.db.models import Conversation, ConversationMember, Message, Notification, User
 from app.db.session import get_db
-from app.schemas.profile import CreateConversationBody, SendMessageBody
+from app.schemas.profile import CreateConversationBody, MarkConversationsReadBody, SendMessageBody
 
 router = APIRouter(prefix="/api", tags=["Conversations", "Messages"])
 
@@ -51,6 +51,22 @@ def _format_duration_str(sec: int | None) -> str | None:
     return f"{m}:{s:02d}"
 
 
+async def _has_unread_from_peer(
+    db: AsyncSession,
+    conversation_id: UUID,
+    peer_id: UUID,
+    last_read_at: datetime | None,
+) -> bool:
+    q = select(Message.id).where(
+        Message.conversation_id == conversation_id,
+        Message.sender_id == peer_id,
+        Message.is_deleted.is_(False),
+    )
+    if last_read_at is not None:
+        q = q.where(Message.created_at > last_read_at)
+    return (await db.execute(q.limit(1))).scalar_one_or_none() is not None
+
+
 async def _find_direct_conversation(db: AsyncSession, a: UUID, b: UUID) -> Conversation | None:
     result = await db.execute(
         select(Conversation)
@@ -79,6 +95,9 @@ async def list_conversations(
     convs = list(result.scalars().unique().all())
     out = []
     for c in convs:
+        my_mem = next((m for m in c.members if m.user_id == user.id), None)
+        if my_mem is None:
+            continue
         other_id = next((m.user_id for m in c.members if m.user_id != user.id), None)
         if other_id is None:
             continue
@@ -96,6 +115,7 @@ async def list_conversations(
         if last_msg:
             last_text = last_msg.body or ""
             ts = last_msg.created_at
+        unread = await _has_unread_from_peer(db, c.id, other_id, my_mem.last_read_at)
         out.append(
             {
                 "id": str(c.id),
@@ -103,7 +123,7 @@ async def list_conversations(
                 "avatar": ou.avatar_url or "",
                 "lastMessage": last_text,
                 "timestamp": ts.astimezone(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
-                "unread": False,
+                "unread": unread,
             }
         )
     out.sort(key=lambda x: x["timestamp"], reverse=True)
@@ -135,6 +155,90 @@ async def create_conversation(
     )
     await db.flush()
     return Envelope.ok({"id": str(conv.id)})
+
+
+@router.post("/conversations/mark-read")
+async def mark_conversations_read(
+    body: MarkConversationsReadBody,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_completed_user),
+):
+    if body.all:
+        r = await db.execute(
+            select(ConversationMember).where(ConversationMember.user_id == user.id)
+        )
+        for m in r.scalars().all():
+            m.last_read_at = datetime.now(tz=UTC)
+        await db.flush()
+        return Envelope.ok({"ok": True})
+    ids = body.conversation_ids or []
+    if not ids:
+        return JSONResponse(
+            status_code=400, content=Envelope.err("Укажите all или conversationIds")
+        )
+    now = datetime.now(tz=UTC)
+    for cid in ids:
+        mem = (
+            await db.execute(
+                select(ConversationMember).where(
+                    ConversationMember.conversation_id == cid,
+                    ConversationMember.user_id == user.id,
+                )
+            )
+        ).scalar_one_or_none()
+        if mem is not None:
+            mem.last_read_at = now
+    await db.flush()
+    return Envelope.ok({"ok": True})
+
+
+@router.post("/conversations/{conversation_id}/read")
+async def mark_conversation_read(
+    conversation_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_completed_user),
+):
+    mem = (
+        await db.execute(
+            select(ConversationMember).where(
+                ConversationMember.conversation_id == conversation_id,
+                ConversationMember.user_id == user.id,
+            )
+        )
+    ).scalar_one_or_none()
+    if mem is None:
+        return JSONResponse(status_code=403, content=Envelope.err("Нет доступа к беседе"))
+    mem.last_read_at = datetime.now(tz=UTC)
+    await db.flush()
+    return Envelope.ok({"ok": True})
+
+
+@router.delete("/conversations/{conversation_id}")
+async def delete_conversation(
+    conversation_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_completed_user),
+):
+    mem = (
+        await db.execute(
+            select(ConversationMember).where(
+                ConversationMember.conversation_id == conversation_id,
+                ConversationMember.user_id == user.id,
+            )
+        )
+    ).scalar_one_or_none()
+    if mem is None:
+        return JSONResponse(status_code=403, content=Envelope.err("Нет доступа к беседе"))
+    conv = (
+        await db.execute(
+            select(Conversation).where(Conversation.id == conversation_id)
+        )
+    ).scalar_one_or_none()
+    if conv is None:
+        return JSONResponse(status_code=404, content=Envelope.err("Беседа не найдена"))
+    await db.delete(conv)
+    await db.flush()
+    return Envelope.ok({"ok": True})
 
 
 @router.get("/conversations/{conversation_id}/messages")

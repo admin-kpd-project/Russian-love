@@ -88,7 +88,7 @@ export function NotificationsModal({ onClose, onOpenChat }: NotificationsModalPr
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-500 to-amber-500 px-6 py-4 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-red-600 to-amber-500 px-6 py-4 flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold text-white">Уведомления</h2>
             {unreadCount > 0 && (
@@ -166,7 +166,7 @@ export function NotificationsModal({ onClose, onOpenChat }: NotificationsModalPr
                             peerUserId: notification.peerUserId,
                           });
                         }}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-red-500 to-amber-500 text-white rounded-full text-sm font-medium hover:shadow-lg transition-all hover:scale-105"
+                        className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-red-600 to-amber-500 text-white rounded-full text-sm font-medium hover:shadow-lg transition-all hover:scale-105"
                       >
                         <Send className="size-4" />
                         Написать

@@ -44,7 +44,7 @@ import { DetailedAnalysisPurchaseModal } from "../components/main/DetailedAnalys
 import type { ConversationListItem } from "../api/conversationsApi";
 import { ScalePressable } from "../components/ui/Motion";
 import { GradientText } from "../components/ui/GradientText";
-import { brandGradients } from "../theme/designTokens";
+import { brandGradients, tw } from "../theme/designTokens";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Main">;
 
@@ -246,14 +246,14 @@ export function MainScreen() {
         <View style={styles.headerIn}>
           <View style={styles.brand}>
             <MatreshkaLogo size={40} />
-            <GradientText text="Любить по-russки" width={158} height={25} fontSize={18} />
+            <GradientText text="Любить по-russки" width={172} height={28} fontSize={20} />
           </View>
           <View style={styles.headerActions}>
             <ScalePressable onPress={() => setShowProfile(true)} style={styles.iconHit}>
-              <UserIcon size={24} color="#57534e" />
+              <UserIcon size={24} color={tw.gray600} />
             </ScalePressable>
             <ScalePressable onPress={() => setShowNotif(true)} style={styles.iconHit}>
-              <MessageCircle size={24} color="#57534e" />
+              <MessageCircle size={24} color={tw.gray600} />
               <View style={styles.dot} />
             </ScalePressable>
           </View>
@@ -262,12 +262,12 @@ export function MainScreen() {
 
       <View style={styles.body}>
         {loadingFeed ? (
-          <ActivityIndicator size="large" color="#ef4444" style={{ marginTop: 40 }} />
+          <ActivityIndicator size="large" color={tw.red500} style={{ marginTop: 40 }} />
         ) : hasMore ? (
           <>
             <View style={styles.qrRow}>
               <ScalePressable style={styles.qrBtn} onPress={() => setShowQR(true)}>
-                <QrCode size={20} color="#44403c" />
+                <QrCode size={20} color={tw.gray700} />
                 <Text style={styles.qrTxt}>QR</Text>
               </ScalePressable>
             </View>
@@ -363,7 +363,7 @@ export function MainScreen() {
           ) : null}
         </ScalePressable>
         <ScalePressable style={styles.navHit} onPress={() => setShowFavorites(true)}>
-          <Bookmark size={30} color="#d97706" />
+          <Bookmark size={30} color={tw.gray400} />
           {favorites.length > 0 ? (
             <LinearGradient colors={[...brandGradients.favorite]} style={styles.badgeAm}>
               <Text style={styles.badgeTxt}>{favorites.length}</Text>
@@ -371,14 +371,14 @@ export function MainScreen() {
           ) : null}
         </ScalePressable>
         <ScalePressable style={styles.navHit} onPress={() => setShowLikes(true)}>
-          <Heart size={30} color="#a8a29e" />
+          <Heart size={30} color={tw.gray400} />
         </ScalePressable>
         <ScalePressable style={styles.navHit} onPress={() => setShowChats(true)}>
-          <MessageCircle size={30} color="#a8a29e" />
+          <MessageCircle size={30} color={tw.gray400} />
           <View style={styles.dotSm} />
         </ScalePressable>
         <ScalePressable style={styles.navHit} onPress={() => setShowProfile(true)}>
-          <UserIcon size={30} color="#a8a29e" />
+          <UserIcon size={30} color={tw.gray400} />
         </ScalePressable>
       </View>
 
@@ -524,9 +524,9 @@ export function MainScreen() {
 const styles = StyleSheet.create({
   page: { flex: 1 },
   header: {
-    backgroundColor: "rgba(255,255,255,0.82)",
+    backgroundColor: "rgba(255,255,255,0.8)",
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: "#e7e5e4",
+    borderColor: tw.gray200,
     ...Platform.select({
       ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 },
       android: { elevation: 3 },
@@ -538,7 +538,7 @@ const styles = StyleSheet.create({
   brandLine1: { fontSize: 18, fontWeight: "800" },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 4 },
   iconHit: { padding: 8, position: "relative" },
-  dot: { position: "absolute", top: 8, right: 8, width: 8, height: 8, borderRadius: 4, backgroundColor: "#ef4444" },
+  dot: { position: "absolute", top: 4, right: 4, width: 8, height: 8, borderRadius: 4, backgroundColor: tw.red500 },
   body: { flex: 1, paddingHorizontal: 8, paddingTop: 8, minHeight: 0 },
   qrRow: { alignItems: "flex-end", paddingRight: 8, marginBottom: 6 },
   qrBtn: {
@@ -554,13 +554,13 @@ const styles = StyleSheet.create({
       android: { elevation: 4 },
     }),
   },
-  qrTxt: { fontSize: 14, fontWeight: "600", color: "#44403c" },
+  qrTxt: { fontSize: 14, fontWeight: "500", color: tw.gray700 },
   stack: { flex: 1, position: "relative", marginBottom: 4 },
   stackAbs: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0 },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
   emptyIco: { width: 96, height: 96, borderRadius: 48, alignItems: "center", justifyContent: "center", marginBottom: 16 },
-  emptyH: { fontSize: 22, fontWeight: "800", color: "#292524", marginBottom: 8 },
-  emptyT: { color: "#57534e", textAlign: "center", marginBottom: 20 },
+  emptyH: { fontSize: 22, fontWeight: "800", color: tw.gray800, marginBottom: 8 },
+  emptyT: { color: tw.gray600, textAlign: "center", marginBottom: 20 },
   restart: { paddingHorizontal: 28, paddingVertical: 14, borderRadius: 999 },
   restartT: { color: "#fff", fontWeight: "700", fontSize: 16 },
   bottom: {
@@ -568,9 +568,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
     alignItems: "center",
     paddingTop: 10,
-    backgroundColor: "rgba(255,255,255,0.84)",
+    backgroundColor: "rgba(255,255,255,0.8)",
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: "#e7e5e4",
+    borderColor: tw.gray200,
     ...Platform.select({
       ios: { shadowColor: "#000", shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.06, shadowRadius: 8 },
       android: { elevation: 8 },

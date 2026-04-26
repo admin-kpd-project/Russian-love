@@ -19,3 +19,20 @@ export function createConversation(userId: string): Promise<ApiResult<{ id: stri
     body: JSON.stringify({ user_id: userId }),
   });
 }
+
+export function markConversationRead(conversationId: string): Promise<ApiResult<{ ok: boolean }>> {
+  return apiFetch<{ ok: boolean }>(`/api/conversations/${conversationId}/read`, { method: "POST" });
+}
+
+export function markConversationsRead(
+  body: { all: true } | { all: false; conversationIds: string[] },
+): Promise<ApiResult<{ ok: boolean }>> {
+  return apiFetch<{ ok: boolean }>("/api/conversations/mark-read", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteConversation(conversationId: string): Promise<ApiResult<{ ok: boolean }>> {
+  return apiFetch<{ ok: boolean }>(`/api/conversations/${conversationId}`, { method: "DELETE" });
+}

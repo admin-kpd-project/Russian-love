@@ -3,6 +3,7 @@ import { X, Send, Image, Smile, Heart, Mic, Video, Gift } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
 import { getMessages, sendTextMessage, sendMediaMessage } from "../services/messagesService";
+import { markConversationRead } from "../services/conversationsService";
 import { uploadFile } from "../services/uploadService";
 import { createChatWebSocket } from "../services/socialService";
 import { getPaymentsStatus, initTbankPayment } from "../services/paymentsService";
@@ -146,6 +147,16 @@ export function ChatModal({
     return () => {
       cancelled = true;
     };
+  }, [conversationId]);
+
+  useEffect(() => {
+    if (!conversationId) return;
+    void (async () => {
+      const r = await markConversationRead(conversationId);
+      if (r.error) {
+        console.warn("markConversationRead", r.error);
+      }
+    })();
   }, [conversationId]);
 
   useEffect(() => {
@@ -475,7 +486,7 @@ export function ChatModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-500 to-amber-500 px-6 py-4 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-red-600 to-amber-500 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img
               src={userAvatar}
@@ -517,7 +528,7 @@ export function ChatModal({
                   message.type === "image" ? "p-1" : "px-4 py-2"
                 } ${
                   message.sender === "me"
-                    ? "bg-gradient-to-r from-red-500 to-amber-500 text-white"
+                    ? "bg-gradient-to-r from-red-600 to-amber-500 text-white"
                     : "bg-white border border-gray-200 text-gray-800"
                 }`}
               >
@@ -617,7 +628,7 @@ export function ChatModal({
                 <button
                   type="button"
                   onClick={stopRecordingSend}
-                  className="px-4 py-2 bg-gradient-to-r from-red-500 to-amber-500 text-white rounded-full text-sm font-medium hover:shadow-md transition-shadow"
+                  className="px-4 py-2 bg-gradient-to-r from-red-600 to-amber-500 text-white rounded-full text-sm font-medium hover:shadow-md transition-shadow"
                 >
                   Отправить
                 </button>
@@ -661,7 +672,7 @@ export function ChatModal({
                   type="button"
                   onClick={() => void handleSend()}
                   disabled={sending || messagesLoading}
-                  className="p-3 rounded-full transition-all bg-gradient-to-r from-red-500 to-amber-500 text-white hover:shadow-lg flex-shrink-0 disabled:opacity-50"
+                  className="p-3 rounded-full transition-all bg-gradient-to-r from-red-600 to-amber-500 text-white hover:shadow-lg flex-shrink-0 disabled:opacity-50"
                 >
                   <Send className="size-5" />
                 </button>
@@ -669,7 +680,7 @@ export function ChatModal({
                 <button
                   type="button"
                   onClick={() => void startRecording("voice")}
-                  className="p-3 rounded-full transition-all bg-gradient-to-r from-red-500 to-amber-500 text-white hover:shadow-lg flex-shrink-0"
+                  className="p-3 rounded-full transition-all bg-gradient-to-r from-red-600 to-amber-500 text-white hover:shadow-lg flex-shrink-0"
                 >
                   <Mic className="size-5" />
                 </button>

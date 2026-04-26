@@ -3,6 +3,8 @@ import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText }
 
 import { brandGradients } from "../../theme/designTokens";
 
+const titleStops = brandGradients.titleText;
+
 type Props = {
   text: string;
   width: number;
@@ -17,8 +19,8 @@ export function GradientText({ text, width, height, fontSize, fontWeight = "800"
     <Svg width={width} height={height} accessibilityRole="text">
       <Defs>
         <SvgLinearGradient id="brandTextGradient" x1="0" y1="0" x2="1" y2="0">
-          <Stop offset="0" stopColor={brandGradients.primaryDark[0]} />
-          <Stop offset="1" stopColor={brandGradients.primaryDark[1]} />
+          <Stop offset="0" stopColor={titleStops[0]} />
+          <Stop offset="1" stopColor={titleStops[1]} />
         </SvgLinearGradient>
       </Defs>
       <SvgText

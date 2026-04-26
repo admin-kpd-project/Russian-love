@@ -1,6 +1,6 @@
 import { X, Calendar, List, MapPin, Clock, Heart, ExternalLink, Users } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 
 interface EventsModalProps {
   onClose: () => void;
@@ -41,6 +41,15 @@ const categoryIcons = {
   еда: "🍽️",
   развлечения: "🎉",
 };
+
+const CATS: ("все" | Event["category"])[] = [
+  "все",
+  "романтика",
+  "культура",
+  "активность",
+  "еда",
+  "развлечения",
+];
 
 // Generate events for the next 30 days
 function generateEvents(profileName: string): Event[] {
@@ -263,12 +272,22 @@ export function EventsModal({ onClose, profileName, profilePhoto, onSendEventInv
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [priceFilter, setPriceFilter] = useState<"all" | "free" | "paid">("all");
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const events = generateEvents(profileName);
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [cat, setCat] = useState<(typeof CATS)[number]>("все");
+  const events = useMemo(() => generateEvents(profileName), [profileName]);
 
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [sentEventId, setSentEventId] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
+
+  useEffect(() => {
+    setViewMode("list");
+    setCat("все");
+    setPriceFilter("all");
+    setTagFilter(null);
+    setSelectedDate(null);
+    setCurrentMonth(new Date());
+  }, [profileName]);
 
   // Handle event card click - send invitation to chat
   const handleEventClick = (event: Event) => {
@@ -296,30 +315,28 @@ export function EventsModal({ onClose, profileName, profilePhoto, onSendEventInv
     }
   };
 
-  // Get all unique tags from events
-  const allTags = Array.from(new Set(events.flatMap(event => event.tags)));
+  const allTags = useMemo(
+    () => Array.from(new Set(events.flatMap((e) => e.tags))).sort(),
+    [events]
+  );
 
-  // Filter events
-  const filteredEvents = events.filter(event => {
-    // Price filter
-    if (priceFilter === "free" && !event.isFree) return false;
-    if (priceFilter === "paid" && event.isFree) return false;
+  const filteredEvents = useMemo(() => {
+    let list = events;
+    if (cat !== "все") list = list.filter((e) => e.category === cat);
+    if (priceFilter === "free") list = list.filter((e) => e.isFree);
+    if (priceFilter === "paid") list = list.filter((e) => !e.isFree);
+    if (tagFilter) list = list.filter((e) => e.tags.includes(tagFilter));
+    return list;
+  }, [events, cat, priceFilter, tagFilter]);
 
-    // Tag filter
-    if (selectedTags.length > 0) {
-      const hasMatchingTag = selectedTags.some(tag => event.tags.includes(tag));
-      if (!hasMatchingTag) return false;
-    }
+  const M = events.length;
+  const k = filteredEvents.length;
 
-    return true;
-  });
-
-  const toggleTag = (tag: string) => {
-    setSelectedTags(prev => 
-      prev.includes(tag) 
-        ? prev.filter(t => t !== tag)
-        : [...prev, tag]
-    );
+  const resetFilters = () => {
+    setCat("все");
+    setPriceFilter("all");
+    setTagFilter(null);
+    setSelectedDate(null);
   };
 
   // Calendar helpers
@@ -372,7 +389,7 @@ export function EventsModal({ onClose, profileName, profilePhoto, onSendEventInv
           onClick={() => setSelectedDate(date)}
           className={`aspect-square rounded-lg p-2 text-sm transition-all relative ${
             isSelected
-              ? "bg-gradient-to-br from-red-500 to-amber-500 text-white font-bold shadow-lg"
+              ? "bg-gradient-to-br from-red-600 to-amber-500 text-white font-bold shadow-lg"
               : isToday
               ? "bg-red-100 text-red-600 font-semibold"
               : hasEvents
@@ -431,7 +448,7 @@ export function EventsModal({ onClose, profileName, profilePhoto, onSendEventInv
           каталог появится позже.
         </div>
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-500 to-amber-500 px-6 py-4 flex items-center justify-between flex-shrink-0">
+        <div className="bg-gradient-to-r from-red-600 to-amber-500 px-6 py-4 flex items-center justify-between flex-shrink-0">
           <div>
             <h2 className="text-xl font-bold text-white">Куда сходить вместе</h2>
             <p className="text-sm text-white/90">Идеи для встреч с {profileName}</p>
@@ -482,80 +499,92 @@ export function EventsModal({ onClose, profileName, profilePhoto, onSendEventInv
           </button>
         </div>
 
-        {/* Filters Section */}
-        <div className="border-b border-gray-200 bg-gray-50 px-6 py-4 space-y-3">
-          {/* Price Filter */}
-          <div>
-            
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPriceFilter("all")}
-                className={`px-4 py-0.5 rounded-full text-sm font-medium transition-all ${
-                  priceFilter === "all"
-                    ? "bg-gradient-to-r from-red-500 to-amber-500 text-white shadow-md"
-                    : "bg-white text-gray-600 border border-gray-200 hover:border-gray-300"
-                }`}
-              >
-                Все
-              </button>
-              <button
-                onClick={() => setPriceFilter("free")}
-                className={`px-4 py-0.5 rounded-full text-sm font-medium transition-all ${
-                  priceFilter === "free"
-                    ? "bg-green-500 text-white shadow-md"
-                    : "bg-white text-gray-600 border border-gray-200 hover:border-gray-300"
-                }`}
-              >
-                Бесплатные
-              </button>
-              <button
-                onClick={() => setPriceFilter("paid")}
-                className={`px-4 py-0.5 rounded-full text-sm font-medium transition-all ${
-                  priceFilter === "paid"
-                    ? "bg-red-500 text-white shadow-md"
-                    : "bg-white text-gray-600 border border-gray-200 hover:border-gray-300"
-                }`}
-              >
-                Платные
-              </button>
-            </div>
+        {/* Filters: как на моб. EventsPicker — счётчик, цена, категория, тег (один) */}
+        <div className="border-b border-gray-200 bg-gray-50 px-6 py-3 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm text-gray-700">
+              Найдено: {k} из {M}
+            </p>
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="text-sm text-red-600 font-medium hover:underline"
+            >
+              Сбросить
+            </button>
           </div>
 
-          {/* Tags Filter */}
           <div>
-            <p className="text-xs font-medium text-gray-600 mb-2">Теги:</p>
-            <div className="flex gap-2 overflow-x-auto pb-2 -mb-2 scrollbar-hide">
-              {allTags.map((tag) => (
+            <p className="text-xs font-medium text-gray-600 mb-1.5">Цена</p>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  { key: "all" as const, label: "Все" },
+                  { key: "free" as const, label: "Бесплатные" },
+                  { key: "paid" as const, label: "Платные" },
+                ] as const
+              ).map(({ key, label }) => (
                 <button
-                  key={tag}
-                  onClick={() => toggleTag(tag)}
-                  className={`px-3 py-0.5 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
-                    selectedTags.includes(tag)
-                      ? "bg-gradient-to-r from-red-500 to-amber-500 text-white shadow-md"
+                  key={key}
+                  type="button"
+                  onClick={() => setPriceFilter(key)}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                    priceFilter === key
+                      ? "bg-gradient-to-r from-red-600 to-amber-500 text-white shadow-md"
                       : "bg-white text-gray-600 border border-gray-200 hover:border-gray-300"
                   }`}
                 >
-                  #{tag}
+                  {label}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Active Filters Count */}
-          {(priceFilter !== "all" || selectedTags.length > 0) && (
-            <div className="flex items-center justify-between pt-2 border-t border-gray-200">
-              <p className="text-xs text-gray-500">
-                Найдено: {filteredEvents.length} из {events.length}
-              </p>
-              <button
-                onClick={() => {
-                  setPriceFilter("all");
-                  setSelectedTags([]);
-                }}
-                className="text-xs text-red-500 hover:underline"
-              >
-                Сбросить фильтры
-              </button>
+          <div>
+            <p className="text-xs font-medium text-gray-600 mb-1.5">Категория</p>
+            <div className="flex gap-2 overflow-x-auto pb-1 -mb-1 scrollbar-hide">
+              {CATS.map((c) => {
+                const on = cat === c;
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setCat(c)}
+                    className={`whitespace-nowrap flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                      on
+                        ? "bg-gradient-to-r from-red-600 to-amber-500 text-white shadow-md"
+                        : "bg-white text-gray-600 border border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    {c === "все" ? "Все" : c}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {allTags.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-gray-600 mb-1.5">Теги</p>
+              <div className="flex gap-2 overflow-x-auto pb-1 -mb-1 scrollbar-hide">
+                {allTags.map((tag) => {
+                  const on = tagFilter === tag;
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => setTagFilter((prev) => (prev === tag ? null : tag))}
+                      className={`whitespace-nowrap flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                        on
+                          ? "bg-gradient-to-r from-red-600 to-amber-500 text-white shadow-md"
+                          : "bg-white text-gray-600 border border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      #{tag}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>

@@ -9,7 +9,9 @@ import {
   Switch,
   Linking,
   Alert,
+  Platform,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import LinearGradient from "react-native-linear-gradient";
 import {
   X,
@@ -26,6 +28,7 @@ import {
 } from "lucide-react-native";
 
 import { REGIONS_CITIES } from "../../data/settingsRegions";
+import { brandGradients, tw } from "../../theme/designTokens";
 
 type Props = { visible: boolean; onClose: () => void };
 
@@ -54,13 +57,14 @@ function RowSwitch({
           <Text style={styles.rowT}>{title}</Text>
           <Text style={styles.rowS}>{subtitle}</Text>
         </View>
-        <Switch value={value} onValueChange={onValue} trackColor={{ false: "#d6d3d1", true: "#fecaca" }} thumbColor={value ? "#ef4444" : "#f5f5f4"} />
+        <Switch value={value} onValueChange={onValue} trackColor={{ false: "#d6d3d1", true: "#fecaca" }} thumbColor={value ? tw.red500 : "#f5f5f4"} />
       </View>
     </View>
   );
 }
 
 export function SettingsModal({ visible, onClose }: Props) {
+  const insets = useSafeAreaInsets();
   const [notifications, setNotifications] = useState(true);
   const [privateProfile, setPrivateProfile] = useState(false);
   const [searchDistance, setSearchDistance] = useState(50);
@@ -80,15 +84,19 @@ export function SettingsModal({ visible, onClose }: Props) {
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.back} onPress={onClose}>
         <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-          <LinearGradient colors={["#ef4444", "#f59e0b"]} style={styles.head}>
-            <Pressable style={styles.x} onPress={onClose}>
+          <LinearGradient colors={[...brandGradients.primary]} style={styles.head}>
+            <Pressable style={styles.x} onPress={onClose} hitSlop={6}>
               <X size={24} color="#fff" />
             </Pressable>
             <Text style={styles.headT}>Настройки</Text>
-            <Text style={styles.headS}>Управление приложением</Text>
+            <Text style={styles.headS}>Управление профилем и отображением</Text>
           </LinearGradient>
 
-          <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={styles.scroll}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 16 + insets.bottom }}
+          >
             <RowSwitch
               title="Уведомления"
               subtitle="Получать push-уведомления"
@@ -258,7 +266,7 @@ export function SettingsModal({ visible, onClose }: Props) {
               <Trash2 size={20} color="#b91c1c" />
               <Text style={styles.delBtnT}>Удалить аккаунт</Text>
             </Pressable>
-            <View style={{ height: 24 }} />
+            <View style={{ height: 8 }} />
           </ScrollView>
         </Pressable>
       </Pressable>
@@ -294,7 +302,16 @@ export function SettingsModal({ visible, onClose }: Props) {
 
 const styles = StyleSheet.create({
   back: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
-  sheet: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "92%" },
+  sheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: "92%",
+    ...Platform.select({
+      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.1, shadowRadius: 12 },
+      android: { elevation: 16 },
+    }),
+  },
   head: { paddingTop: 16, paddingBottom: 20, paddingHorizontal: 20, borderTopLeftRadius: 24, borderTopRightRadius: 24 },
   x: { position: "absolute", top: 14, right: 14, zIndex: 2, padding: 8, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.2)" },
   headT: { fontSize: 24, fontWeight: "800", color: "#fff" },
@@ -374,7 +391,7 @@ const styles = StyleSheet.create({
   delH: { fontSize: 20, fontWeight: "800", textAlign: "center", color: "#292524", marginBottom: 8 },
   delP: { textAlign: "center", color: "#57534e", marginBottom: 4 },
   delWarn: { textAlign: "center", color: "#b91c1c", fontWeight: "600", fontSize: 13, marginBottom: 20 },
-  delYes: { backgroundColor: "#ef4444", paddingVertical: 14, borderRadius: 14, marginBottom: 10 },
+  delYes: { backgroundColor: tw.red500, paddingVertical: 14, borderRadius: 14, marginBottom: 10 },
   delYesT: { color: "#fff", fontWeight: "700", textAlign: "center", fontSize: 16 },
   delNo: { borderWidth: 2, borderColor: "#e7e5e4", paddingVertical: 14, borderRadius: 14 },
   delNoT: { color: "#44403c", fontWeight: "600", textAlign: "center", fontSize: 16 },

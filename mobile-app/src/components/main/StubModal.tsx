@@ -1,6 +1,7 @@
 import React from "react";
 import { Modal, Text, Pressable, StyleSheet } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
+import { brandGradients } from "../../theme/designTokens";
 
 type Props = {
   visible: boolean;
@@ -15,12 +16,12 @@ export function StubModal({ visible, title, body, onClose }: Props) {
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.back} onPress={onClose}>
         <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-          <LinearGradient colors={["#ef4444", "#f59e0b"]} style={styles.head}>
+          <LinearGradient colors={[...brandGradients.primary]} style={styles.head}>
             <Text style={styles.title}>{title}</Text>
           </LinearGradient>
           <Text style={styles.body}>{body}</Text>
           <Pressable onPress={onClose}>
-            <LinearGradient colors={["#ef4444", "#f59e0b"]} style={styles.btn}>
+            <LinearGradient colors={[...brandGradients.primary]} style={styles.btn}>
               <Text style={styles.btnT}>Закрыть</Text>
             </LinearGradient>
           </Pressable>

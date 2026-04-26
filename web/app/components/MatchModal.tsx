@@ -71,7 +71,7 @@ export function MatchModal({ profile, compatibility, onClose, onOpenChat, onReco
                   repeat: Infinity,
                   duration: 1.5,
                 }}
-                className="bg-gradient-to-br from-red-500 to-amber-500 rounded-full p-6"
+                className="bg-gradient-to-br from-red-600 to-amber-500 rounded-full p-6"
               >
                 <Heart className="size-12 text-white fill-white" />
               </motion.div>
@@ -156,7 +156,7 @@ export function MatchModal({ profile, compatibility, onClose, onOpenChat, onReco
                     peerUserId: String(profile.id),
                   })
                 }
-                className="flex-1 rounded-full bg-gradient-to-r from-red-500 to-amber-500 hover:from-red-600 hover:to-amber-600"
+                className="flex-1 rounded-full bg-gradient-to-r from-red-600 to-amber-500 hover:from-red-600 hover:to-amber-600"
               >
                 <MessageCircle className="size-4 mr-2" />
                 Написать

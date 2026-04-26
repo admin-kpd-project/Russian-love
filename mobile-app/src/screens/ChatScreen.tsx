@@ -20,8 +20,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AudioRecorderPlayer from "react-native-audio-recorder-player";
 import { launchImageLibrary } from "react-native-image-picker";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { X, Send, Mic, Image as ImageIcon, Smile, Gift, Video } from "lucide-react-native";
+import { X, Send, Mic, Image as ImageIcon, Smile, Gift, Video, MoreVertical } from "lucide-react-native";
 
+import { markConversationRead, deleteConversation } from "../api/conversationsApi";
 import { getMessages, sendTextMessage, sendMediaMessage, type MessageResponse } from "../api/messagesApi";
 import { presignAuth, putFileToPresignedUrl, createChatWebSocket } from "../api/uploadApi";
 import { getPaymentsStatus, initTbankPayment } from "../api/paymentsApi";
@@ -139,6 +140,45 @@ export function ChatScreen({ route, navigation }: Props) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    void markConversationRead(conversationId);
+  }, [conversationId]);
+
+  const openChatMenu = () => {
+    Alert.alert("Действия", undefined, [
+      {
+        text: "Пожаловаться",
+        onPress: () => Alert.alert("Жалоба", "Мы рассмотрим обращение в ближайшее время."),
+      },
+      {
+        text: "Удалить чат",
+        style: "destructive",
+        onPress: () =>
+          Alert.alert("Удалить чат?", "Переписка будет удалена.", [
+            { text: "Отмена", style: "cancel" },
+            {
+              text: "Удалить",
+              style: "destructive",
+              onPress: () =>
+                void (async () => {
+                  const r = await deleteConversation(conversationId);
+                  if (r.error) {
+                    Alert.alert("Ошибка", r.error);
+                    return;
+                  }
+                  navigation.goBack();
+                })(),
+            },
+          ]),
+      },
+      {
+        text: "Очистить историю",
+        onPress: () => Alert.alert("Скоро", "Очистка истории на сервере появится в обновлении."),
+      },
+      { text: "Отмена", style: "cancel" },
+    ]);
+  };
 
   useEffect(() => {
     void (async () => {
@@ -299,12 +339,17 @@ export function ChatScreen({ route, navigation }: Props) {
             )}
             <View>
               <Text style={styles.peerName}>{title || "Чат"}</Text>
-              <Text style={styles.peerSub}>онлайн</Text>
+              <Text style={styles.peerSub}>в сети</Text>
             </View>
           </View>
-          <ScalePressable onPress={() => navigation.goBack()} style={styles.closeHit}>
-            <X size={26} color="#fff" />
-          </ScalePressable>
+          <View style={styles.topRight}>
+            <ScalePressable onPress={openChatMenu} style={styles.closeHit} hitSlop={4}>
+              <MoreVertical size={24} color="#fff" />
+            </ScalePressable>
+            <ScalePressable onPress={() => navigation.goBack()} style={styles.closeHit} hitSlop={4}>
+              <X size={26} color="#fff" />
+            </ScalePressable>
+          </View>
         </View>
       </LinearGradient>
 
@@ -373,7 +418,7 @@ export function ChatScreen({ route, navigation }: Props) {
           </View>
         ) : null}
 
-        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) + 2 }]}>
           <View style={styles.quickRow}>
             <ScalePressable onPress={() => void sendQuick("👋 Привет")} style={styles.quickPill} disabled={sending}>
               <Text style={styles.quickPillT}>👋 Привет</Text>
@@ -528,7 +573,8 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   topBar: { paddingHorizontal: 16, paddingBottom: 14 },
   topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  peer: { flexDirection: "row", alignItems: "center", gap: 12 },
+  topRight: { flexDirection: "row", alignItems: "center", gap: 2 },
+  peer: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1, minWidth: 0 },
   avatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: "#fff" },
   avatarPh: { backgroundColor: "rgba(255,255,255,0.35)" },
   peerName: { fontSize: tw.textLg, fontWeight: "800", color: "#fff" },
@@ -544,9 +590,13 @@ const styles = StyleSheet.create({
   bubMe: { padding: 0 },
   bubThem: {
     backgroundColor: "#fff",
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: "#e7e5e4",
     padding: 0,
+    ...Platform.select({
+      ios: { shadowColor: "#1c1917", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4 },
+      android: { elevation: 1 },
+    }),
   },
   bubIn: { paddingHorizontal: 14, paddingVertical: 10 },
   bubImg: { padding: 4 },

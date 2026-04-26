@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { Modal, View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator } from "react-native";
+import { Modal, View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Platform } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import LinearGradient from "react-native-linear-gradient";
 import { X, Star, Sparkles } from "lucide-react-native";
+import { brandGradients } from "../../theme/designTokens";
 
 type Props = {
   visible: boolean;
@@ -12,6 +14,7 @@ type Props = {
 };
 
 export function DetailedAnalysisModal({ visible, profileName, profileAge, compatibility, onClose }: Props) {
+  const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<"astrology" | "numerology">("astrology");
   const [loading, setLoading] = useState(true);
   const [analysis, setAnalysis] = useState({ astrology: "", numerology: "" });
@@ -35,7 +38,7 @@ export function DetailedAnalysisModal({ visible, profileName, profileAge, compat
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.back} onPress={onClose}>
         <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-          <LinearGradient colors={["#a855f7", "#ec4899", "#ef4444"]} style={styles.head}>
+          <LinearGradient colors={[...brandGradients.premium]} style={styles.head}>
             <Pressable style={styles.x} onPress={onClose}>
               <X size={22} color="#fff" />
             </Pressable>
@@ -63,7 +66,10 @@ export function DetailedAnalysisModal({ visible, profileName, profileAge, compat
             </Pressable>
           </View>
 
-          <ScrollView style={styles.content}>
+          <ScrollView
+            style={styles.content}
+            contentContainerStyle={styles.contentIn}
+          >
             {loading ? (
               <View style={styles.load}>
                 <ActivityIndicator size="large" color="#a855f7" />
@@ -71,14 +77,14 @@ export function DetailedAnalysisModal({ visible, profileName, profileAge, compat
               </View>
             ) : (
               paragraphs.map((p, i) => (
-                <Text key={i} style={styles.p}>
-                  {p}
-                </Text>
+                <View key={i} style={styles.pCard}>
+                  <Text style={styles.p}>{p}</Text>
+                </View>
               ))
             )}
           </ScrollView>
 
-          <View style={styles.foot}>
+          <View style={[styles.foot, { paddingBottom: 12 + insets.bottom }]}>
             <Sparkles size={14} color="#a8a29e" />
             <Text style={styles.footT}>Анализ создан с помощью ИИ</Text>
           </View>
@@ -134,7 +140,16 @@ function generateNumerologyAnalysis(name: string, age: number, compatibility: nu
 
 const styles = StyleSheet.create({
   back: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
-  sheet: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "92%" },
+  sheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: "92%",
+    ...Platform.select({
+      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.12, shadowRadius: 8 },
+      android: { elevation: 12 },
+    }),
+  },
   head: { padding: 18, paddingTop: 44 },
   x: { position: "absolute", top: 10, right: 10, padding: 8, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.25)" },
   headRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 },
@@ -148,10 +163,19 @@ const styles = StyleSheet.create({
   tabOn: { borderBottomWidth: 2, borderBottomColor: "#9333ea" },
   tabT: { fontSize: 15, fontWeight: "600", color: "#78716c" },
   tabTon: { color: "#9333ea" },
-  content: { padding: 18, maxHeight: 420 },
+  content: { maxHeight: 420 },
+  contentIn: { padding: 16, paddingBottom: 8 },
   load: { alignItems: "center", paddingVertical: 40 },
   loadT: { marginTop: 12, color: "#78716c" },
-  p: { fontSize: 15, color: "#44403c", lineHeight: 24, marginBottom: 14 },
+  pCard: {
+    backgroundColor: "#fafaf9",
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#e7e5e4",
+  },
+  p: { fontSize: 15, color: "#44403c", lineHeight: 24 },
   foot: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, padding: 12, backgroundColor: "#fafaf9", borderTopWidth: 1, borderTopColor: "#e7e5e4" },
   footT: { fontSize: 11, color: "#78716c" },
 });

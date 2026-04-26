@@ -25,6 +25,9 @@ export function SwipeableCard({ cardKey, onSwipeLeft, onSwipeRight, children }: 
   }, [cardKey, tx]);
 
   const pan = Gesture.Pan()
+    // Горизонтальный свайп карточки не должен отбирать жест у вертикального скролла (если появится).
+    .activeOffsetX([-18, 18])
+    .failOffsetY([-14, 14])
     .onUpdate((e) => {
       tx.value = e.translationX;
     })

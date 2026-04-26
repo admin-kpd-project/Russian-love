@@ -21,6 +21,26 @@ export const tw = {
   stone700: "#44403c",
   stone800: "#292524",
   stone900: "#1c1917",
+  /** `text-gray-600` (Tailwind) */
+  gray600: "#4b5563",
+  /** `text-gray-700` — body на карточке профиля (веб) */
+  gray700: "#374151",
+  /** `text-gray-400` — иконки нижней панели Main (веб rest) */
+  gray400: "#9ca3af",
+  /** `text-gray-500` — подписи второго уровня (веб) */
+  gray500: "#6b7280",
+  /** `bg-gray-100` — плейсхолдер фото */
+  gray100: "#f3f4f6",
+  /** `text-gray-800` — заголовки пустых экранов */
+  gray800: "#1f2937",
+  /** `border-gray-200` — веб-разделители */
+  gray200: "#e5e7eb",
+  /** `from-blue-400` / `to-blue-600` — суперлайк (веб) */
+  blue400: "#60a5fa",
+  blue600: "#2563eb",
+  /** `from-purple-500` / `to-purple-600` — кнопка «Детально» */
+  purple500: "#a855f7",
+  purple600: "#9333ea",
 
   // Сетка
   textXs: 12, // text-xs
@@ -41,8 +61,15 @@ export const brandGradients = {
   page: ["#fef2f2", "#fffbeb", "#fefce8"] as const,
   primary: ["#ef4444", "#f59e0b"] as const,
   primaryDark: ["#dc2626", "#d97706"] as const,
+  /** Текст шапки Main (веб: `from-red-600 to-amber-500` на h1) */
+  titleText: ["#dc2626", "#f59e0b"] as const,
   featureCard: ["#fef2f2", "#fffbeb"] as const,
+  /** Веб: `from-blue-400 to-blue-600` — совпадает с tw.blue400 / tw.blue600 */
   superLike: ["#60a5fa", "#2563eb"] as const,
+  /** Кнопка «Детально» на карточке (веб: purple-500 → purple-600) */
+  detailCta: ["#a855f7", "#9333ea"] as const,
+  /** Интересы: from-red-100 to-amber-100 */
+  interestTag: ["#fee2e2", "#fef3c7"] as const,
   favorite: ["#fbbf24", "#d97706"] as const,
   softRed: ["#fff1f2", "#fffbeb"] as const,
   premium: ["#9333ea", "#ec4899", "#ef4444"] as const,
@@ -50,7 +77,18 @@ export const brandGradients = {
   apk: ["#fffbeb", "#ffffff"] as const,
   blueInfo: ["#eff6ff", "#dbeafe"] as const,
   greenSuccess: ["#dcfce7", "#bbf7d0"] as const,
+  /** Веб: кнопка «Поделиться QR» from-amber-500 to-yellow-500 */
+  qrShareCta: ["#f59e0b", "#eab308"] as const,
 } as const;
+
+/**
+ * Источник правды для плоского фона под `LinearGradient` (Login/Register и т.д.).
+ * Согласовано с конечным стопом `brandGradients.page` / `to-yellow-50` на веб.
+ */
+export const pageBackgroundFlat = tw.toYellow50;
+
+/** Пока нет API — те же цифры, что в веб ProfileSettingsModal (заглушка). */
+export const profileStatsPlaceholder = { likes: 24, matches: 12 } as const;
 
 export const motionTiming = {
   enterMs: 520,

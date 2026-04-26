@@ -1,9 +1,11 @@
 import { Platform, type TextStyle, type ViewStyle } from "react-native";
 
-/** Цвета как на лендинге (Tailwind red / amber / stone) */
+import { pageBackgroundFlat, tw } from "./designTokens";
+
+/** Цвета как на лендинге (Tailwind) — `pageBg` = плоский фон, согласован с `brandGradients.page` / веб */
 export const colors = {
-  pageBg: "#fff7ed",
-  pageBgTop: "#fef2f2",
+  pageBg: pageBackgroundFlat,
+  pageBgTop: tw.fromRed50,
   white: "#ffffff",
   heroRed: "#ef4444",
   heroAmber: "#f59e0b",

@@ -5,6 +5,7 @@ import { X, MapPin, Mail, Heart, Sparkles, Cake, QrCode, LogOut, Camera } from "
 import { useAuth } from "../contexts/AuthContext";
 import { updateProfile } from "../services/usersService";
 import { uploadFile } from "../services/uploadService";
+import { profileStatsPlaceholder } from "../constants/profileDisplay";
 import { Badge } from "./ui/badge";
 
 interface ProfileSettingsModalProps {
@@ -151,7 +152,7 @@ export function ProfileSettingsModal({
         className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="relative h-32 flex-shrink-0 rounded-t-3xl bg-gradient-to-br from-red-500 to-amber-500">
+        <div className="relative h-32 flex-shrink-0 rounded-t-3xl bg-gradient-to-br from-red-600 to-amber-500">
           <button
             type="button"
             onClick={onOpenQR}
@@ -168,10 +169,19 @@ export function ProfileSettingsModal({
           >
             <X className="size-6 text-white" />
           </button>
-          <div className="absolute -bottom-12 left-1/2 z-10 -translate-x-1/2">
+          <div className="absolute -bottom-12 left-1/2 z-20 -translate-x-1/2">
             <div className="relative size-32 overflow-hidden rounded-full border-4 border-white bg-white shadow-xl">
               {avatarUrl ? (
-                <img src={avatarUrl} alt={user.name} className="h-full w-full object-cover" />
+                <img
+                  src={avatarUrl}
+                  alt={user.name}
+                  className="h-full w-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src =
+                      "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='%23e7e5e4'%3E%3Crect width='64' height='64'/%3E%3C/svg%3E";
+                  }}
+                />
               ) : (
                 <div className="h-full w-full bg-stone-100" />
               )}
@@ -251,12 +261,12 @@ export function ProfileSettingsModal({
             <div className="mb-6 grid grid-cols-3 gap-3">
               <div className="flex aspect-square flex-col items-center justify-center rounded-xl bg-gradient-to-br from-red-50 to-amber-50 p-3 text-center">
                 <Heart className="mx-auto mb-1 size-5 text-red-500" />
-                <div className="text-lg font-bold text-gray-800">24</div>
+                <div className="text-lg font-bold text-gray-800">{profileStatsPlaceholder.likes}</div>
                 <div className="text-xs text-gray-600">Лайки</div>
               </div>
               <div className="flex aspect-square flex-col items-center justify-center rounded-xl bg-gradient-to-br from-red-50 to-amber-50 p-3 text-center">
                 <Sparkles className="mx-auto mb-1 size-5 text-amber-500" />
-                <div className="text-lg font-bold text-gray-800">12</div>
+                <div className="text-lg font-bold text-gray-800">{profileStatsPlaceholder.matches}</div>
                 <div className="text-xs text-gray-600">Матчи</div>
               </div>
               <div className="flex aspect-square flex-col items-center justify-center rounded-xl bg-gradient-to-br from-red-50 to-amber-50 p-3 text-center">
@@ -381,7 +391,7 @@ export function ProfileSettingsModal({
                 type="button"
                 onClick={() => void handleSave()}
                 disabled={!canSave}
-                className="flex items-center justify-center rounded-xl bg-gradient-to-r from-red-500 to-amber-500 px-6 py-3 font-medium text-white transition-shadow hover:shadow-lg disabled:opacity-60"
+                className="flex items-center justify-center rounded-xl bg-gradient-to-r from-red-600 to-amber-500 px-6 py-3 font-medium text-white transition-shadow hover:shadow-lg disabled:opacity-60"
               >
                 <span>{saving ? "Сохраняем..." : "Сохранить"}</span>
               </button>
@@ -414,7 +424,7 @@ export function ProfileSettingsModal({
                 <button
                   type="button"
                   onClick={() => setEditing(true)}
-                  className="flex items-center justify-center rounded-xl bg-gradient-to-r from-red-500 to-amber-500 px-6 py-3 font-medium text-white transition-shadow hover:shadow-lg"
+                  className="flex items-center justify-center rounded-xl bg-gradient-to-r from-red-600 to-amber-500 px-6 py-3 font-medium text-white transition-shadow hover:shadow-lg"
                 >
                   <span>Редактировать</span>
                 </button>

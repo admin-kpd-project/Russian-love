@@ -4,7 +4,7 @@ import LinearGradient from "react-native-linear-gradient";
 import { X, Heart, RotateCcw, Star, Bookmark } from "lucide-react-native";
 
 import { ScalePressable } from "../ui/Motion";
-import { brandGradients } from "../../theme/designTokens";
+import { brandGradients, tw } from "../../theme/designTokens";
 
 type Props = {
   onReject: () => void;
@@ -24,29 +24,29 @@ export function ActionButtons({ onReject, onLike, onUndo, onSuperLike, onFavorit
         disabled={!hasUndo}
         style={[styles.small, !hasUndo ? styles.disUndo : styles.okUndo]}
       >
-        <RotateCcw size={22} color={hasUndo ? "#ca8a04" : "#d6d3d1"} />
+        <RotateCcw size={26} color={hasUndo ? "#ca8a04" : tw.gray400} />
       </ScalePressable>
       <ScalePressable onPress={onReject} style={styles.reject}>
-        <X size={40} color="#ef4444" />
+        <X size={36} color="#ef4444" />
       </ScalePressable>
       <ScalePressable onPress={onSuperLike}>
-        <LinearGradient colors={[...brandGradients.superLike]} style={styles.big}>
-          <Star size={40} color="#fff" fill="#fff" />
+        <LinearGradient colors={[tw.blue400, tw.blue600]} style={styles.big}>
+          <Star size={36} color="#fff" fill="#fff" />
         </LinearGradient>
       </ScalePressable>
       <ScalePressable onPress={onLike}>
         <LinearGradient colors={[...brandGradients.primary]} style={styles.big}>
-          <Heart size={40} color="#fff" fill="#fff" />
+          <Heart size={36} color="#fff" fill="#fff" />
         </LinearGradient>
       </ScalePressable>
       <ScalePressable onPress={onFavorite} style={styles.small}>
         {isFavorite ? (
           <LinearGradient colors={[...brandGradients.favorite]} style={styles.smallGrad}>
-            <Bookmark size={22} color="#fff" fill="#fff" />
+            <Bookmark size={24} color="#fff" fill="#fff" />
           </LinearGradient>
         ) : (
           <View style={styles.favOff}>
-            <Bookmark size={22} color="#d97706" />
+            <Bookmark size={24} color={tw.amber600} />
           </View>
         )}
       </ScalePressable>
@@ -61,17 +61,19 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 10,
     paddingHorizontal: 8,
-    paddingBottom: 6,
+    paddingBottom: 4,
   },
-  small: { width: 48, height: 48, borderRadius: 24, overflow: "hidden", alignItems: "center", justifyContent: "center" },
+  /** Веб: `p-3` / `p-4` + иконка — компактные боковые */
+  small: { width: 50, height: 50, borderRadius: 25, overflow: "hidden", alignItems: "center", justifyContent: "center" },
   smallGrad: { width: "100%", height: "100%", alignItems: "center", justifyContent: "center" },
   okUndo: { backgroundColor: "#fef9c3" },
   disUndo: { backgroundColor: "#f5f5f4" },
   favOff: { width: "100%", height: "100%", backgroundColor: "#fef3c7", alignItems: "center", justifyContent: "center" },
+  /** Веб: белая кнопка с `border-red-100`, крупный X */
   reject: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
@@ -79,20 +81,21 @@ const styles = StyleSheet.create({
     borderColor: "#fecaca",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.14,
+    shadowRadius: 10,
+    elevation: 5,
   },
+  /** Веб: `p-5`/`p-7` + `size-9` — основные круги чуть крупнее боковых */
   big: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    elevation: 7,
   },
 });
