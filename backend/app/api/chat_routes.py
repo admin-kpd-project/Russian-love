@@ -24,11 +24,19 @@ def _validate_media_url(url: str | None) -> bool:
         return True
     from urllib.parse import urlparse
 
+    s = get_settings()
     p = urlparse(url)
-    c = urlparse(get_settings().cdn_public_base_url)
-    if p.netloc.lower() != c.netloc.lower():
+    if p.scheme not in ("http", "https"):
         return False
-    return p.scheme in ("http", "https") and c.scheme in ("http", "https")
+    c = urlparse(s.cdn_public_base_url)
+    b = s.s3_bucket
+    if c.netloc and p.netloc.lower() == c.netloc.lower() and c.scheme in ("http", "https"):
+        return True
+    if p.path.startswith(f"/s3/{b}/") or p.path.startswith(f"/s3/{b}?"):
+        return True
+    if p.path.startswith(f"/{b}/") or p.path.startswith(f"/{b}?"):
+        return True
+    return False
 
 
 def _msg_time(dt: datetime) -> str:

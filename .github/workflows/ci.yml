@@ -149,8 +149,7 @@ jobs:
       # npm ci: строго по lockfile, быстрее и предсказуемее чем npm install в CI
       - run: npm ci
       - name: Build
-        env:
-          VITE_API_BASE_URL: http://localhost:8000
+        # Без VITE_API_BASE_URL — как в Docker/web: относительные /api
         run: npm run build
       # - name: Upload to YC Registry
       #   shell: bash

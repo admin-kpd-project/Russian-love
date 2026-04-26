@@ -72,6 +72,42 @@ def _resolved_s3_endpoints() -> tuple[str | None, str | None]:
     return end, pre
 
 
+def _public_origin_from_nginx(request: Request) -> str | None:
+    """Nginx: proxy_set_header X-Forwarded-Host; не подставляйте из сырого Host без доверенного прокси."""
+    xfh = (request.headers.get("x-forwarded-host") or "").strip()
+    if not xfh:
+        return None
+    if "," in xfh:
+        xfh = xfh.split(",")[-1].strip()
+    xfp = (request.headers.get("x-forwarded-proto") or "http").strip()
+    if "," in xfp:
+        xfp = xfp.split(",")[-1].strip() or "http"
+    if not xfp:
+        xfp = "http"
+    return f"{xfp}://{xfh}".rstrip("/")
+
+
+def _client_visible_base_url(request: Request) -> str | None:
+    """Публичный base URL, если X-Forwarded-* нет (внешний балансировщик не прокидывает).
+
+    Same-origin `fetch` с сайта (например `http://81.26.176.56:8080`) шлёт `Origin` с этим
+    хостом — presign в MinIO совпадёт с PUT, иначе в ответе остаётся `localhost` из .env.
+    `localhost` / `127.0.0.1` сюда не подставляем: для них presign остаётся на env/прокси.
+    """
+    for key in ("origin", "referer"):
+        s = (request.headers.get(key) or "").strip()
+        if not s or s in ("null", "None"):
+            continue
+        p = urlparse(s)
+        if p.scheme not in ("http", "https") or not p.netloc:
+            continue
+        host = (p.hostname or "").lower()
+        if host in ("", "localhost", "127.0.0.1"):
+            continue
+        return f"{p.scheme}://{p.netloc}".rstrip("/")
+    return None
+
+
 def _presign_bases_for_request(request: Request) -> tuple[str | None, str]:
     """Returns (presign endpoint for boto3, cdn public base) for fileUrl."""
     s = get_settings()
@@ -85,6 +121,9 @@ def _presign_bases_for_request(request: Request) -> tuple[str | None, str]:
         if origin_host in {"localhost", "127.0.0.1"}:
             # Nginx+MinIO: presign host must match the gateway; GET stays under /s3/<bucket>/...
             return gateway_base, f"{gateway_base}/s3/{s.s3_bucket}"
+    public = _public_origin_from_nginx(request) or _client_visible_base_url(request)
+    if public:
+        return public, f"{public}/s3/{s.s3_bucket}"
     return presign, cdn
 
 
