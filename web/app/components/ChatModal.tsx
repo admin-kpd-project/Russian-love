@@ -41,6 +41,44 @@ function mapApiMessage(m: import("../services/messagesService").MessageResponse)
   };
 }
 
+/**
+ * getUserMedia: на http:// (кроме localhost) в Chrome `navigator.mediaDevices` часто `undefined` —
+ * не обращаемся к getUserMedia без проверки; пробуем legacy-API, иначе явная ошибка.
+ */
+function requestMediaStream(constraints: MediaStreamConstraints): Promise<MediaStream> {
+  if (typeof navigator === "undefined") {
+    return Promise.reject(new Error("Нет API браузера"));
+  }
+  const md = navigator.mediaDevices;
+  if (md?.getUserMedia) {
+    return md.getUserMedia(constraints);
+  }
+  type LegacyNav = Navigator & {
+    getUserMedia?: (c: MediaStreamConstraints, ok: (s: MediaStream) => void, err: (e: Error) => void) => void;
+    webkitGetUserMedia?: (c: MediaStreamConstraints, ok: (s: MediaStream) => void, err: (e: Error) => void) => void;
+    mozGetUserMedia?: (c: MediaStreamConstraints, ok: (s: MediaStream) => void, err: (e: Error) => void) => void;
+  };
+  const n = navigator as LegacyNav;
+  const legacy = n.getUserMedia ?? n.webkitGetUserMedia ?? n.mozGetUserMedia;
+  if (typeof legacy === "function") {
+    return new Promise<MediaStream>((resolve, reject) => {
+      legacy.call(n, constraints, resolve, reject);
+    });
+  }
+  return Promise.reject(
+    new Error(
+      "Микрофон/камера: в Chrome и других браузерах на HTTP (не localhost) доступ к getUserMedia отключён. Откройте сайт по HTTPS или пользуйтесь приложением."
+    )
+  );
+}
+
+function isInsecureForMediaDevices(): boolean {
+  if (typeof window === "undefined") return true;
+  if (window.isSecureContext) return false;
+  const h = window.location.hostname;
+  return h !== "localhost" && h !== "127.0.0.1";
+}
+
 export function ChatModal({
   onClose,
   conversationId,
@@ -296,8 +334,14 @@ export function ChatModal({
       setRecorderError("Запись в этом браузере не поддерживается");
       return;
     }
+    if (isInsecureForMediaDevices()) {
+      setRecorderError(
+        "Голос и видео: браузер разрешает запись с микрофона/камеры только на HTTPS. Откройте сайт по https://… или снимите голос в мобильном приложении."
+      );
+      return;
+    }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia(
+      const stream = await requestMediaStream(
         type === "voice" ? { audio: true } : { audio: true, video: { facingMode: "user" } }
       );
       mediaStreamRef.current = stream;
