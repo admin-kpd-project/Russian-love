@@ -43,6 +43,7 @@ import { DetailedAnalysisModal } from "../components/main/DetailedAnalysisModal"
 import { DetailedAnalysisPurchaseModal } from "../components/main/DetailedAnalysisPurchaseModal";
 import type { ConversationListItem } from "../api/conversationsApi";
 import { ScalePressable } from "../components/ui/Motion";
+import { GradientText } from "../components/ui/GradientText";
 import { brandGradients } from "../theme/designTokens";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Main">;
@@ -245,12 +246,7 @@ export function MainScreen() {
         <View style={styles.headerIn}>
           <View style={styles.brand}>
             <MatreshkaLogo size={40} />
-            <View>
-              <Text style={styles.brandLine1}>
-                <Text style={{ color: "#dc2626" }}>Любить </Text>
-                <Text style={{ color: "#d97706" }}>по-russки</Text>
-              </Text>
-            </View>
+            <GradientText text="Любить по-russки" width={158} height={25} fontSize={18} />
           </View>
           <View style={styles.headerActions}>
             <ScalePressable onPress={() => setShowProfile(true)} style={styles.iconHit}>

@@ -6,6 +6,7 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   interpolate,
+  Extrapolation,
   runOnJS,
 } from "react-native-reanimated";
 
@@ -44,8 +45,11 @@ export function SwipeableCard({ cardKey, onSwipeLeft, onSwipeRight, children }: 
 
   const animatedStyle = useAnimatedStyle(() => {
     const rot = interpolate(tx.value, [-200, 0, 200], [-22, 0, 22]);
+    const opacity = interpolate(Math.abs(tx.value), [0, 220], [1, 0.35], Extrapolation.CLAMP);
+    const scale = interpolate(Math.abs(tx.value), [0, 180], [0.98, 1.02], Extrapolation.CLAMP);
     return {
-      transform: [{ translateY: 0 }, { translateX: tx.value }, { rotate: `${rot}deg` }, { scale: 0.98 }],
+      opacity,
+      transform: [{ translateY: 0 }, { translateX: tx.value }, { rotate: `${rot}deg` }, { scale }],
     };
   });
 

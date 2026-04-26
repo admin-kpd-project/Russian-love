@@ -3,9 +3,12 @@ import type { PropsWithChildren } from "react";
 import type { StyleProp, ViewStyle } from "react-native";
 import { Pressable, type PressableProps } from "react-native";
 import Animated, {
+  Easing,
+  interpolate,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
+  withRepeat,
   withSpring,
   withTiming,
 } from "react-native-reanimated";
@@ -73,4 +76,37 @@ export function ScalePressable({
       {children}
     </AnimatedPressable>
   );
+}
+
+type LoopingViewProps = PropsWithChildren<{
+  kind?: "pulse" | "rotate" | "float";
+  style?: StyleProp<ViewStyle>;
+  duration?: number;
+}>;
+
+export function LoopingView({ children, kind = "pulse", style, duration }: LoopingViewProps) {
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    progress.value = withRepeat(
+      withTiming(1, {
+        duration: duration ?? (kind === "rotate" ? 20000 : 1800),
+        easing: kind === "rotate" ? Easing.linear : Easing.inOut(Easing.ease),
+      }),
+      -1,
+      kind !== "rotate"
+    );
+  }, [duration, kind, progress]);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    if (kind === "rotate") {
+      return { transform: [{ rotate: `${progress.value * 360}deg` }] };
+    }
+    if (kind === "float") {
+      return { transform: [{ translateY: interpolate(progress.value, [0, 1], [0, -8]) }] };
+    }
+    return { transform: [{ scale: interpolate(progress.value, [0, 1], [1, 1.08]) }] };
+  });
+
+  return <Animated.View style={[style, animatedStyle]}>{children}</Animated.View>;
 }

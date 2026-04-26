@@ -4,7 +4,8 @@ import LinearGradient from "react-native-linear-gradient";
 import { Heart, MapPin, Sparkles, AlertTriangle, Star, Briefcase } from "lucide-react-native";
 import type { UserProfile } from "../../utils/compatibilityAI";
 import { getCompatibilityLabel } from "../../utils/compatibilityAI";
-import { tw } from "../../theme/designTokens";
+import { brandGradients, tw } from "../../theme/designTokens";
+import { ScalePressable } from "../ui/Motion";
 
 type Props = {
   profile: UserProfile;
@@ -84,17 +85,17 @@ export function ProfileCard({ profile, compatibility, superLikesRemaining, likes
           {profile.bio}
         </Text>
         <View style={styles.compatRow}>
-          <LinearGradient colors={["#fef2f2", "#fffbeb"]} style={styles.compatLabel}>
+          <LinearGradient colors={[...brandGradients.featureCard]} style={styles.compatLabel}>
             <Heart size={18} color="#ef4444" />
             <Text style={styles.compatLabelT}>{getCompatibilityLabel(compatibility)}</Text>
           </LinearGradient>
           {onOpenDetailedAnalysis ? (
-            <Pressable onPress={onOpenDetailedAnalysis}>
+            <ScalePressable onPress={onOpenDetailedAnalysis}>
               <LinearGradient colors={["#a855f7", "#9333ea"]} style={styles.detailBtn}>
                 <Sparkles size={16} color="#fff" />
                 <Text style={styles.detailBtnT}>Детально</Text>
               </LinearGradient>
-            </Pressable>
+            </ScalePressable>
           ) : null}
         </View>
         <View style={styles.intHRow}>
