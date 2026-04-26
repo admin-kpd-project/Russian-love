@@ -7,6 +7,10 @@ apply plugin: "com.facebook.react"
  * By default you don't need to apply any configuration, just uncomment the lines you need.
  */
 react {
+    // Список вариантов, для которых НЕ вшивается JS (ожидается Metro). Пусто = и debug с бандлом в APK.
+    // Иначе на телефоне без ПК: «Unable to load script».
+    debuggableVariants = []
+
     /* Folders */
     //   The root of your project, i.e. where "package.json" lives. Default is '../..'
     // root = file("../../")

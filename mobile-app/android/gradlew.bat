@@ -38,6 +38,18 @@ for %%i in ("%APP_HOME%") do set APP_HOME=%%~fi
 @rem Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
 set DEFAULT_JVM_OPTS="-Xmx64m" "-Xms64m"
 
+@rem RN 0.76+ / AGP need JVM 11+ (JBR 17+). If JAVA_HOME points to Java 8, Gradle still fails.
+@rem По умолчанию берём JBR из Android Studio. Отключить: set ANDROID_USE_SYSTEM_JAVA=1
+if not "%ANDROID_USE_SYSTEM_JAVA%"=="1" (
+  if exist "%ProgramFiles%\Android\Android Studio\jbr\bin\java.exe" set "JAVA_HOME=%ProgramFiles%\Android\Android Studio\jbr"
+  if not exist "%ProgramFiles%\Android\Android Studio\jbr\bin\java.exe" if exist "%LOCALAPPDATA%\Program Files\Android\Android Studio\jbr\bin\java.exe" set "JAVA_HOME=%LOCALAPPDATA%\Program Files\Android\Android Studio\jbr"
+  if not exist "%ProgramFiles%\Android\Android Studio\jbr\bin\java.exe" if not exist "%LOCALAPPDATA%\Program Files\Android\Android Studio\jbr\bin\java.exe" if exist "%LOCALAPPDATA%\Android\Android Studio\jbr\bin\java.exe" set "JAVA_HOME=%LOCALAPPDATA%\Android\Android Studio\jbr"
+) else if not defined JAVA_HOME (
+  if exist "%ProgramFiles%\Android\Android Studio\jbr\bin\java.exe" set "JAVA_HOME=%ProgramFiles%\Android\Android Studio\jbr"
+  if not defined JAVA_HOME if exist "%LOCALAPPDATA%\Program Files\Android\Android Studio\jbr\bin\java.exe" set "JAVA_HOME=%LOCALAPPDATA%\Program Files\Android\Android Studio\jbr"
+  if not defined JAVA_HOME if exist "%LOCALAPPDATA%\Android\Android Studio\jbr\bin\java.exe" set "JAVA_HOME=%LOCALAPPDATA%\Android\Android Studio\jbr"
+)
+
 @rem Find java.exe
 if defined JAVA_HOME goto findJavaFromJavaHome
 

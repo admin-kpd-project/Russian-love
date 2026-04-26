@@ -36,9 +36,39 @@
 ## Требования
 
 - **Node** 18+ (для Android-сборки рекомендуется **Node 20 LTS**; на **Node 22** иногда падает RN codegen)
-- **JDK  17** (для Gradle; в Android Studio: *Settings → Build → Build Tools → Gradle* — JVM 17)
+- **JDK  17** (для Gradle; в Android Studio: *Settings → Build → Build Tools → Gradle* — JVM 17; Gradle **11+** обязателен, **не Java 8**)
 - В `android/gradle.properties` у проекта **New Architecture выключена** (`newArchEnabled=false`) — так стабильнее со стеком навигации и нативными модулями
 - **Android Studio** (SDK, Platform Tools), эмулятор и/или устройство с **отладкой по USB**
+
+### Windows: `react-native-reanimated` / CMake — `ninja: mkdir(… C_/Users/ …) No such file or directory`
+
+Это ограничение **длины пути** и/или **Ninja/CMake** на Windows при нативной сборке. Официальный чеклист: [Building for Android on Windows (Reanimated)](https://docs.swmansion.com/react-native-reanimated/docs/guides/building-on-windows/).
+
+1. **Включите длинные пути** в системе: [документация Microsoft](https://learn.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation) (параметр `LongPathsEnabled` в реестре или “Групповая политика”).
+2. **Сократите путь к репозиторию** (например, `C:\work\rl\mobile-app`) или используйте `subst` на отдельную букву диска — см. тот же гайд Reanimated.
+3. Убедитесь, что в пути **нет пробелов** в папке проекта.
+4. **Ninja** не ниже `1.12.0` (см. SDK Manager → SDK Tools) — старые версии плохо обрабатывают длинные пути.
+5. Сбросьте кэш нативной сборки и пересоберите:
+   ```bash
+   cd mobile-app
+   npm run android:clean-native
+   cd android
+   gradlew.bat clean
+   gradlew.bat assembleDebug
+   ```
+6. Снимите переменную окружения **`_JAVA_OPTIONS`**, если она задана (её съедает ворнинги и мешает диагностике).
+
+**Ошибка: «Dependency requires at least JVM version 11. This build uses a Java 8 JVM»** — `android/gradlew.bat` **по умолчанию подставляет JBR Android Studio** (и перекрывает `JAVA_HOME` с Java 8), если не задано `set ANDROID_USE_SYSTEM_JAVA=1`. Сборка: из каталога `android` вызывайте `.\gradlew.bat`, а не `gradlew.bat` с другой копией из `PATH` без этого скрипта.
+
+**Metro: `Error: ENOENT, watch '…node_modules\…\.cxx\…` —** Gradle удалил папку `.cxx` во время сборки, а **Metro** всё ещё пытается смотреть на неё. **Остановите** `npm start`, затем `gradlew` / `android:clean-native` / снова `npm start`.
+
+**assembleRelease: `ninja: mkdir(…C_/…reanimated)…` / длина пути 250+** — CMake кладёт объекты Reanimated в очень длинные каталоги. **Самый быстрый вариант на Windows:** в **cmd** из `mobile-app` (буква **T:** не должна быть занята):
+
+`scripts\build-release-with-subst.cmd`
+
+(скрипт монтирует `T:\` = текущий `mobile-app` и вызывает `gradlew assembleRelease` — пути в сборке короче). Дополнительно: [длинные пути](https://learn.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation) в Windows, **Ninja 1.12+** (SDK Manager), либо вручную: `subst R: C:\путь\к\mobile-app` → `R:` → `cd R:\android` → `gradlew assembleRelease` → `subst R: /d`. Клон в `C:\rl\` тоже помогает.
+
+По умолчанию в `android/gradle.properties` собираются **только** `arm64-v8a` и `x86_64` (телефоны и типичные эмуляторы), чтобы сократить пути и время сборки. Сборка под **32-bit** (`armeabi-v7a` / `x86`): вручную задайте `reactNativeArchitectures=…` в `gradle.properties` и используйте короткий путь + длинные имена путей в Windows.
 
 ## Установка и запуск из консоли
 

@@ -66,6 +66,15 @@ function audioContentTypeForPath(p: string): string {
   return "audio/mpeg";
 }
 
+function dedupeMessagesById(msgs: MessageResponse[]): MessageResponse[] {
+  const seen = new Set<string>();
+  return msgs.filter((m) => {
+    if (seen.has(m.id)) return false;
+    seen.add(m.id);
+    return true;
+  });
+}
+
 export function ChatScreen({ route, navigation }: Props) {
   const { conversationId, title, avatarUrl, prefilledMessage } = route.params;
   const insets = useSafeAreaInsets();
@@ -123,7 +132,7 @@ export function ChatScreen({ route, navigation }: Props) {
       setErr(r.error);
       return;
     }
-    setRows((r.data ?? []).slice().reverse());
+    setRows(dedupeMessagesById((r.data ?? []).slice().reverse()));
   }, [conversationId]);
 
   useEffect(() => {
@@ -313,7 +322,7 @@ export function ChatScreen({ route, navigation }: Props) {
             contentContainerStyle={styles.listContent}
             inverted
             data={rows}
-            keyExtractor={(m) => m.id}
+            keyExtractor={(m, index) => `${m.id}__${index}`}
             renderItem={({ item: m }) => {
               const mine = m.sender === "me";
               const bubble = (
