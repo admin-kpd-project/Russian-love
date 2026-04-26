@@ -50,6 +50,7 @@ services:
         mc anonymous set download local/dating-media || true
 
   api:
+    image: cr.yandex/${REGISTRY_DOCKER_ID}/dating-api:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -85,6 +86,7 @@ services:
         condition: service_completed_successfully
 
   worker:
+    image: cr.yandex/${REGISTRY_DOCKER_ID}/dating-worker:latest
     build:
       context: ./backend
       dockerfile: Dockerfile.worker
@@ -99,6 +101,7 @@ services:
         condition: service_healthy
 
   web:
+    image: cr.yandex/${REGISTRY_DOCKER_ID}/dating-web:latest
     build:
       context: ./web
       dockerfile: Dockerfile
