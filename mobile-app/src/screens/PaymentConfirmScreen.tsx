@@ -1,0 +1,86 @@
+import { useMemo, useEffect, useState } from "react";
+import { View, Text, Pressable, StyleSheet, Linking } from "react-native";
+import LinearGradient from "react-native-linear-gradient";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { CheckCircle2 } from "lucide-react-native";
+
+import type { RootStackParamList } from "../navigation/types";
+
+type Props = NativeStackScreenProps<RootStackParamList, "PaymentConfirm">;
+
+function orderIdFromUrl(url: string | null): string | undefined {
+  if (!url) return;
+  const q = url.split("?")[1];
+  if (!q) return;
+  const params = new URLSearchParams(q);
+  const v = params.get("orderId");
+  return v || undefined;
+}
+
+export function PaymentConfirmScreen({ route, navigation }: Props) {
+  const insets = useSafeAreaInsets();
+  const fromRoute = route.params?.orderId;
+  const [fromUrl, setFromUrl] = useState<string | undefined>();
+
+  useEffect(() => {
+    void Linking.getInitialURL().then((u) => setFromUrl(orderIdFromUrl(u)));
+    const sub = Linking.addEventListener("url", ({ url }) => setFromUrl(orderIdFromUrl(url)));
+    return () => sub.remove();
+  }, []);
+
+  const orderId = fromRoute ?? fromUrl;
+
+  const shortOrderId = useMemo(() => {
+    if (!orderId) return "";
+    return orderId.length > 12 ? `${orderId.slice(0, 12)}…` : orderId;
+  }, [orderId]);
+
+  return (
+    <LinearGradient colors={["#fef2f2", "#fffbeb", "#fefce8"]} style={styles.page}>
+      <View style={[styles.box, { marginTop: insets.top + 40, marginBottom: insets.bottom + 24 }]}>
+        <View style={styles.ico}>
+          <CheckCircle2 size={48} color="#16a34a" />
+        </View>
+        <Text style={styles.h1}>Платёж создан</Text>
+        <Text style={styles.p}>
+          Заказ передан в обработку. Статус обновится автоматически после ответа платёжного провайдера.
+        </Text>
+        {shortOrderId ? <Text style={styles.order}>Order ID: {shortOrderId}</Text> : null}
+        <Pressable onPress={() => navigation.replace("Main")} style={styles.btnWrap}>
+          <LinearGradient colors={["#ef4444", "#f59e0b"]} style={styles.btn}>
+            <Text style={styles.btnT}>Вернуться в приложение</Text>
+          </LinearGradient>
+        </Pressable>
+      </View>
+    </LinearGradient>
+  );
+}
+
+const styles = StyleSheet.create({
+  page: { flex: 1, paddingHorizontal: 20, justifyContent: "center" },
+  box: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 28,
+    alignItems: "center",
+    maxWidth: 400,
+    alignSelf: "center",
+    width: "100%",
+  },
+  ico: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "#dcfce7",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  h1: { fontSize: 22, fontWeight: "800", color: "#171717", marginBottom: 10, textAlign: "center" },
+  p: { fontSize: 15, color: "#57534e", textAlign: "center", lineHeight: 22, marginBottom: 8 },
+  order: { fontSize: 12, color: "#78716c", marginBottom: 22 },
+  btnWrap: { width: "100%", borderRadius: 14, overflow: "hidden" },
+  btn: { paddingVertical: 14, alignItems: "center" },
+  btnT: { color: "#fff", fontWeight: "700", fontSize: 16 },
+});

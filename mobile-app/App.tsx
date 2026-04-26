@@ -7,11 +7,17 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { clearTokens, getAccessToken } from "./src/api/client";
 import { isApiBaseConfigured } from "./src/api/apiBase";
 import type { RootStackParamList } from "./src/navigation/types";
+import { rootLinking } from "./src/navigation/linking";
+import { FavoritesProvider } from "./src/context/FavoritesContext";
 import { ServerConfigScreen } from "./src/screens/ServerConfigScreen";
+import { LandingScreen } from "./src/screens/LandingScreen";
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { RegisterScreen } from "./src/screens/RegisterScreen";
 import { MainScreen } from "./src/screens/MainScreen";
 import { ChatScreen } from "./src/screens/ChatScreen";
+import { ScanProfileScreen } from "./src/screens/ScanProfileScreen";
+import { InviteScreen } from "./src/screens/InviteScreen";
+import { PaymentConfirmScreen } from "./src/screens/PaymentConfirmScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -22,7 +28,7 @@ const navTheme: Theme = {
 
 function App(): React.JSX.Element {
   const [ready, setReady] = useState(false);
-  const [initial, setInitial] = useState<"Server" | "Login" | "Main">("Server");
+  const [initial, setInitial] = useState<"Server" | "Landing" | "Main">("Server");
 
   useEffect(() => {
     void (async () => {
@@ -34,7 +40,7 @@ function App(): React.JSX.Element {
         return;
       }
       const t = await getAccessToken();
-      setInitial(t ? "Main" : "Login");
+      setInitial(t ? "Main" : "Landing");
       setReady(true);
     })();
   }, []);
@@ -49,32 +55,38 @@ function App(): React.JSX.Element {
 
   return (
     <SafeAreaProvider>
-      <NavigationContainer theme={navTheme}>
-        <Stack.Navigator
-          initialRouteName={initial}
-          screenOptions={{
-            headerStyle: { backgroundColor: "#fef2f2" },
-            headerTintColor: "#1c1917",
-          }}
-        >
-          <Stack.Screen
-            name="Server"
-            component={ServerConfigScreen}
-            options={({ route }) => {
-              const rec = Boolean((route.params as { reconfigure?: boolean } | undefined)?.reconfigure);
-              return {
-                title: "Адрес API",
-                headerBackVisible: rec,
-                gestureEnabled: rec,
-              };
+      <FavoritesProvider>
+        <NavigationContainer theme={navTheme} linking={rootLinking}>
+          <Stack.Navigator
+            initialRouteName={initial}
+            screenOptions={{
+              headerStyle: { backgroundColor: "#fef2f2" },
+              headerTintColor: "#1c1917",
             }}
-          />
-          <Stack.Screen name="Login" component={LoginScreen} options={{ title: "Любить по-russки" }} />
-          <Stack.Screen name="Register" component={RegisterScreen} options={{ title: "Регистрация" }} />
-          <Stack.Screen name="Main" component={MainScreen} options={{ title: "Главная", headerBackVisible: false }} />
-          <Stack.Screen name="Chat" component={ChatScreen} />
-        </Stack.Navigator>
-      </NavigationContainer>
+          >
+            <Stack.Screen
+              name="Server"
+              component={ServerConfigScreen}
+              options={({ route }) => {
+                const rec = Boolean((route.params as { reconfigure?: boolean } | undefined)?.reconfigure);
+                return {
+                  title: "Адрес API",
+                  headerBackVisible: rec,
+                  gestureEnabled: rec,
+                };
+              }}
+            />
+            <Stack.Screen name="Landing" component={LandingScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Login" component={LoginScreen} options={{ title: "Любить по-russки" }} />
+            <Stack.Screen name="Register" component={RegisterScreen} options={{ title: "Регистрация" }} />
+            <Stack.Screen name="Main" component={MainScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Chat" component={ChatScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="ScanProfile" component={ScanProfileScreen} options={{ title: "Скан профиля" }} />
+            <Stack.Screen name="Invite" component={InviteScreen} options={{ title: "Приглашение" }} />
+            <Stack.Screen name="PaymentConfirm" component={PaymentConfirmScreen} options={{ title: "Оплата" }} />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </FavoritesProvider>
     </SafeAreaProvider>
   );
 }

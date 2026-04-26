@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import {
-  View,
   Text,
   TextInput,
   Pressable,
@@ -41,7 +40,7 @@ export function ServerConfigScreen({ navigation, route }: Props) {
     await setApiBaseUrlInStorage(value);
     await clearTokens();
     setSaving(false);
-    navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+    navigation.reset({ index: 0, routes: [{ name: reconfigure ? "Login" : "Landing" }] });
   };
 
   return (
@@ -63,7 +62,9 @@ export function ServerConfigScreen({ navigation, route }: Props) {
           style={styles.inp}
           value={value}
           onChangeText={setValue}
-          placeholder="https://api.example.com"
+          placeholder="http://10.0.2.2:8080"
+          placeholderTextColor="#a8a29e"
+          keyboardType="url"
           autoCapitalize="none"
           autoCorrect={false}
           editable={!saving}

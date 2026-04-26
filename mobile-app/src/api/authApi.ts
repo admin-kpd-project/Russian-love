@@ -4,9 +4,17 @@ export type Profile = {
   id: string;
   name: string;
   age: number;
+  email?: string;
   photo?: string;
   bio?: string;
   profileCompleted?: boolean;
+  interests?: string[];
+  location?: string;
+  birthDate?: string;
+  photos?: string[];
+  personality?: Record<string, unknown>;
+  astrology?: Record<string, unknown>;
+  numerology?: Record<string, unknown>;
 };
 
 export type AuthData = {
@@ -26,26 +34,39 @@ export async function login(email: string, password: string): Promise<ApiResult<
 }
 
 export type RegisterParams = {
-  email: string;
+  authMethod?: "email" | "phone";
+  email?: string;
+  loginPhone?: string;
   password: string;
+  agreeToPrivacy: boolean;
+  agreeToTerms: boolean;
+  agreeToOffer: boolean;
   name: string;
   birthDate: string;
   gender: "male" | "female";
   avatarUrl: string;
+  photos?: string[];
+  bio?: string;
+  interests?: string[];
 };
 
 export async function register(p: RegisterParams): Promise<ApiResult<AuthData>> {
+  const authMethod = p.authMethod ?? (p.loginPhone ? "phone" : "email");
   const body = {
-    authMethod: "email",
-    email: p.email,
+    authMethod,
+    email: authMethod === "email" ? p.email?.trim() : undefined,
+    loginPhone: authMethod === "phone" ? p.loginPhone?.trim() : undefined,
     password: p.password,
-    agreeToPrivacy: true,
-    agreeToTerms: true,
-    agreeToOffer: true,
-    name: p.name,
+    agreeToPrivacy: p.agreeToPrivacy,
+    agreeToTerms: p.agreeToTerms,
+    agreeToOffer: p.agreeToOffer,
+    name: p.name.trim(),
     birthDate: p.birthDate,
     gender: p.gender,
     avatarUrl: p.avatarUrl,
+    photos: p.photos?.length ? p.photos : undefined,
+    bio: p.bio?.trim() || undefined,
+    interests: p.interests?.length ? p.interests : undefined,
   };
   const r = await apiFetch<AuthData>(
     "/api/auth/register",

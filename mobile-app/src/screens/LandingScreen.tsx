@@ -1,0 +1,327 @@
+import React from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  Pressable,
+  StyleSheet,
+  Linking,
+  Platform,
+  StatusBar,
+} from "react-native";
+import LinearGradient from "react-native-linear-gradient";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { Heart, Sparkles, Shield, MessageCircle, Zap, Globe, Download, ArrowRight, LogIn, UsersRound, Star } from "lucide-react-native";
+import type { RootStackParamList } from "../navigation/types";
+import { MatreshkaLogo } from "../components/MatreshkaLogo";
+
+type Props = NativeStackScreenProps<RootStackParamList, "Landing">;
+
+const features = [
+  { Icon: Sparkles, title: "AI-алгоритм совместимости", description: "Умный искусственный интеллект анализирует интересы и характеры для расчета процента совместимости" },
+  { Icon: Heart, title: "Взаимные симпатии", description: "Свайп-механика и уведомления о match только при взаимной симпатии" },
+  { Icon: MessageCircle, title: "Безопасные чаты", description: "Общайтесь только с теми, с кем произошел match" },
+  { Icon: Shield, title: "Проверенные профили", description: "Модерация и верификация для безопасного знакомства" },
+  { Icon: Zap, title: "Супер-лайки", description: "Гарантированное совпадение с особенными людьми" },
+  { Icon: Globe, title: "Русская душа", description: "Специально для тех, кто ценит русские традиции и культуру" },
+];
+
+const mvpHighlights = [
+  { value: "MVP", label: "Сервис в развитии" },
+  { value: "AI", label: "Совместимость и аналитика" },
+  { value: "24/7", label: "Доступ к приложению" },
+];
+
+export function LandingScreen({ navigation }: Props) {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <View style={styles.root}>
+      <StatusBar barStyle="dark-content" />
+      <LinearGradient colors={["#fef2f2", "#fffbeb", "#fefce8"]} style={StyleSheet.absoluteFill} />
+      <ScrollView contentContainerStyle={{ paddingBottom: 32 + insets.bottom }} showsVerticalScrollIndicator={false}>
+        <View style={[styles.header, { paddingTop: Math.max(insets.top, 10) }]}>
+          <View style={styles.headerRow}>
+            <MatreshkaLogo size={40} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.brand}>
+                <Text style={{ color: "#dc2626" }}>Любить </Text>
+                <Text style={{ color: "#d97706" }}>по-russки</Text>
+              </Text>
+              <Pressable onPress={() => Linking.openURL("https://forruss.ru")}>
+                <Text style={styles.forruss}>forruss.ru</Text>
+              </Pressable>
+            </View>
+            <View style={styles.headerBtns}>
+              <Pressable style={styles.btnOutline} onPress={() => navigation.navigate("Register")}>
+                <Text style={styles.btnOutlineT}>Регистрация</Text>
+              </Pressable>
+              <Pressable onPress={() => navigation.navigate("Login")}>
+                <LinearGradient colors={["#ef4444", "#f59e0b"]} style={styles.btnGrad}>
+                  <LogIn size={18} color="#fff" />
+                  <Text style={styles.btnGradT}>Войти</Text>
+                </LinearGradient>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.hero}>
+          <View style={styles.heroLogoWrap}>
+            <LinearGradient colors={["#ef4444", "#f59e0b"]} style={styles.heroGlow} />
+            <MatreshkaLogo size={112} style={styles.heroLogoMat} />
+          </View>
+          <Text style={styles.heroTitle}>
+            <Text style={{ color: "#dc2626" }}>Знакомства </Text>
+            <Text style={{ color: "#b45309" }}>с русской душой</Text>
+          </Text>
+          <Text style={styles.heroLead}>Уникальное приложение для знакомств с AI-алгоритмом расчёта совместимости</Text>
+          <Text style={styles.heroSub}>
+            Искусственный интеллект анализирует ваши интересы, характер и ценности, чтобы помочь найти подходящего партнёра
+          </Text>
+          <Pressable style={styles.heroCta} onPress={() => navigation.navigate("Register")}>
+            <LinearGradient colors={["#ef4444", "#f59e0b"]} style={styles.heroCtaIn}>
+              <Download size={20} color="#fff" />
+              <Text style={styles.heroCtaT}>Начать знакомство</Text>
+              <ArrowRight size={20} color="#fff" />
+            </LinearGradient>
+          </Pressable>
+          <Pressable style={styles.heroLogin} onPress={() => navigation.navigate("Login")}>
+            <LogIn size={20} color="#44403c" />
+            <Text style={styles.heroLoginT}>Войти</Text>
+          </Pressable>
+          <Pressable style={styles.heroLink} onPress={() => Linking.openURL("https://forruss.ru")}>
+            <Globe size={18} color="#57534e" />
+            <Text style={styles.heroLinkT}>forruss.ru</Text>
+          </Pressable>
+
+          <View style={styles.mvpGrid}>
+            {mvpHighlights.map((row) => (
+              <View key={row.label} style={styles.mvpCard}>
+                <Text style={styles.mvpVal}>{row.value}</Text>
+                <Text style={styles.mvpLab}>{row.label}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.whiteSec}>
+          <Text style={styles.secH}>Почему выбирают нас?</Text>
+          <Text style={styles.secP}>Современные технологии встречаются с традиционными ценностями</Text>
+          {features.map((f) => (
+            <View key={f.title} style={styles.featCard}>
+              <LinearGradient colors={["#ef4444", "#f59e0b"]} style={styles.featIco}>
+                <f.Icon size={22} color="#fff" />
+              </LinearGradient>
+              <Text style={styles.featTitle}>{f.title}</Text>
+              <Text style={styles.featDesc}>{f.description}</Text>
+            </View>
+          ))}
+        </View>
+
+        <LinearGradient colors={["#ef4444", "#f59e0b"]} style={styles.valuesSec}>
+          <Text style={styles.valuesH}>Наши ценности</Text>
+          <Text style={styles.valuesP}>Философия, на которой построено наше приложение</Text>
+          <View style={styles.valCard}>
+            <View style={styles.valIcoBg}>
+              <UsersRound size={28} color="#dc2626" />
+            </View>
+            <Text style={styles.valTitle}>Люди — это наше богатство</Text>
+            <Text style={styles.valTxt}>
+              Мы верим, что каждый человек уникален и ценен. Наша миссия — помочь людям найти друг друга, создавая пространство для искренних знакомств и настоящих отношений.
+            </Text>
+            <Text style={[styles.valTxt, { marginTop: 12, opacity: 0.95 }]}>
+              Мы не просто технологическая платформа. Мы создаём сообщество, где каждый может найти своё счастье, будучи самим собой.
+            </Text>
+          </View>
+          <View style={styles.valCard}>
+            <View style={styles.valIcoBg}>
+              <Sparkles size={28} color="#d97706" />
+            </View>
+            <Text style={styles.valTitle}>Простота и понятность</Text>
+            <Text style={styles.valTxt}>
+              Технологии должны упрощать жизнь, а не усложнять её. Мы создали интуитивно понятное приложение, где каждая функция на своём месте.
+            </Text>
+            <Text style={[styles.valTxt, { marginTop: 12, opacity: 0.95 }]}>
+              Никаких сложных настроек или запутанных меню. Просто скачайте приложение и начните знакомиться — всё остальное мы взяли на себя.
+            </Text>
+          </View>
+
+          <View style={styles.valMiniRow}>
+            {[
+              { Icon: Shield, t: "Безопасность", d: "Защита данных и модерация контента — наш приоритет" },
+              { Icon: Heart, t: "Искренность", d: "Мы за настоящие эмоции и честные отношения" },
+              { Icon: Star, t: "Качество", d: "Внимание к деталям и забота о пользователях" },
+            ].map((x) => {
+              const Ico = x.Icon;
+              return (
+              <View key={x.t} style={styles.valMini}>
+                <View style={styles.valMiniIco}>
+                  <Ico size={22} color="#dc2626" />
+                </View>
+                <Text style={styles.valMiniT}>{x.t}</Text>
+                <Text style={styles.valMiniD}>{x.d}</Text>
+              </View>
+            );})}
+          </View>
+        </LinearGradient>
+
+        <View style={styles.simpleSec}>
+          <Text style={styles.simpleH}>Просто, понятно, удобно</Text>
+          <Text style={styles.simpleP}>Всё, что вам нужно для знакомств — в одном приложении</Text>
+          {[
+            { Icon: Sparkles, t: "Интуитивный интерфейс", d: "Не нужно читать инструкции — всё понятно с первого взгляда" },
+            { Icon: Zap, t: "Быстрый старт", d: "Регистрация за пару минут — и вы уже смотрите профили" },
+            { Icon: Heart, t: "Свайп-механика", d: "Знакомый жест влево или вправо — всё просто" },
+            { Icon: MessageCircle, t: "Удобные чаты", d: "Общайтесь так же легко, как в любом мессенджере" },
+          ].map((row) => {
+            const RI = row.Icon;
+            return (
+            <View key={row.t} style={styles.simpleRow}>
+              <LinearGradient colors={["#ef4444", "#f59e0b"]} style={styles.simpleIco}>
+                <RI size={22} color="#fff" />
+              </LinearGradient>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.simpleRowT}>{row.t}</Text>
+                <Text style={styles.simpleRowD}>{row.d}</Text>
+              </View>
+            </View>
+          );})}
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: "#fff7ed" },
+  header: {
+    backgroundColor: "rgba(255,255,255,0.88)",
+    paddingHorizontal: 14,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: "#e7e5e4",
+    ...Platform.select({
+      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3 },
+      android: { elevation: 2 },
+    }),
+  },
+  headerRow: { flexDirection: "row", alignItems: "center", gap: 10, flexWrap: "wrap" },
+  brand: { fontSize: 17, fontWeight: "800" },
+  forruss: { fontSize: 12, color: "#57534e", marginTop: 2 },
+  headerBtns: { flexDirection: "row", gap: 8, marginLeft: "auto", flexWrap: "wrap", justifyContent: "flex-end" },
+  btnOutline: {
+    borderWidth: 2,
+    borderColor: "#fecaca",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+  },
+  btnOutlineT: { color: "#dc2626", fontWeight: "600", fontSize: 14 },
+  btnGrad: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+  },
+  btnGradT: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  hero: { paddingHorizontal: 16, paddingTop: 28, alignItems: "center" },
+  heroLogoWrap: { width: 128, height: 128, alignItems: "center", justifyContent: "center", marginBottom: 20 },
+  heroGlow: { position: "absolute", width: 140, height: 140, borderRadius: 70, opacity: 0.25 },
+  heroLogoMat: { borderWidth: 3, borderColor: "#fff" },
+  heroTitle: { fontSize: 28, fontWeight: "800", textAlign: "center", marginBottom: 12 },
+  heroLead: { fontSize: 17, fontWeight: "600", color: "#292524", textAlign: "center", marginBottom: 8, maxWidth: 360 },
+  heroSub: { fontSize: 15, color: "#57534e", textAlign: "center", marginBottom: 20, maxWidth: 340, lineHeight: 22 },
+  heroCta: { width: "100%", maxWidth: 360, marginBottom: 10 },
+  heroCtaIn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 14,
+    borderRadius: 999,
+  },
+  heroCtaT: { color: "#fff", fontWeight: "700", fontSize: 17 },
+  heroLogin: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    width: "100%",
+    maxWidth: 360,
+    paddingVertical: 14,
+    borderRadius: 999,
+    backgroundColor: "#fff",
+    borderWidth: 2,
+    borderColor: "#e7e5e4",
+    marginBottom: 10,
+  },
+  heroLoginT: { color: "#292524", fontWeight: "600", fontSize: 17 },
+  heroLink: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 12 },
+  heroLinkT: { color: "#57534e", fontWeight: "600", fontSize: 16 },
+  mvpGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 10, marginTop: 24, width: "100%" },
+  mvpCard: {
+    width: "30%",
+    minWidth: 100,
+    backgroundColor: "rgba(255,255,255,0.65)",
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "rgba(251, 191, 36, 0.35)",
+    alignItems: "center",
+  },
+  mvpVal: { fontSize: 22, fontWeight: "800", marginBottom: 4, color: "#dc2626" },
+  mvpLab: { fontSize: 11, color: "#57534e", textAlign: "center" },
+  whiteSec: { backgroundColor: "#fff", paddingVertical: 36, paddingHorizontal: 16, marginTop: 8 },
+  secH: { fontSize: 26, fontWeight: "800", color: "#171717", textAlign: "center", marginBottom: 10 },
+  secP: { fontSize: 16, color: "#57534e", textAlign: "center", marginBottom: 24, maxWidth: 400, alignSelf: "center" },
+  featCard: {
+    backgroundColor: "#fffbeb",
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#fef3c7",
+  },
+  featIco: { width: 48, height: 48, borderRadius: 12, alignItems: "center", justifyContent: "center", marginBottom: 12 },
+  featTitle: { fontSize: 18, fontWeight: "800", color: "#171717", marginBottom: 6 },
+  featDesc: { fontSize: 15, color: "#57534e", lineHeight: 22 },
+  valuesSec: { paddingVertical: 36, paddingHorizontal: 16, marginTop: 8 },
+  valuesH: { fontSize: 26, fontWeight: "800", color: "#fff", textAlign: "center", marginBottom: 8 },
+  valuesP: { fontSize: 16, color: "rgba(255,255,255,0.92)", textAlign: "center", marginBottom: 24 },
+  valCard: {
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.22)",
+  },
+  valIcoBg: { width: 56, height: 56, borderRadius: 14, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", marginBottom: 14 },
+  valTitle: { fontSize: 22, fontWeight: "800", color: "#fff", marginBottom: 10 },
+  valTxt: { fontSize: 16, color: "rgba(255,255,255,0.92)", lineHeight: 24 },
+  valMiniRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 10, marginTop: 8 },
+  valMini: {
+    width: "30%",
+    minWidth: 104,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.22)",
+    alignItems: "center",
+  },
+  valMiniIco: { width: 44, height: 44, borderRadius: 12, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", marginBottom: 8 },
+  valMiniT: { fontSize: 15, fontWeight: "800", color: "#fff", marginBottom: 4, textAlign: "center" },
+  valMiniD: { fontSize: 11, color: "rgba(255,255,255,0.85)", textAlign: "center", lineHeight: 15 },
+  simpleSec: { backgroundColor: "#fff", paddingVertical: 32, paddingHorizontal: 16, marginTop: 8 },
+  simpleH: { fontSize: 24, fontWeight: "800", color: "#171717", textAlign: "center", marginBottom: 8 },
+  simpleP: { fontSize: 16, color: "#57534e", textAlign: "center", marginBottom: 22, maxWidth: 400, alignSelf: "center" },
+  simpleRow: { flexDirection: "row", gap: 14, marginBottom: 18, alignItems: "flex-start" },
+  simpleIco: { width: 48, height: 48, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  simpleRowT: { fontSize: 17, fontWeight: "800", color: "#171717", marginBottom: 4 },
+  simpleRowD: { fontSize: 15, color: "#57534e", lineHeight: 22 },
+});
