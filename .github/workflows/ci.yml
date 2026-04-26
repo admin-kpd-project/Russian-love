@@ -69,12 +69,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
       - name: Login to Yandex Container Registry
-        shell: bash
-        run: |
-          echo "${{ secrets.YC_API_KEY }}" | docker login \
-            --username api_key \
-            --password-stdin \
-            cr.yandex/${{ secrets.REGISTRY_DOCKER_ID }}
+        id: login-cr
+        uses: yc-actions/yc-cr-login@v3
+        with:
+          yc-sa-id: ${{ secrets.YC_SA_ID }}
       - name: Docker meta API
         id: meta-api
         uses: docker/metadata-action@v6
