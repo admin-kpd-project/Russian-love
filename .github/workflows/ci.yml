@@ -89,7 +89,7 @@ jobs:
         with:
           context: backend
           file: backend/Dockerfile
-          push: false
+          push: ${{ github.event_name == 'push' && contains(fromJSON('["refs/heads/main", "refs/heads/master"]'), github.ref) }}
           tags: ${{ steps.meta-api.outputs.tags }}
           labels: ${{ steps.meta-api.outputs.labels }}
           cache-from: type=registry,ref=cr.yandex/${{ secrets.REGISTRY_DOCKER_ID }}/dating-api:cache
@@ -108,7 +108,7 @@ jobs:
         with:
           context: backend
           file: backend/Dockerfile.worker
-          push: false
+          push: ${{ github.event_name == 'push' && contains(fromJSON('["refs/heads/main", "refs/heads/master"]'), github.ref) }}
           tags: ${{ steps.meta-worker.outputs.tags }}
           labels: ${{ steps.meta-worker.outputs.labels }}
           cache-from: type=registry,ref=cr.yandex/${{ secrets.REGISTRY_DOCKER_ID }}/dating-worker:cache
@@ -128,7 +128,7 @@ jobs:
         with:
           context: web
           file: web/Dockerfile
-          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          push: ${{ github.event_name == 'push' && contains(fromJSON('["refs/heads/main", "refs/heads/master"]'), github.ref) }}
           tags: ${{ steps.meta-web.outputs.tags }}
           labels: ${{ steps.meta-web.outputs.labels }}
           cache-from: type=registry,ref=cr.yandex/${{ secrets.REGISTRY_DOCKER_ID }}/dating-web:cache
@@ -176,3 +176,9 @@ jobs:
           echo "- **Version:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **File:** \`web-dist.tar.gz\`" >> $GITHUB_STEP_SUMMARY
           echo "- **SHA256:** \`${FILE_SHA256}\`" >> $GITHUB_STEP_SUMMARY
+
+  # deploy:
+  #   needs: [backend, docker-images, web]
+  #   if: github.event_name == 'push' && contains(fromJSON('["refs/heads/main", "refs/heads/master"]'), github.ref)
+  #   uses: ./.github/workflows/cd.yml
+  #   secrets: inherit

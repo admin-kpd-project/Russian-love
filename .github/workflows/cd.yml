@@ -1,0 +1,40 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Deploy to Server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # Переходим в директорию проекта
+            cd ${{ secrets.DEPLOY_PATH }}
+
+            # Обновляем репозиторий
+            git pull origin main
+
+            # Логинимся в Yandex Container Registry
+            echo "${{ secrets.YC_OAUTH }}" | docker login \
+              --username oauth \
+              --password-stdin \
+              cr.yandex
+
+            # Скачиваем новые образы
+            docker-compose pull
+
+            # Перезапускаем изменившиеся контейнеры
+            docker-compose up -d
