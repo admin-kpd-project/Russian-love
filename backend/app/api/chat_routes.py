@@ -219,6 +219,13 @@ async def delete_conversation(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_completed_user),
 ):
+    conv = (
+        await db.execute(
+            select(Conversation).where(Conversation.id == conversation_id)
+        )
+    ).scalar_one_or_none()
+    if conv is None:
+        return JSONResponse(status_code=404, content=Envelope.err("Беседа не найдена"))
     mem = (
         await db.execute(
             select(ConversationMember).where(
@@ -229,13 +236,6 @@ async def delete_conversation(
     ).scalar_one_or_none()
     if mem is None:
         return JSONResponse(status_code=403, content=Envelope.err("Нет доступа к беседе"))
-    conv = (
-        await db.execute(
-            select(Conversation).where(Conversation.id == conversation_id)
-        )
-    ).scalar_one_or_none()
-    if conv is None:
-        return JSONResponse(status_code=404, content=Envelope.err("Беседа не найдена"))
     await db.delete(conv)
     await db.flush()
     return Envelope.ok({"ok": True})
