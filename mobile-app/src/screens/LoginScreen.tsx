@@ -3,29 +3,24 @@ import {
   View,
   Text,
   TextInput,
-  Pressable,
   StyleSheet,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
 } from "react-native";
+import LinearGradient from "react-native-linear-gradient";
+import { ArrowLeft, LogIn, Mail } from "lucide-react-native";
 
 import { login } from "../api/authApi";
 import { validateLoginIdentifier } from "../utils/authValidation";
 import { normalizeRuPhone } from "../utils/phone";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/types";
-import {
-  colors,
-  radius,
-  cardShadow,
-  primaryButton,
-  primaryButtonText,
-  outlineButton,
-  inputBase,
-  placeholderColor,
-} from "../theme/theme";
+import { colors, radius, cardShadow, inputBase, placeholderColor } from "../theme/theme";
+import { MatreshkaLogo } from "../components/MatreshkaLogo";
+import { FadeInView, ScalePressable } from "../components/ui/Motion";
+import { GradientButton } from "../components/ui/GradientButton";
+import { brandGradients } from "../theme/designTokens";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Login">;
 
@@ -59,54 +54,69 @@ export function LoginScreen({ navigation }: Props) {
       style={styles.wrap}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
+      <LinearGradient colors={[...brandGradients.page]} style={StyleSheet.absoluteFill} />
       <ScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.hero}>
-          <Text style={styles.heroTitle}>
-            <Text style={styles.heroTitleMain}>Любить </Text>
-            <Text style={styles.heroTitleAccent}>по-russки</Text>
-          </Text>
-          <Text style={styles.heroSub}>Войдите, чтобы продолжить</Text>
-        </View>
+        <FadeInView style={styles.shell}>
+          <LinearGradient colors={[...brandGradients.primary]} style={styles.hero}>
+            <ScalePressable style={styles.backButton} onPress={() => navigation.navigate("Landing")} disabled={loading}>
+              <ArrowLeft size={20} color="#fff" />
+            </ScalePressable>
+            <View style={styles.logoHalo}>
+              <MatreshkaLogo size={58} variant="onGradient" />
+            </View>
+            <Text style={styles.heroTitle}>Добро пожаловать!</Text>
+            <Text style={styles.heroSub}>Войдите, чтобы найти свою половинку</Text>
+          </LinearGradient>
 
-        <View style={[styles.card, cardShadow()]}>
-          <Text style={styles.cardH}>Вход</Text>
-          {err ? <Text style={styles.err}>{err}</Text> : null}
-          <TextInput
-            style={[styles.input, styles.inputFirst]}
-            placeholder="Email или телефон"
-            placeholderTextColor={placeholderColor}
-            autoCapitalize="none"
-            value={email}
-            onChangeText={setEmail}
-            editable={!loading}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Пароль"
-            placeholderTextColor={placeholderColor}
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-            editable={!loading}
-          />
-          <Pressable style={[styles.btn, loading && styles.btnDisabled]} onPress={onSubmit} disabled={loading}>
-            {loading ? <ActivityIndicator color={colors.white} /> : <Text style={primaryButtonText}>Войти</Text>}
-          </Pressable>
-          <Pressable
-            style={[styles.outlineBtn, loading && styles.btnDisabled]}
-            onPress={() => navigation.navigate("Register")}
-            disabled={loading}
-          >
-            <Text style={styles.outlineBtnT}>Регистрация</Text>
-          </Pressable>
-          <Pressable onPress={() => navigation.navigate("Landing")} disabled={loading} style={styles.homeL}>
-            <Text style={styles.homeT}>На главную</Text>
-          </Pressable>
-        </View>
+          <View style={[styles.card, cardShadow()]}>
+            <Text style={styles.cardH}>Вход</Text>
+            {err ? <Text style={styles.err}>{err}</Text> : null}
+            <View style={styles.inputWrap}>
+              <Mail size={19} color="#a8a29e" style={styles.inputIcon} />
+              <TextInput
+                style={[styles.input, styles.inputWithIcon]}
+                placeholder="example@mail.ru или +7..."
+                placeholderTextColor={placeholderColor}
+                autoCapitalize="none"
+                value={email}
+                onChangeText={setEmail}
+                editable={!loading}
+              />
+            </View>
+            <TextInput
+              style={styles.input}
+              placeholder="Пароль"
+              placeholderTextColor={placeholderColor}
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+              editable={!loading}
+            />
+            <GradientButton
+              title="Войти"
+              onPress={onSubmit}
+              loading={loading}
+              disabled={loading}
+              left={!loading ? <LogIn size={19} color="#fff" /> : null}
+              style={styles.btn}
+            />
+            <GradientButton
+              title="Регистрация"
+              variant="outline"
+              onPress={() => navigation.navigate("Register")}
+              disabled={loading}
+              style={styles.outlineBtn}
+              textStyle={styles.outlineBtnT}
+            />
+            <ScalePressable onPress={() => navigation.navigate("Landing")} disabled={loading} style={styles.homeL}>
+              <Text style={styles.homeT}>На главную</Text>
+            </ScalePressable>
+          </View>
+        </FadeInView>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -114,24 +124,40 @@ export function LoginScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.pageBg },
-  scroll: { flexGrow: 1, paddingBottom: 32 },
+  scroll: { flexGrow: 1, padding: 16, paddingBottom: 32, justifyContent: "center" },
+  shell: { borderRadius: radius.xl, overflow: "hidden" },
   hero: {
-    paddingTop: 28,
-    paddingBottom: 40,
+    paddingTop: 34,
+    paddingBottom: 28,
     paddingHorizontal: 24,
-    borderBottomLeftRadius: radius.xl,
-    borderBottomRightRadius: radius.xl,
-    backgroundColor: colors.heroRed,
+    alignItems: "center",
   },
-  heroTitle: { textAlign: "center", marginBottom: 8 },
-  heroTitleMain: { fontSize: 26, fontWeight: "800", color: colors.white },
-  heroTitleAccent: { fontSize: 26, fontWeight: "800", color: "#fde68a" },
+  backButton: {
+    position: "absolute",
+    top: 14,
+    left: 14,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoHalo: {
+    width: 82,
+    height: 82,
+    borderRadius: 41,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  heroTitle: { textAlign: "center", marginBottom: 8, fontSize: 25, fontWeight: "800", color: colors.white },
   heroSub: { textAlign: "center", color: "rgba(255,255,255,0.92)", fontSize: 15 },
   card: {
-    marginTop: -28,
-    marginHorizontal: 16,
     backgroundColor: colors.white,
-    borderRadius: radius.xl,
+    borderBottomLeftRadius: radius.xl,
+    borderBottomRightRadius: radius.xl,
     padding: 22,
     borderWidth: 1,
     borderColor: colors.stone200,
@@ -144,11 +170,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   err: { color: colors.error, marginBottom: 10, textAlign: "center", fontSize: 14 },
+  inputWrap: { position: "relative" },
+  inputIcon: { position: "absolute", left: 13, top: 14, zIndex: 1 },
   input: { ...inputBase, marginBottom: 12, fontSize: 16, color: colors.stone900 },
-  inputFirst: { marginTop: 0 },
-  btn: { ...primaryButton, marginTop: 6 },
-  btnDisabled: { opacity: 0.65 },
-  outlineBtn: { ...outlineButton, marginTop: 14 },
+  inputWithIcon: { paddingLeft: 42 },
+  btn: { marginTop: 6 },
+  outlineBtn: { marginTop: 14 },
   outlineBtnT: { color: colors.red600, fontWeight: "600", fontSize: 16 },
   homeL: { marginTop: 16, alignItems: "center" },
   homeT: { color: colors.stone500, fontSize: 14 },

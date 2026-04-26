@@ -1,13 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-  ActivityIndicator,
-  Platform,
-  StatusBar,
-} from "react-native";
+import { View, Text, StyleSheet, ActivityIndicator, Platform, StatusBar } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
@@ -50,6 +42,8 @@ import { CompatibilityDetailsModal } from "../components/main/CompatibilityDetai
 import { DetailedAnalysisModal } from "../components/main/DetailedAnalysisModal";
 import { DetailedAnalysisPurchaseModal } from "../components/main/DetailedAnalysisPurchaseModal";
 import type { ConversationListItem } from "../api/conversationsApi";
+import { ScalePressable } from "../components/ui/Motion";
+import { brandGradients } from "../theme/designTokens";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Main">;
 
@@ -245,7 +239,7 @@ export function MainScreen() {
   const stackOffsets = [2, 1, 0] as const;
 
   return (
-    <LinearGradient colors={["#fef2f2", "#fffbeb", "#fefce8"]} style={styles.page}>
+    <LinearGradient colors={[...brandGradients.page]} style={styles.page}>
       <StatusBar barStyle="dark-content" backgroundColor="rgba(255,255,255,0.92)" />
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 8) + 6 }]}>
         <View style={styles.headerIn}>
@@ -259,13 +253,13 @@ export function MainScreen() {
             </View>
           </View>
           <View style={styles.headerActions}>
-            <Pressable onPress={() => setShowProfile(true)} style={styles.iconHit}>
+            <ScalePressable onPress={() => setShowProfile(true)} style={styles.iconHit}>
               <UserIcon size={24} color="#57534e" />
-            </Pressable>
-            <Pressable onPress={() => setShowNotif(true)} style={styles.iconHit}>
+            </ScalePressable>
+            <ScalePressable onPress={() => setShowNotif(true)} style={styles.iconHit}>
               <MessageCircle size={24} color="#57534e" />
               <View style={styles.dot} />
-            </Pressable>
+            </ScalePressable>
           </View>
         </View>
       </View>
@@ -276,10 +270,10 @@ export function MainScreen() {
         ) : hasMore ? (
           <>
             <View style={styles.qrRow}>
-              <Pressable style={styles.qrBtn} onPress={() => setShowQR(true)}>
+              <ScalePressable style={styles.qrBtn} onPress={() => setShowQR(true)}>
                 <QrCode size={20} color="#44403c" />
                 <Text style={styles.qrTxt}>QR</Text>
-              </Pressable>
+              </ScalePressable>
             </View>
             <View style={styles.stack}>
               {stackOffsets.map((off) => {
@@ -339,27 +333,27 @@ export function MainScreen() {
           </>
         ) : (
           <View style={styles.empty}>
-            <LinearGradient colors={["#ef4444", "#f59e0b"]} style={styles.emptyIco}>
+            <LinearGradient colors={[...brandGradients.primary]} style={styles.emptyIco}>
               <Heart size={56} color="#fff" fill="#fff" />
             </LinearGradient>
             <Text style={styles.emptyH}>Нет новых профилей</Text>
             <Text style={styles.emptyT}>Попробуйте вернуться позже</Text>
-            <Pressable
+            <ScalePressable
               onPress={() => {
                 setCurrentIndex(0);
                 setHistory([]);
               }}
             >
-              <LinearGradient colors={["#ef4444", "#f59e0b"]} style={styles.restart}>
+              <LinearGradient colors={[...brandGradients.primary]} style={styles.restart}>
                 <Text style={styles.restartT}>Начать заново</Text>
               </LinearGradient>
-            </Pressable>
+            </ScalePressable>
           </View>
         )}
       </View>
 
       <View style={[styles.bottom, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-        <Pressable
+        <ScalePressable
           style={styles.navHit}
           onPress={() => setShowShop(true)}
           onLongPress={() => setShowSub(true)}
@@ -367,29 +361,29 @@ export function MainScreen() {
         >
           <Flame size={30} color="#ef4444" />
           {!isPremium ? (
-            <View style={styles.badgeFlame}>
+            <LinearGradient colors={[...brandGradients.primary]} style={styles.badgeFlame}>
               <Text style={styles.badgeTxt}>{superLikesRemaining}</Text>
-            </View>
+            </LinearGradient>
           ) : null}
-        </Pressable>
-        <Pressable style={styles.navHit} onPress={() => setShowFavorites(true)}>
+        </ScalePressable>
+        <ScalePressable style={styles.navHit} onPress={() => setShowFavorites(true)}>
           <Bookmark size={30} color="#d97706" />
           {favorites.length > 0 ? (
-            <View style={styles.badgeAm}>
+            <LinearGradient colors={[...brandGradients.favorite]} style={styles.badgeAm}>
               <Text style={styles.badgeTxt}>{favorites.length}</Text>
-            </View>
+            </LinearGradient>
           ) : null}
-        </Pressable>
-        <Pressable style={styles.navHit} onPress={() => setShowLikes(true)}>
+        </ScalePressable>
+        <ScalePressable style={styles.navHit} onPress={() => setShowLikes(true)}>
           <Heart size={30} color="#a8a29e" />
-        </Pressable>
-        <Pressable style={styles.navHit} onPress={() => setShowChats(true)}>
+        </ScalePressable>
+        <ScalePressable style={styles.navHit} onPress={() => setShowChats(true)}>
           <MessageCircle size={30} color="#a8a29e" />
           <View style={styles.dotSm} />
-        </Pressable>
-        <Pressable style={styles.navHit} onPress={() => setShowProfile(true)}>
+        </ScalePressable>
+        <ScalePressable style={styles.navHit} onPress={() => setShowProfile(true)}>
           <UserIcon size={30} color="#a8a29e" />
-        </Pressable>
+        </ScalePressable>
       </View>
 
       <MatchModal
@@ -534,11 +528,11 @@ export function MainScreen() {
 const styles = StyleSheet.create({
   page: { flex: 1 },
   header: {
-    backgroundColor: "rgba(255,255,255,0.92)",
+    backgroundColor: "rgba(255,255,255,0.82)",
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: "#e7e5e4",
     ...Platform.select({
-      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6 },
+      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 },
       android: { elevation: 3 },
     }),
   },
@@ -578,11 +572,11 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
     alignItems: "center",
     paddingTop: 10,
-    backgroundColor: "rgba(255,255,255,0.92)",
+    backgroundColor: "rgba(255,255,255,0.84)",
     borderTopWidth: StyleSheet.hairlineWidth,
     borderColor: "#e7e5e4",
     ...Platform.select({
-      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.06, shadowRadius: 6 },
+      ios: { shadowColor: "#000", shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.06, shadowRadius: 8 },
       android: { elevation: 8 },
     }),
   },
@@ -595,7 +589,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     paddingVertical: 2,
     borderRadius: 999,
-    backgroundColor: "#ea580c",
     alignItems: "center",
   },
   badgeAm: {
@@ -606,7 +599,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     paddingVertical: 2,
     borderRadius: 999,
-    backgroundColor: "#d97706",
     alignItems: "center",
   },
   badgeTxt: { color: "#fff", fontSize: 10, fontWeight: "800" },

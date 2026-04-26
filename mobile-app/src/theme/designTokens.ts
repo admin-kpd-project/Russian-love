@@ -10,6 +10,17 @@ export const tw = {
   toYellow50: "#fefce8",
   white: "#ffffff",
   white80: "rgba(255,255,255,0.8)",
+  red200: "#fecaca",
+  red500: "#ef4444",
+  red600: "#dc2626",
+  amber500: "#f59e0b",
+  amber600: "#d97706",
+  stone200: "#e7e5e4",
+  stone500: "#78716c",
+  stone600: "#57534e",
+  stone700: "#44403c",
+  stone800: "#292524",
+  stone900: "#1c1917",
 
   // Сетка
   textXs: 12, // text-xs
@@ -24,6 +35,23 @@ export const tw = {
   // Радиусы
   rounded2xl: 16, // rounded-2xl
   rounded3xl: 24, // rounded-3xl
+} as const;
+
+export const brandGradients = {
+  page: ["#fef2f2", "#fffbeb", "#fefce8"] as const,
+  primary: ["#ef4444", "#f59e0b"] as const,
+  primaryDark: ["#dc2626", "#d97706"] as const,
+  featureCard: ["#fef2f2", "#fffbeb"] as const,
+  superLike: ["#60a5fa", "#2563eb"] as const,
+  favorite: ["#fbbf24", "#d97706"] as const,
+  softRed: ["#fff1f2", "#fffbeb"] as const,
+} as const;
+
+export const motionTiming = {
+  enterMs: 520,
+  pressMs: 120,
+  springDamping: 14,
+  springStiffness: 160,
 } as const;
 
 // Дальнейший шаг к полному совпадению с веб: NativeWind + общий `tailwind.config`

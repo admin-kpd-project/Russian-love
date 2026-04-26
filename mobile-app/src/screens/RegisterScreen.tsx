@@ -3,16 +3,16 @@ import {
   View,
   Text,
   TextInput,
-  Pressable,
   StyleSheet,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Image,
   ScrollView,
 } from "react-native";
+import LinearGradient from "react-native-linear-gradient";
 import { launchImageLibrary } from "react-native-image-picker";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { ArrowLeft, Camera, Check, Mail, Phone, UserPlus } from "lucide-react-native";
 
 import { presignRegistration, putFileToPresignedUrl } from "../api/uploadApi";
 import { register } from "../api/authApi";
@@ -20,6 +20,11 @@ import { getUserById } from "../api/usersApi";
 import type { RootStackParamList } from "../navigation/types";
 import { validateEmail } from "../utils/authValidation";
 import { normalizeRuPhone } from "../utils/phone";
+import { colors, radius, cardShadow, inputBase, placeholderColor } from "../theme/theme";
+import { MatreshkaLogo } from "../components/MatreshkaLogo";
+import { FadeInView, ScalePressable } from "../components/ui/Motion";
+import { GradientButton } from "../components/ui/GradientButton";
+import { brandGradients } from "../theme/designTokens";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Register">;
 
@@ -147,129 +152,184 @@ export function RegisterScreen({ navigation, route }: Props) {
       style={styles.wrap}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scroll}>
-        <Text style={styles.title}>Регистрация</Text>
-        {inviterName ? (
-          <Text style={styles.inviteBanner}>Вы перешли по приглашению от {inviterName}</Text>
-        ) : null}
-        {err ? <Text style={styles.err}>{err}</Text> : null}
+      <LinearGradient colors={[...brandGradients.page]} style={StyleSheet.absoluteFill} />
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <FadeInView style={styles.shell}>
+          <LinearGradient colors={[...brandGradients.primary]} style={styles.hero}>
+            <ScalePressable style={styles.backButton} onPress={() => navigation.goBack()} disabled={loading}>
+              <ArrowLeft size={20} color="#fff" />
+            </ScalePressable>
+            <View style={styles.logoHalo}>
+              <MatreshkaLogo size={58} variant="onGradient" />
+            </View>
+            <Text style={styles.title}>Регистрация</Text>
+            <Text style={styles.heroSub}>Создайте аккаунт и начните знакомства</Text>
+          </LinearGradient>
 
-        <View style={styles.modeRow}>
-          <Pressable
-            onPress={() => setAuthMethod("email")}
-            style={[styles.modeBtn, authMethod === "email" && styles.modeOn]}
-          >
-            <Text style={styles.modeT}>Email</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setAuthMethod("phone")}
-            style={[styles.modeBtn, authMethod === "phone" && styles.modeOn]}
-          >
-            <Text style={styles.modeT}>Телефон</Text>
-          </Pressable>
-        </View>
+          <View style={[styles.card, cardShadow()]}>
+            {inviterName ? (
+              <Text style={styles.inviteBanner}>Вы перешли по приглашению от {inviterName}</Text>
+            ) : null}
+            {err ? <Text style={styles.err}>{err}</Text> : null}
 
-        <Pressable style={styles.avatarBtn} onPress={pickAvatar}>
-          {avatarLocalUri ? (
-            <Image source={{ uri: avatarLocalUri }} style={styles.avatarImg} />
-          ) : (
-            <Text style={styles.avatarPl}>Фото (обязательно)</Text>
-          )}
-        </Pressable>
+            <View style={styles.modeRow}>
+              <ScalePressable
+                onPress={() => setAuthMethod("email")}
+                style={[styles.modeBtn, authMethod === "email" && styles.modeOn]}
+              >
+                <Text style={[styles.modeT, authMethod === "email" && styles.modeTOn]}>Email</Text>
+              </ScalePressable>
+              <ScalePressable
+                onPress={() => setAuthMethod("phone")}
+                style={[styles.modeBtn, authMethod === "phone" && styles.modeOn]}
+              >
+                <Text style={[styles.modeT, authMethod === "phone" && styles.modeTOn]}>Телефон</Text>
+              </ScalePressable>
+            </View>
 
-        {authMethod === "email" ? (
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            autoCapitalize="none"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-            editable={!loading}
-          />
-        ) : (
-          <TextInput
-            style={styles.input}
-            placeholder="+7… или 8…"
-            keyboardType="phone-pad"
-            value={loginPhone}
-            onChangeText={setLoginPhone}
-            editable={!loading}
-          />
-        )}
-        <TextInput
-          style={styles.input}
-          placeholder="Пароль (мин. 6 символов)"
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-          editable={!loading}
-        />
-        <TextInput style={styles.input} placeholder="Имя" value={name} onChangeText={setName} editable={!loading} />
-        <Text style={styles.hint}>Дата рождения (YYYY-MM-DD, 18+)</Text>
-        <TextInput style={styles.input} value={birthDate} onChangeText={setBirthDate} editable={!loading} />
-        <TextInput
-          style={styles.input}
-          placeholder="О себе (необязательно)"
-          value={bio}
-          onChangeText={setBio}
-          multiline
-          editable={!loading}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Интересы через запятую (необязательно)"
-          value={interestsRaw}
-          onChangeText={setInterestsRaw}
-          editable={!loading}
-        />
+            <ScalePressable style={styles.avatarBtn} onPress={pickAvatar}>
+              {avatarLocalUri ? (
+                <Image source={{ uri: avatarLocalUri }} style={styles.avatarImg} />
+              ) : (
+                <>
+                  <Camera size={28} color="#d97706" />
+                  <Text style={styles.avatarPl}>Фото профиля *</Text>
+                </>
+              )}
+            </ScalePressable>
 
-        <View style={styles.genderRow}>
-          <Pressable
-            onPress={() => setGender("female")}
-            style={[styles.genderBtn, gender === "female" && styles.genderOn]}
-          >
-            <Text>Ж</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setGender("male")}
-            style={[styles.genderBtn, gender === "male" && styles.genderOn]}
-          >
-            <Text>М</Text>
-          </Pressable>
-        </View>
+            {authMethod === "email" ? (
+              <View style={styles.inputWrap}>
+                <Mail size={19} color="#a8a29e" style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, styles.inputWithIcon]}
+                  placeholder="example@mail.ru"
+                  placeholderTextColor={placeholderColor}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  value={email}
+                  onChangeText={setEmail}
+                  editable={!loading}
+                />
+              </View>
+            ) : (
+              <TextInput
+                style={styles.input}
+                placeholder="+7... или 8..."
+                placeholderTextColor={placeholderColor}
+                keyboardType="phone-pad"
+                value={loginPhone}
+                onChangeText={setLoginPhone}
+                editable={!loading}
+              />
+            )}
+            <TextInput
+              style={styles.input}
+              placeholder="Пароль (мин. 6 символов)"
+              placeholderTextColor={placeholderColor}
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+              editable={!loading}
+            />
+            <TextInput style={styles.input} placeholder="Имя" placeholderTextColor={placeholderColor} value={name} onChangeText={setName} editable={!loading} />
+            <Text style={styles.hint}>Дата рождения (YYYY-MM-DD, 18+)</Text>
+            <TextInput style={styles.input} value={birthDate} onChangeText={setBirthDate} editable={!loading} />
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              placeholder="О себе (необязательно)"
+              placeholderTextColor={placeholderColor}
+              value={bio}
+              onChangeText={setBio}
+              multiline
+              editable={!loading}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Интересы через запятую (необязательно)"
+              placeholderTextColor={placeholderColor}
+              value={interestsRaw}
+              onChangeText={setInterestsRaw}
+              editable={!loading}
+            />
 
-        <Pressable style={styles.row} onPress={() => setAgreePrivacy((v) => !v)}>
-          <View style={[styles.cb, agreePrivacy && styles.cbOn]} />
-          <Text style={styles.rowT}>Согласие на обработку персональных данных</Text>
-        </Pressable>
-        <Pressable style={styles.row} onPress={() => setAgreeTerms((v) => !v)}>
-          <View style={[styles.cb, agreeTerms && styles.cbOn]} />
-          <Text style={styles.rowT}>Согласие с пользовательским соглашением</Text>
-        </Pressable>
-        <Pressable style={styles.row} onPress={() => setAgreeOffer((v) => !v)}>
-          <View style={[styles.cb, agreeOffer && styles.cbOn]} />
-          <Text style={styles.rowT}>Согласие с офертой (необязательно)</Text>
-        </Pressable>
+            <View style={styles.genderRow}>
+              <ScalePressable
+                onPress={() => setGender("female")}
+                style={[styles.genderBtn, gender === "female" && styles.genderOn]}
+              >
+                <Text style={[styles.genderT, gender === "female" && styles.genderTOn]}>Женщина</Text>
+              </ScalePressable>
+              <ScalePressable
+                onPress={() => setGender("male")}
+                style={[styles.genderBtn, gender === "male" && styles.genderOn]}
+              >
+                <Text style={[styles.genderT, gender === "male" && styles.genderTOn]}>Мужчина</Text>
+              </ScalePressable>
+            </View>
 
-        <Pressable style={styles.btn} onPress={onSubmit} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Создать аккаунт</Text>}
-        </Pressable>
-        <Pressable onPress={() => navigation.goBack()} disabled={loading}>
-          <Text style={styles.link}>Назад к входу</Text>
-        </Pressable>
-        <Pressable onPress={() => navigation.navigate("Landing")} disabled={loading}>
-          <Text style={styles.link2}>На главную</Text>
-        </Pressable>
+            <ScalePressable style={styles.row} onPress={() => setAgreePrivacy((v) => !v)}>
+              <View style={[styles.cb, agreePrivacy && styles.cbOn]}>{agreePrivacy ? <Check size={14} color="#fff" /> : null}</View>
+              <Text style={styles.rowT}>Согласие на обработку персональных данных</Text>
+            </ScalePressable>
+            <ScalePressable style={styles.row} onPress={() => setAgreeTerms((v) => !v)}>
+              <View style={[styles.cb, agreeTerms && styles.cbOn]}>{agreeTerms ? <Check size={14} color="#fff" /> : null}</View>
+              <Text style={styles.rowT}>Согласие с пользовательским соглашением</Text>
+            </ScalePressable>
+            <ScalePressable style={styles.row} onPress={() => setAgreeOffer((v) => !v)}>
+              <View style={[styles.cb, agreeOffer && styles.cbOn]}>{agreeOffer ? <Check size={14} color="#fff" /> : null}</View>
+              <Text style={styles.rowT}>Согласие с офертой (необязательно)</Text>
+            </ScalePressable>
+
+            <GradientButton title="Создать аккаунт" onPress={onSubmit} loading={loading} disabled={loading} style={styles.btn} />
+            <ScalePressable onPress={() => navigation.goBack()} disabled={loading}>
+              <Text style={styles.link}>Назад к входу</Text>
+            </ScalePressable>
+            <ScalePressable onPress={() => navigation.navigate("Landing")} disabled={loading}>
+              <Text style={styles.link2}>На главную</Text>
+            </ScalePressable>
+          </View>
+        </FadeInView>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, backgroundColor: "#fff8f5" },
-  scroll: { padding: 20, paddingBottom: 40 },
-  title: { fontSize: 24, fontWeight: "700", marginBottom: 12, textAlign: "center" },
+  wrap: { flex: 1, backgroundColor: colors.pageBg },
+  scroll: { padding: 16, paddingBottom: 40 },
+  shell: { borderRadius: radius.xl, overflow: "hidden" },
+  hero: { paddingTop: 34, paddingBottom: 28, paddingHorizontal: 24, alignItems: "center" },
+  backButton: {
+    position: "absolute",
+    top: 14,
+    left: 14,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoHalo: {
+    width: 82,
+    height: 82,
+    borderRadius: 41,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  title: { fontSize: 25, fontWeight: "800", marginBottom: 8, textAlign: "center", color: colors.white },
+  heroSub: { textAlign: "center", color: "rgba(255,255,255,0.92)", fontSize: 15 },
+  card: {
+    backgroundColor: colors.white,
+    borderBottomLeftRadius: radius.xl,
+    borderBottomRightRadius: radius.xl,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: colors.stone200,
+  },
   inviteBanner: {
     textAlign: "center",
     fontSize: 14,
@@ -282,38 +342,38 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     fontWeight: "600",
   },
-  err: { color: "#b91c1c", marginBottom: 8, textAlign: "center" },
-  modeRow: { flexDirection: "row", gap: 10, marginBottom: 12, justifyContent: "center" },
-  modeBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 999, backgroundColor: "#e7e5e4" },
-  modeOn: { backgroundColor: "#fecaca" },
-  modeT: { fontWeight: "600", color: "#292524" },
-  input: {
-    borderWidth: 1,
-    borderColor: "#e7e5e4",
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
-    backgroundColor: "#fff",
-    fontSize: 16,
-    color: "#1c1917",
-  },
-  hint: { fontSize: 12, color: "#57534e", marginBottom: 4 },
+  err: { color: colors.error, marginBottom: 10, textAlign: "center" },
+  modeRow: { flexDirection: "row", gap: 8, marginBottom: 14, justifyContent: "center", backgroundColor: colors.stone100, borderRadius: radius.md, padding: 4 },
+  modeBtn: { flex: 1, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, alignItems: "center" },
+  modeOn: { backgroundColor: colors.white, ...Platform.select({ ios: { shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 5 }, android: { elevation: 2 } }) },
+  modeT: { fontWeight: "600", color: colors.stone600 },
+  modeTOn: { color: colors.red600 },
+  inputWrap: { position: "relative" },
+  inputIcon: { position: "absolute", left: 13, top: 14, zIndex: 1 },
+  input: { ...inputBase, marginBottom: 10, fontSize: 16, color: colors.stone900 },
+  inputWithIcon: { paddingLeft: 42 },
+  textArea: { minHeight: 86, textAlignVertical: "top" },
+  hint: { fontSize: 12, color: colors.stone600, marginBottom: 5, marginLeft: 2 },
   avatarBtn: {
     alignSelf: "center",
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: "#fef3c7",
+    backgroundColor: colors.amber100,
+    borderWidth: 2,
+    borderColor: "#fde68a",
     marginBottom: 16,
     overflow: "hidden",
     justifyContent: "center",
     alignItems: "center",
   },
   avatarImg: { width: "100%", height: "100%" },
-  avatarPl: { padding: 8, textAlign: "center", color: "#92400e" },
-  genderRow: { flexDirection: "row", gap: 12, marginBottom: 12, justifyContent: "center" },
-  genderBtn: { paddingHorizontal: 24, paddingVertical: 10, borderRadius: 12, backgroundColor: "#e7e5e4" },
-  genderOn: { backgroundColor: "#fecaca" },
+  avatarPl: { padding: 8, textAlign: "center", color: "#92400e", fontWeight: "700" },
+  genderRow: { flexDirection: "row", gap: 10, marginBottom: 14, justifyContent: "center" },
+  genderBtn: { flex: 1, paddingHorizontal: 18, paddingVertical: 11, borderRadius: 12, backgroundColor: colors.stone100, alignItems: "center", borderWidth: 1, borderColor: colors.stone200 },
+  genderOn: { backgroundColor: "#fef2f2", borderColor: colors.red200 },
+  genderT: { color: colors.stone600, fontWeight: "700" },
+  genderTOn: { color: colors.red600 },
   row: { flexDirection: "row", alignItems: "flex-start", gap: 10, marginBottom: 10 },
   cb: {
     width: 22,
@@ -324,16 +384,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
     backgroundColor: "#fff",
   },
-  cbOn: { backgroundColor: "#ea580c", borderColor: "#ea580c" },
-  rowT: { flex: 1, fontSize: 14, color: "#44403c", lineHeight: 20 },
-  btn: {
-    backgroundColor: "#b45309",
-    borderRadius: 12,
-    padding: 14,
-    alignItems: "center",
-    marginTop: 8,
-  },
-  btnText: { color: "#fff", fontWeight: "600", fontSize: 16 },
-  link: { color: "#b45309", textAlign: "center", marginTop: 20, fontSize: 16 },
-  link2: { color: "#78716c", textAlign: "center", marginTop: 12, fontSize: 14 },
+  cbOn: { backgroundColor: colors.heroRed, borderColor: colors.heroRed, alignItems: "center", justifyContent: "center" },
+  rowT: { flex: 1, fontSize: 14, color: colors.stone600, lineHeight: 20 },
+  btn: { marginTop: 10 },
+  link: { color: colors.link, textAlign: "center", marginTop: 20, fontSize: 16, fontWeight: "600" },
+  link2: { color: colors.stone500, textAlign: "center", marginTop: 12, fontSize: 14 },
 });

@@ -1,10 +1,14 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Modal, View, Text, Pressable, StyleSheet, Image, ScrollView } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import { X, Heart, MessageCircle, ChevronRight, UserPlus, Calendar } from "lucide-react-native";
+import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
 
 import type { UserProfile } from "../../utils/compatibilityAI";
 import { EventsPickerModal } from "./EventsPickerModal";
+import { ScalePressable } from "../ui/Motion";
+import { GradientButton } from "../ui/GradientButton";
+import { brandGradients } from "../../theme/designTokens";
 
 type Props = {
   visible: boolean;
@@ -32,19 +36,31 @@ export function MatchModal({
   onEventInvite,
 }: Props) {
   const [eventsOpen, setEventsOpen] = useState(false);
+  const opacity = useSharedValue(0);
+  const scale = useSharedValue(0.92);
+
+  useEffect(() => {
+    opacity.value = withTiming(visible ? 1 : 0, { duration: 180 });
+    scale.value = visible ? withSpring(1, { damping: 16, stiffness: 170 }) : withTiming(0.92, { duration: 160 });
+  }, [opacity, scale, visible]);
+
+  const backAnim = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  const sheetAnim = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
   if (!profile) return null;
 
   return (
     <>
-      <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-        <Pressable style={styles.back} onPress={onClose}>
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-            <Pressable style={styles.closeX} onPress={onClose}>
+      <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+        <Animated.View style={[styles.back, backAnim]}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+          <Animated.View style={[styles.sheet, sheetAnim]}>
+            <ScalePressable style={styles.closeX} onPress={onClose}>
               <X size={20} color="#78716c" />
-            </Pressable>
+            </ScalePressable>
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={styles.heartWrap}>
-                <LinearGradient colors={["#ef4444", "#f59e0b"]} style={styles.heartCircle}>
+                <LinearGradient colors={[...brandGradients.primary]} style={styles.heartCircle}>
                   <Heart size={48} color="#fff" fill="#fff" />
                 </LinearGradient>
               </View>
@@ -56,7 +72,7 @@ export function MatchModal({
                 disabled={!onCompatPress}
                 style={[styles.compatOuter, !onCompatPress && { opacity: 0.95 }]}
               >
-                <LinearGradient colors={["#fef2f2", "#fffbeb"]} style={styles.compatBox}>
+                <LinearGradient colors={[...brandGradients.featureCard]} style={styles.compatBox}>
                   <Text style={styles.compatNum}>{compatibility}%</Text>
                   <View style={styles.compatHintRow}>
                     <Text style={styles.compatHint}>Совместимость по AI-алгоритму</Text>
@@ -81,32 +97,27 @@ export function MatchModal({
 
               <View style={styles.col}>
                 <View style={styles.actions}>
-                  <Pressable style={styles.outline} onPress={onClose}>
+                  <ScalePressable style={styles.outline} onPress={onClose}>
                     <Text style={styles.outlineT}>Продолжить поиск</Text>
-                  </Pressable>
-                  <Pressable onPress={onWrite}>
-                    <LinearGradient colors={["#ef4444", "#f59e0b"]} style={styles.primary}>
-                      <MessageCircle size={18} color="#fff" />
-                      <Text style={styles.primaryT}>Написать</Text>
-                    </LinearGradient>
-                  </Pressable>
+                  </ScalePressable>
+                  <GradientButton title="Написать" onPress={onWrite} left={<MessageCircle size={18} color="#fff" />} style={styles.primaryBtn} textStyle={styles.primaryT} />
                 </View>
 
-                <Pressable style={styles.fullOutlineAm} onPress={() => setEventsOpen(true)}>
+                <ScalePressable style={styles.fullOutlineAm} onPress={() => setEventsOpen(true)}>
                   <Calendar size={18} color="#d97706" />
                   <Text style={styles.fullOutlineAmT}>Куда сходить вместе</Text>
-                </Pressable>
+                </ScalePressable>
 
                 {onRecommend ? (
-                  <Pressable style={styles.fullOutlineRed} onPress={onRecommend}>
+                  <ScalePressable style={styles.fullOutlineRed} onPress={onRecommend}>
                     <UserPlus size={18} color="#dc2626" />
                     <Text style={styles.fullOutlineRedT}>Рекомендовать друзьям</Text>
-                  </Pressable>
+                  </ScalePressable>
                 ) : null}
               </View>
             </ScrollView>
-          </Pressable>
-        </Pressable>
+          </Animated.View>
+        </Animated.View>
       </Modal>
 
       <EventsPickerModal
@@ -182,14 +193,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   outlineT: { fontWeight: "600", color: "#44403c" },
-  primary: {
+  primaryBtn: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    borderRadius: 999,
-    paddingVertical: 14,
   },
   primaryT: { color: "#fff", fontWeight: "700", fontSize: 15 },
   fullOutlineAm: {
