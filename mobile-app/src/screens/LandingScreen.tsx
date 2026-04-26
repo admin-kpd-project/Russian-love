@@ -15,6 +15,9 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Heart, Sparkles, Shield, MessageCircle, Zap, Globe, Download, ArrowRight, LogIn, UsersRound, Star } from "lucide-react-native";
 import type { RootStackParamList } from "../navigation/types";
 import { MatreshkaLogo } from "../components/MatreshkaLogo";
+import { FadeInView, ScalePressable } from "../components/ui/Motion";
+import { GradientButton } from "../components/ui/GradientButton";
+import { brandGradients } from "../theme/designTokens";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Landing">;
 
@@ -39,7 +42,7 @@ export function LandingScreen({ navigation }: Props) {
   return (
     <View style={styles.root}>
       <StatusBar barStyle="dark-content" />
-      <LinearGradient colors={["#fef2f2", "#fffbeb", "#fefce8"]} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={[...brandGradients.page]} style={StyleSheet.absoluteFill} />
       <ScrollView contentContainerStyle={{ paddingBottom: 32 + insets.bottom }} showsVerticalScrollIndicator={false}>
         <View style={[styles.header, { paddingTop: Math.max(insets.top, 10) }]}>
           <View style={styles.headerRow}>
@@ -54,22 +57,23 @@ export function LandingScreen({ navigation }: Props) {
               </Pressable>
             </View>
             <View style={styles.headerBtns}>
-              <Pressable style={styles.btnOutline} onPress={() => navigation.navigate("Register")}>
+              <ScalePressable style={styles.btnOutline} onPress={() => navigation.navigate("Register")}>
                 <Text style={styles.btnOutlineT}>Регистрация</Text>
-              </Pressable>
-              <Pressable onPress={() => navigation.navigate("Login")}>
-                <LinearGradient colors={["#ef4444", "#f59e0b"]} style={styles.btnGrad}>
-                  <LogIn size={18} color="#fff" />
-                  <Text style={styles.btnGradT}>Войти</Text>
-                </LinearGradient>
-              </Pressable>
+              </ScalePressable>
+              <GradientButton
+                title="Войти"
+                onPress={() => navigation.navigate("Login")}
+                left={<LogIn size={18} color="#fff" />}
+                style={styles.headerLogin}
+                textStyle={styles.headerLoginT}
+              />
             </View>
           </View>
         </View>
 
-        <View style={styles.hero}>
+        <FadeInView style={styles.hero}>
           <View style={styles.heroLogoWrap}>
-            <LinearGradient colors={["#ef4444", "#f59e0b"]} style={styles.heroGlow} />
+            <LinearGradient colors={[...brandGradients.primary]} style={styles.heroGlow} />
             <MatreshkaLogo size={112} style={styles.heroLogoMat} variant="onGradient" />
           </View>
           <Text style={styles.heroTitle}>
@@ -80,47 +84,52 @@ export function LandingScreen({ navigation }: Props) {
           <Text style={styles.heroSub}>
             Искусственный интеллект анализирует ваши интересы, характер и ценности, чтобы помочь найти подходящего партнёра
           </Text>
-          <Pressable style={styles.heroCta} onPress={() => navigation.navigate("Register")}>
-            <LinearGradient colors={["#ef4444", "#f59e0b"]} style={styles.heroCtaIn}>
-              <Download size={20} color="#fff" />
-              <Text style={styles.heroCtaT}>Начать знакомство</Text>
-              <ArrowRight size={20} color="#fff" />
-            </LinearGradient>
-          </Pressable>
-          <Pressable style={styles.heroLogin} onPress={() => navigation.navigate("Login")}>
-            <LogIn size={20} color="#44403c" />
-            <Text style={styles.heroLoginT}>Войти</Text>
-          </Pressable>
-          <Pressable style={styles.heroLink} onPress={() => Linking.openURL("https://forruss.ru")}>
+          <GradientButton
+            title="Начать знакомство"
+            onPress={() => navigation.navigate("Register")}
+            left={<Download size={20} color="#fff" />}
+            right={<ArrowRight size={20} color="#fff" />}
+            style={styles.heroCta}
+            textStyle={styles.heroCtaT}
+          />
+          <GradientButton
+            title="Войти"
+            variant="light"
+            onPress={() => navigation.navigate("Login")}
+            left={<LogIn size={20} color="#44403c" />}
+            style={styles.heroLogin}
+            textStyle={styles.heroLoginT}
+          />
+          <ScalePressable style={styles.heroLink} onPress={() => Linking.openURL("https://forruss.ru")}>
             <Globe size={18} color="#57534e" />
             <Text style={styles.heroLinkT}>forruss.ru</Text>
-          </Pressable>
+          </ScalePressable>
 
           <View style={styles.mvpGrid}>
-            {mvpHighlights.map((row) => (
-              <View key={row.label} style={styles.mvpCard}>
+            {mvpHighlights.map((row, index) => (
+              <FadeInView key={row.label} delay={180 + index * 90} style={styles.mvpCard}>
                 <Text style={styles.mvpVal}>{row.value}</Text>
                 <Text style={styles.mvpLab}>{row.label}</Text>
-              </View>
+              </FadeInView>
             ))}
           </View>
-        </View>
+        </FadeInView>
 
         <View style={styles.whiteSec}>
           <Text style={styles.secH}>Почему выбирают нас?</Text>
           <Text style={styles.secP}>Современные технологии встречаются с традиционными ценностями</Text>
-          {features.map((f) => (
-            <View key={f.title} style={styles.featCard}>
-              <LinearGradient colors={["#ef4444", "#f59e0b"]} style={styles.featIco}>
+          {features.map((f, index) => (
+            <FadeInView key={f.title} delay={index * 70} style={styles.featCard}>
+              <LinearGradient colors={[...brandGradients.primary]} style={styles.featIco}>
                 <f.Icon size={22} color="#fff" />
               </LinearGradient>
               <Text style={styles.featTitle}>{f.title}</Text>
               <Text style={styles.featDesc}>{f.description}</Text>
-            </View>
+            </FadeInView>
           ))}
         </View>
 
-        <LinearGradient colors={["#ef4444", "#f59e0b"]} style={styles.valuesSec}>
+        <LinearGradient colors={[...brandGradients.primary]} style={styles.valuesSec}>
           <Text style={styles.valuesH}>Наши ценности</Text>
           <Text style={styles.valuesP}>Философия, на которой построено наше приложение</Text>
           <View style={styles.valCard}>
@@ -179,7 +188,7 @@ export function LandingScreen({ navigation }: Props) {
             const RI = row.Icon;
             return (
             <View key={row.t} style={styles.simpleRow}>
-              <LinearGradient colors={["#ef4444", "#f59e0b"]} style={styles.simpleIco}>
+              <LinearGradient colors={[...brandGradients.primary]} style={styles.simpleIco}>
                 <RI size={22} color="#fff" />
               </LinearGradient>
               <View style={{ flex: 1 }}>
@@ -228,6 +237,8 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   btnGradT: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  headerLogin: { minHeight: 42 },
+  headerLoginT: { fontSize: 14 },
   hero: { paddingHorizontal: 16, paddingTop: 28, alignItems: "center" },
   heroLogoWrap: { width: 128, height: 128, alignItems: "center", justifyContent: "center", marginBottom: 20 },
   heroGlow: { position: "absolute", width: 140, height: 140, borderRadius: 70, opacity: 0.25 },

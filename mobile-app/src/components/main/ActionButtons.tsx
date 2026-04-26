@@ -1,7 +1,10 @@
 import React from "react";
-import { View, Pressable, StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import { X, Heart, RotateCcw, Star, Bookmark } from "lucide-react-native";
+
+import { ScalePressable } from "../ui/Motion";
+import { brandGradients } from "../../theme/designTokens";
 
 type Props = {
   onReject: () => void;
@@ -16,29 +19,29 @@ type Props = {
 export function ActionButtons({ onReject, onLike, onUndo, onSuperLike, onFavorite, hasUndo, isFavorite }: Props) {
   return (
     <View style={styles.row}>
-      <Pressable
+      <ScalePressable
         onPress={onUndo}
         disabled={!hasUndo}
         style={[styles.small, !hasUndo ? styles.disUndo : styles.okUndo]}
       >
         <RotateCcw size={22} color={hasUndo ? "#ca8a04" : "#d6d3d1"} />
-      </Pressable>
-      <Pressable onPress={onReject} style={styles.reject}>
+      </ScalePressable>
+      <ScalePressable onPress={onReject} style={styles.reject}>
         <X size={40} color="#ef4444" />
-      </Pressable>
-      <Pressable onPress={onSuperLike}>
-        <LinearGradient colors={["#60a5fa", "#2563eb"]} style={styles.big}>
+      </ScalePressable>
+      <ScalePressable onPress={onSuperLike}>
+        <LinearGradient colors={[...brandGradients.superLike]} style={styles.big}>
           <Star size={40} color="#fff" fill="#fff" />
         </LinearGradient>
-      </Pressable>
-      <Pressable onPress={onLike}>
-        <LinearGradient colors={["#ef4444", "#f59e0b"]} style={styles.big}>
+      </ScalePressable>
+      <ScalePressable onPress={onLike}>
+        <LinearGradient colors={[...brandGradients.primary]} style={styles.big}>
           <Heart size={40} color="#fff" fill="#fff" />
         </LinearGradient>
-      </Pressable>
-      <Pressable onPress={onFavorite} style={styles.small}>
+      </ScalePressable>
+      <ScalePressable onPress={onFavorite} style={styles.small}>
         {isFavorite ? (
-          <LinearGradient colors={["#fbbf24", "#d97706"]} style={styles.smallGrad}>
+          <LinearGradient colors={[...brandGradients.favorite]} style={styles.smallGrad}>
             <Bookmark size={22} color="#fff" fill="#fff" />
           </LinearGradient>
         ) : (
@@ -46,7 +49,7 @@ export function ActionButtons({ onReject, onLike, onUndo, onSuperLike, onFavorit
             <Bookmark size={22} color="#d97706" />
           </View>
         )}
-      </Pressable>
+      </ScalePressable>
     </View>
   );
 }
