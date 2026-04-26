@@ -423,6 +423,13 @@ export function EventsModal({ onClose, profileName, profilePhoto, onSendEventInv
         className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
+        <div
+          className="px-4 py-2.5 bg-amber-50 border-b border-amber-200 text-amber-900 text-sm text-center"
+          role="status"
+        >
+          Демо-данные: подборка событий сгенерирована для демонстрации. Ссылки и расписания не проверяются; полноценный
+          каталог появится позже.
+        </div>
         {/* Header */}
         <div className="bg-gradient-to-r from-red-500 to-amber-500 px-6 py-4 flex items-center justify-between flex-shrink-0">
           <div>

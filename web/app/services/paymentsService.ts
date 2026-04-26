@@ -8,6 +8,14 @@ export interface InitPaymentResponse {
   status: string;
 }
 
+export interface PaymentsStatusResponse {
+  paymentsEnabled: boolean;
+}
+
+export async function getPaymentsStatus(): Promise<ApiResponse<PaymentsStatusResponse>> {
+  return apiFetch<PaymentsStatusResponse>("/api/payments/status", { method: "GET" }, { public: true });
+}
+
 export async function initTbankPayment(
   kind: string,
   amountMinor: number,

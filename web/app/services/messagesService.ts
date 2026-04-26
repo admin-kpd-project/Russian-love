@@ -36,13 +36,18 @@ export async function sendTextMessage(
 export async function sendMediaMessage(
   conversationId: string,
   mediaUrl: string,
-  mediaType: string
+  mediaType: string,
+  durationSec?: number
 ): Promise<ApiResponse<MessageResponse>> {
+  const body: Record<string, unknown> = { mediaUrl, mediaType };
+  if (durationSec != null && durationSec >= 0) {
+    body.durationSec = Math.min(3600, Math.floor(durationSec));
+  }
   return apiFetch<MessageResponse>(
     `/api/conversations/${encodeURIComponent(conversationId)}/messages`,
     {
       method: "POST",
-      body: JSON.stringify({ mediaUrl, mediaType }),
+      body: JSON.stringify(body),
     }
   );
 }

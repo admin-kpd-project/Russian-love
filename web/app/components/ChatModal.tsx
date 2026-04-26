@@ -1,11 +1,11 @@
 import { motion, AnimatePresence } from "motion/react";
-import { X, Send, Image, Smile, Heart, Mic, Video, MoreVertical, Flag, Trash2, Play, Pause, Gift, Eraser } from "lucide-react";
+import { X, Send, Image, Smile, Heart, Mic, Video, Gift } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
 import { getMessages, sendTextMessage, sendMediaMessage } from "../services/messagesService";
 import { uploadFile } from "../services/uploadService";
 import { createChatWebSocket } from "../services/socialService";
-import { initTbankPayment } from "../services/paymentsService";
+import { getPaymentsStatus, initTbankPayment } from "../services/paymentsService";
 
 interface ChatModalProps {
   onClose: () => void;
@@ -53,27 +53,36 @@ export function ChatModal({
   const [messagesError, setMessagesError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [inputText, setInputText] = useState(prefilledMessage || "");
-  const [showMenu, setShowMenu] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const [isRecordingVideo, setIsRecordingVideo] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
-  const [showReportDialog, setShowReportDialog] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showClearHistoryDialog, setShowClearHistoryDialog] = useState(false);
   const [showGiftModal, setShowGiftModal] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
-  const [voiceProgress, setVoiceProgress] = useState<Record<string, number>>({});
+  const [recorderError, setRecorderError] = useState<string | null>(null);
+  const [paymentsEnabled, setPaymentsEnabled] = useState<boolean | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const recordingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const audioIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const recordChunksRef = useRef<Blob[]>([]);
+  const recordKindRef = useRef<"voice" | "video" | null>(null);
+  const durationSecRef = useRef(0);
+  const recordCancelledRef = useRef(false);
 
   useEffect(() => {
     if (prefilledMessage) setInputText((prev) => (prev.trim() ? prev : prefilledMessage));
   }, [prefilledMessage]);
+
+  useEffect(() => {
+    void (async () => {
+      const r = await getPaymentsStatus();
+      if (r.data) setPaymentsEnabled(r.data.paymentsEnabled);
+      else setPaymentsEnabled(false);
+    })();
+  }, []);
 
   useEffect(() => {
     if (!conversationId) {
@@ -219,92 +228,184 @@ export function ChatModal({
     if (res.data) setMessages((prev) => [...prev, mapApiMessage(res.data)]);
   };
 
-  const startRecording = (type: "voice" | "video") => {
-    alert("Голосовые и видео сообщения будут добавлены позже.");
-    setShowAttachMenu(false);
-    return;
+  const cleanupRecording = () => {
+    if (recordingIntervalRef.current) {
+      clearInterval(recordingIntervalRef.current);
+      recordingIntervalRef.current = null;
+    }
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+      mediaStreamRef.current = null;
+    }
+    mediaRecorderRef.current = null;
+    recordChunksRef.current = [];
+    recordKindRef.current = null;
+    durationSecRef.current = 0;
   };
 
-  const stopRecording = (type: "voice" | "video") => {
-    void type;
-    setIsRecordingVoice(false);
-    setIsRecordingVideo(false);
-    setRecordingDuration(0);
+  const runUploadRecorded = async (opts: {
+    kind: "voice" | "video";
+    chunks: Blob[];
+    mime: string;
+    totalSec: number;
+  }) => {
+    const { kind, chunks, mime, totalSec } = opts;
+    if (!conversationId || chunks.length === 0) return;
+    const kindMime =
+      kind === "voice"
+        ? mime && mime.startsWith("audio/")
+          ? mime
+          : "audio/webm"
+        : mime && mime.startsWith("video/")
+          ? mime
+          : "video/webm";
+    const blob = new Blob(chunks, { type: kindMime });
+    if (blob.size < 32) {
+      setRecorderError("Слишком короткая запись");
+      return;
+    }
+    const ext = kind === "voice" ? (kindMime.includes("webm") ? "webm" : "ogg") : "webm";
+    const file = new File([blob], `record.${ext}`, { type: kindMime });
+    setSending(true);
+    setRecorderError(null);
+    const upload = await uploadFile(file);
+    if (!upload.url) {
+      setSending(false);
+      setRecorderError(upload.error || "Не удалось загрузить запись");
+      return;
+    }
+    const res = await sendMediaMessage(
+      conversationId,
+      upload.url,
+      kind === "voice" ? "voice" : "video",
+      totalSec
+    );
+    setSending(false);
+    if (res.error) {
+      setRecorderError(res.error);
+      return;
+    }
+    if (res.data) setMessages((prev) => [...prev, mapApiMessage(res.data)]);
+  };
+
+  const startRecording = async (type: "voice" | "video") => {
+    if (!conversationId) return;
+    setShowAttachMenu(false);
+    setRecorderError(null);
+    if (typeof window === "undefined" || !window.MediaRecorder) {
+      setRecorderError("Запись в этом браузере не поддерживается");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia(
+        type === "voice" ? { audio: true } : { audio: true, video: { facingMode: "user" } }
+      );
+      mediaStreamRef.current = stream;
+      const o: MediaRecorderOptions = {};
+      if (type === "voice") {
+        if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) o.mimeType = "audio/webm;codecs=opus";
+        else if (MediaRecorder.isTypeSupported("audio/webm")) o.mimeType = "audio/webm";
+      } else {
+        if (MediaRecorder.isTypeSupported("video/webm;codecs=vp8,opus")) o.mimeType = "video/webm;codecs=vp8,opus";
+        else if (MediaRecorder.isTypeSupported("video/webm")) o.mimeType = "video/webm";
+      }
+      const mr = new MediaRecorder(stream, Object.keys(o).length ? o : undefined);
+      mediaRecorderRef.current = mr;
+      recordChunksRef.current = [];
+      recordKindRef.current = type;
+      recordCancelledRef.current = false;
+      durationSecRef.current = 0;
+      mr.ondataavailable = (e) => {
+        if (e.data.size) recordChunksRef.current.push(e.data);
+      };
+      const mrLocal = mr;
+      mr.addEventListener(
+        "stop",
+        () => {
+          void (async () => {
+            if (recordCancelledRef.current) {
+              recordCancelledRef.current = false;
+              cleanupRecording();
+              setIsRecordingVoice(false);
+              setIsRecordingVideo(false);
+              setRecordingDuration(0);
+              return;
+            }
+            const k = recordKindRef.current;
+            const chunks = [...recordChunksRef.current];
+            const totalSec = durationSecRef.current;
+            const mime = mrLocal.mimeType;
+            if (recordingIntervalRef.current) {
+              clearInterval(recordingIntervalRef.current);
+              recordingIntervalRef.current = null;
+            }
+            if (mediaStreamRef.current) {
+              mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+              mediaStreamRef.current = null;
+            }
+            recordKindRef.current = null;
+            recordChunksRef.current = [];
+            durationSecRef.current = 0;
+            setIsRecordingVoice(false);
+            setIsRecordingVideo(false);
+            setRecordingDuration(0);
+            mediaRecorderRef.current = null;
+            if (k) await runUploadRecorded({ kind: k, chunks, mime, totalSec: totalSec });
+          })();
+        },
+        { once: true }
+      );
+      mr.start(200);
+      setIsRecordingVoice(type === "voice");
+      setIsRecordingVideo(type === "video");
+      setRecordingDuration(0);
+      durationSecRef.current = 0;
+      recordingIntervalRef.current = setInterval(() => {
+        durationSecRef.current += 1;
+        setRecordingDuration((d) => d + 1);
+      }, 1000);
+    } catch (err) {
+      setRecorderError(err instanceof Error ? err.message : "Нет доступа к микрофону или камере");
+    }
+  };
+
+  const stopRecordingSend = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+      try {
+        mediaRecorderRef.current.requestData();
+        mediaRecorderRef.current.stop();
+      } catch {
+        /* empty */
+      }
+    } else {
+      cleanupRecording();
+      setIsRecordingVoice(false);
+      setIsRecordingVideo(false);
+      setRecordingDuration(0);
+    }
   };
 
   const cancelRecording = () => {
-    if (recordingIntervalRef.current) {
-      clearInterval(recordingIntervalRef.current);
-    }
-    setIsRecordingVoice(false);
-    setIsRecordingVideo(false);
-    setRecordingDuration(0);
-  };
-
-  // Handle voice message playback
-  const handleVoicePlayback = (messageId: string, durationString: string = "0:15") => {
-    // Parse duration string (e.g., "0:15" -> 15 seconds)
-    const [minutes, seconds] = durationString.split(":").map(Number);
-    const totalSeconds = minutes * 60 + seconds;
-
-    if (playingVoiceId === messageId) {
-      // Stop playback
-      if (audioIntervalRef.current) {
-        clearInterval(audioIntervalRef.current);
+    recordCancelledRef.current = true;
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch {
+        /* empty */
       }
-      setPlayingVoiceId(null);
-      setVoiceProgress((prev) => ({ ...prev, [messageId]: 0 }));
     } else {
-      // Start playback
-      setPlayingVoiceId(messageId);
-      setVoiceProgress((prev) => ({ ...prev, [messageId]: 0 }));
-
-      let elapsed = 0;
-      audioIntervalRef.current = setInterval(() => {
-        elapsed += 0.1;
-        const progress = Math.min((elapsed / totalSeconds) * 100, 100);
-        setVoiceProgress((prev) => ({ ...prev, [messageId]: progress }));
-
-        if (progress >= 100) {
-          if (audioIntervalRef.current) {
-            clearInterval(audioIntervalRef.current);
-          }
-          setPlayingVoiceId(null);
-          setTimeout(() => {
-            setVoiceProgress((prev) => ({ ...prev, [messageId]: 0 }));
-          }, 500);
-        }
-      }, 100);
+      cleanupRecording();
+      setIsRecordingVoice(false);
+      setIsRecordingVideo(false);
+      setRecordingDuration(0);
     }
   };
 
-  const handleReport = () => {
-    setShowReportDialog(false);
-    setShowMenu(false);
-    alert("Жалоба отправлена. Мы рассмотрим её в ближайшее время.");
-  };
-
-  const handleDeleteChat = () => {
-    setShowDeleteDialog(false);
-    setShowMenu(false);
-    alert("Чат удалён");
-    onClose();
-  };
-
-  const handleClearHistory = () => {
-    setShowClearHistoryDialog(false);
-    setShowMenu(false);
-    alert("История хранится на сервере; очистка из приложения пока не реализована.");
-  };
   // Cleanup intervals on unmount
   useEffect(() => {
     return () => {
-      if (recordingIntervalRef.current) {
-        clearInterval(recordingIntervalRef.current);
-      }
-      if (audioIntervalRef.current) {
-        clearInterval(audioIntervalRef.current);
-      }
+      if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
+      if (mediaStreamRef.current) mediaStreamRef.current.getTracks().forEach((t) => t.stop());
     };
   }, []);
 
@@ -343,59 +444,6 @@ export function ChatModal({
             </div>
           </div>
           <div className="flex items-center gap-1">
-            {/* Menu Button */}
-            <div className="relative">
-              <button
-                onClick={() => setShowMenu(!showMenu)}
-                className="w-10 h-10 flex items-center justify-center bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-colors"
-              >
-                <MoreVertical className="w-6 h-6 text-white" />
-              </button>
-              
-              {/* Dropdown Menu */}
-              <AnimatePresence>
-                {showMenu && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9, y: -10 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.9, y: -10 }}
-                    className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl overflow-hidden z-10"
-                  >
-                    <button
-                      onClick={() => {
-                        setShowMenu(false);
-                        setShowReportDialog(true);
-                      }}
-                      className="w-full px-4 py-3 flex items-center gap-3 hover:bg-red-50 transition-colors text-left"
-                    >
-                      <Flag className="size-4 text-red-500" />
-                      <span className="text-sm text-gray-700">Пожаловаться</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowMenu(false);
-                        setShowDeleteDialog(true);
-                      }}
-                      className="w-full px-4 py-3 flex items-center gap-3 hover:bg-red-50 transition-colors text-left"
-                    >
-                      <Trash2 className="size-4 text-red-500" />
-                      <span className="text-sm text-gray-700">Удалить чат</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowMenu(false);
-                        setShowClearHistoryDialog(true);
-                      }}
-                      className="w-full px-4 py-3 flex items-center gap-3 hover:bg-red-50 transition-colors text-left"
-                    >
-                      <Eraser className="size-4 text-red-500" />
-                      <span className="text-sm text-gray-700">Очистить историю</span>
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
             <button
               onClick={onClose}
               className="w-10 h-10 flex items-center justify-center bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-colors"
@@ -459,58 +507,40 @@ export function ChatModal({
                   </div>
                 )}
 
-                {message.type === "voice" && (
-                  <div className="flex items-center gap-3 min-w-[200px]">
-                    <button
-                      onClick={() => handleVoicePlayback(message.id, message.duration)}
-                      className={`p-2 rounded-full transition-transform hover:scale-110 ${ 
-                        message.sender === "me" ? "bg-white/20" : "bg-red-50"
-                      }`}
-                    >
-                      {playingVoiceId === message.id ? (
-                        <Pause className={`size-4 ${ 
-                          message.sender === "me" ? "text-white" : "text-red-500"
-                        }`} />
-                      ) : (
-                        <Play className={`size-4 ${ 
-                          message.sender === "me" ? "text-white" : "text-red-500"
-                        }`} />
-                      )}
-                    </button>
-                    <div className="flex-1">
-                      <div className={`h-1 rounded-full ${ 
-                        message.sender === "me" ? "bg-white/30" : "bg-gray-200"
-                      }`}>
-                        <div
-                          className={`h-1 rounded-full transition-all duration-100 ${ 
-                            message.sender === "me" ? "bg-white" : "bg-red-500"
-                          }`}
-                          style={{ width: `${voiceProgress[message.id] || 0}%` }}
-                        />
-                      </div>
-                    </div>
-                    <span className={`text-xs ${ 
-                      message.sender === "me" ? "text-white/70" : "text-gray-500"
-                    }`}>
-                      {message.duration}
-                    </span>
-                  </div>
-                )}
-
-                {message.type === "video" && (
-                  <div className="relative">
-                    <div className="w-48 h-48 bg-gray-900 rounded-xl flex items-center justify-center">
-                      <Play className="size-12 text-white" />
-                    </div>
-                    <div className="absolute bottom-2 right-2 bg-black/70 px-2 py-1 rounded text-xs text-white">
-                      {message.duration}
-                    </div>
+                {message.type === "voice" && message.mediaUrl && (
+                  <div className="min-w-[200px] max-w-full">
+                    <audio
+                      src={message.mediaUrl}
+                      controls
+                      className="w-full max-w-[280px] h-9 [color-scheme:light]"
+                      preload="metadata"
+                    />
                     <p
                       className={`text-xs mt-1 ${
-                        message.sender === "me" ? "text-white/70" : "text-gray-400"
+                        message.sender === "me" ? "text-white/80" : "text-gray-400"
                       }`}
                     >
                       {message.time}
+                      {message.duration ? ` · ${message.duration}` : ""}
+                    </p>
+                  </div>
+                )}
+
+                {message.type === "video" && message.mediaUrl && (
+                  <div>
+                    <video
+                      src={message.mediaUrl}
+                      controls
+                      className="rounded-xl max-w-full max-h-64 w-full"
+                      playsInline
+                    />
+                    <p
+                      className={`text-xs mt-1 ${
+                        message.sender === "me" ? "text-white/80" : "text-gray-400"
+                      }`}
+                    >
+                      {message.time}
+                      {message.duration ? ` · ${message.duration}` : ""}
                     </p>
                   </div>
                 )}
@@ -541,7 +571,8 @@ export function ChatModal({
                   Отмена
                 </button>
                 <button
-                  onClick={() => stopRecording(isRecordingVoice ? "voice" : "video")}
+                  type="button"
+                  onClick={stopRecordingSend}
                   className="px-4 py-2 bg-gradient-to-r from-red-500 to-amber-500 text-white rounded-full text-sm font-medium hover:shadow-md transition-shadow"
                 >
                   Отправить
@@ -554,6 +585,11 @@ export function ChatModal({
         {/* Input Area */}
         {!isRecordingVoice && !isRecordingVideo && (
           <div className="p-4 bg-white border-t border-gray-100">
+            {recorderError && (
+              <p className="text-red-600 text-xs mb-2" role="alert">
+                {recorderError}
+              </p>
+            )}
             {/* Top Row: Input Field + Send Button */}
             <div className="flex items-center gap-2 mb-3">
               <div className="flex-1 bg-gray-100 rounded-2xl px-4 py-2">
@@ -588,7 +624,7 @@ export function ChatModal({
               ) : (
                 <button
                   type="button"
-                  onClick={() => startRecording("voice")}
+                  onClick={() => void startRecording("voice")}
                   className="p-3 rounded-full transition-all bg-gradient-to-r from-red-500 to-amber-500 text-white hover:shadow-lg flex-shrink-0"
                 >
                   <Mic className="size-5" />
@@ -649,14 +685,16 @@ export function ChatModal({
                           <span className="text-sm text-gray-700">Фото</span>
                         </button>
                         <button
-                          onClick={() => startRecording("video")}
+                          type="button"
+                          onClick={() => void startRecording("video")}
                           className="w-full px-4 py-3 flex items-center gap-3 hover:bg-red-50 rounded-xl transition-colors text-left"
                         >
                           <Video className="size-5 text-red-500" />
                           <span className="text-sm text-gray-700">Видео кружочек</span>
                         </button>
                         <button
-                          onClick={() => startRecording("voice")}
+                          type="button"
+                          onClick={() => void startRecording("voice")}
                           className="w-full px-4 py-3 flex items-center gap-3 hover:bg-red-50 rounded-xl transition-colors text-left"
                         >
                           <Mic className="size-5 text-red-500" />
@@ -713,13 +751,21 @@ export function ChatModal({
                 </div>
 
                 {/* Gift Button */}
-                <button 
+                <button
+                  type="button"
+                  title={
+                    paymentsEnabled === false
+                      ? "Подарки и оплата отключены на сервере (нет T-Bank)"
+                      : "Подарки"
+                  }
                   onClick={() => {
+                    if (paymentsEnabled === false) return;
                     setShowGiftModal(true);
                     setShowAttachMenu(false);
                     setShowEmojiPicker(false);
                   }}
-                  className="p-1.5 text-gray-400 hover:text-red-500 transition-colors flex-shrink-0 p-[2px]"
+                  disabled={paymentsEnabled === false}
+                  className="p-1.5 text-gray-400 hover:text-red-500 transition-colors flex-shrink-0 p-[2px] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-gray-400"
                 >
                   <Gift className="size-6" />
                 </button>
@@ -728,141 +774,6 @@ export function ChatModal({
           </div>
         )}
       </motion.div>
-
-      {/* Report Dialog */}
-      <AnimatePresence>
-        {showReportDialog && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
-            onClick={() => setShowReportDialog(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-3xl p-6 max-w-sm w-full"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="text-center mb-4">
-                <div className="bg-red-100 rounded-full p-4 w-fit mx-auto mb-4">
-                  <Flag className="size-8 text-red-500" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-2">Пожаловаться</h3>
-                <p className="text-sm text-gray-600">
-                  Вы уверены, что хотите пожаловаться на этот контент?
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowReportDialog(false)}
-                  className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-2xl font-medium hover:bg-gray-200 transition-colors"
-                >
-                  Отмена
-                </button>
-                <button
-                  onClick={handleReport}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-amber-500 text-white rounded-2xl font-medium hover:shadow-lg transition-shadow"
-                >
-                  Отправить
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Delete Dialog */}
-      <AnimatePresence>
-        {showDeleteDialog && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
-            onClick={() => setShowDeleteDialog(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-3xl p-6 max-w-sm w-full"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="text-center mb-4">
-                <div className="bg-red-100 rounded-full p-4 w-fit mx-auto mb-4">
-                  <Trash2 className="size-8 text-red-500" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-2">Удалить чат</h3>
-                <p className="text-sm text-gray-600">
-                  Вы уверены, что хотите удалить этот чат? Это действие нельзя отменить.
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowDeleteDialog(false)}
-                  className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-2xl font-medium hover:bg-gray-200 transition-colors"
-                >
-                  Отмена
-                </button>
-                <button
-                  onClick={handleDeleteChat}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-amber-500 text-white rounded-2xl font-medium hover:shadow-lg transition-shadow"
-                >
-                  Удалить
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Clear History Dialog */}
-      <AnimatePresence>
-        {showClearHistoryDialog && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
-            onClick={() => setShowClearHistoryDialog(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-3xl p-6 max-w-sm w-full"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="text-center mb-4">
-                <div className="bg-red-100 rounded-full p-4 w-fit mx-auto mb-4">
-                  <Eraser className="size-8 text-red-500" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-2">Очистить историю</h3>
-                <p className="text-sm text-gray-600">
-                  Вы уверены, что хотите очистить историю чата? Это действие нельзя отменить.
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowClearHistoryDialog(false)}
-                  className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-2xl font-medium hover:bg-gray-200 transition-colors"
-                >
-                  Отмена
-                </button>
-                <button
-                  onClick={handleClearHistory}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-amber-500 text-white rounded-2xl font-medium hover:shadow-lg transition-shadow"
-                >
-                  Очистить
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Gift Modal */}
       <AnimatePresence>
@@ -897,13 +808,21 @@ export function ChatModal({
                 <p className="text-sm text-gray-600">
                   Выберите подарок для {userName}:
                 </p>
+                {paymentsEnabled === false && (
+                  <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2 mt-3 text-left">
+                    Онлайн-оплата сейчас недоступна: на сервере не настроен платёжный шлюз. Подарки отключены до
+                    подключения T-Bank.
+                  </p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 {gifts.map((gift) => (
                   <button
                     key={gift.id}
+                    type="button"
+                    disabled={paymentsEnabled === false}
                     onClick={() => handleSendGift(gift)}
-                    className="flex flex-col items-center px-4 py-3 bg-gradient-to-r from-red-100 to-amber-100 text-red-600 rounded-2xl font-medium hover:shadow-sm transition-shadow"
+                    className="flex flex-col items-center px-4 py-3 bg-gradient-to-r from-red-100 to-amber-100 text-red-600 rounded-2xl font-medium hover:shadow-sm transition-shadow disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <span className="text-2xl">{gift.emoji}</span>
                     <span className="text-sm">{gift.name}</span>

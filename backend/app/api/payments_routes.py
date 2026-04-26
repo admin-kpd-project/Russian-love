@@ -51,6 +51,22 @@ def _verify_tinkoff_notification_token(body: dict[str, Any], password: str) -> b
     return hmac.compare_digest(expect.lower(), calc.lower())
 
 
+def _payments_configured() -> bool:
+    s = get_settings()
+    tk = (s.tbank_terminal_key or "").strip()
+    pwd = (s.tbank_password.get_secret_value() if s.tbank_password else "") or ""
+    return bool(tk and pwd)
+
+
+@router.get("/status")
+async def payments_status():
+    return Envelope.ok(
+        {
+            "paymentsEnabled": _payments_configured(),
+        }
+    )
+
+
 @router.post("/tbank/init")
 async def tbank_init(
     body: CreatePaymentBody,
@@ -58,6 +74,14 @@ async def tbank_init(
     user: User = Depends(get_current_user),
 ):
     settings = get_settings()
+    if not _payments_configured():
+        return JSONResponse(
+            status_code=503,
+            content=Envelope.err(
+                "Онлайн-оплата недоступна: не заданы T-Bank реквизиты на сервере."
+            ),
+        )
+
     order_key = str(uuid.uuid4())
     pay = Payment(
         user_id=user.id,
@@ -80,56 +104,44 @@ async def tbank_init(
 
     tk = (settings.tbank_terminal_key or "").strip()
     pwd = (settings.tbank_password.get_secret_value() if settings.tbank_password else "") or ""
-    if tk and pwd:
-        # OrderId in Tinkoff: must be unique; use our payment UUID
-        new_order = payment_id_str
-        pay.external_payment_id = new_order
-        try:
-            desc = f"Оплата {body.kind} ({user.display_name})"
-            result = await tinkoff_init(
-                base_url=_tinkoff_base(),
-                terminal_key=tk,
-                password=pwd,
-                order_id=new_order,
-                amount_minor=body.amount_minor,
-                description=desc[:200],
-                success_url=success_url,
-                fail_url=fail_url,
-                notification_url=notif,
-            )
-        except (httpx.RequestError, RuntimeError) as e:
-            log.exception("Tinkoff Init failed: %s", e)
-            return JSONResponse(
-                status_code=502, content=Envelope.err("Платёжный шлюз недоступен. Попробуйте позже.")
-            )
-        err_init = int(result.get("ErrorCode") or 0)
-        if result.get("Success") is False or err_init != 0:
-            msg = str(result.get("Message") or result.get("Details") or "Ошибка T-Bank")
-            log.warning("Tinkoff Init err: %s", result)
-            return JSONResponse(status_code=400, content=Envelope.err(msg))
-        purl = result.get("PaymentURL")
-        if not purl:
-            return JSONResponse(status_code=400, content=Envelope.err("Нет ссылки на оплату (PaymentURL)"))
-        meta = dict(pay.meta or {})
-        if result.get("PaymentId") is not None:
-            meta["tinkoffPaymentId"] = result.get("PaymentId")
-        pay.meta = meta
-        return Envelope.ok(
-            {
-                "paymentId": str(pay.id),
-                "orderId": new_order,
-                "provider": "tbank",
-                "paymentUrl": purl,
-                "status": pay.status,
-            }
+    new_order = payment_id_str
+    pay.external_payment_id = new_order
+    try:
+        desc = f"Оплата {body.kind} ({user.display_name})"
+        result = await tinkoff_init(
+            base_url=_tinkoff_base(),
+            terminal_key=tk,
+            password=pwd,
+            order_id=new_order,
+            amount_minor=body.amount_minor,
+            description=desc[:200],
+            success_url=success_url,
+            fail_url=fail_url,
+            notification_url=notif,
         )
-
+    except (httpx.RequestError, RuntimeError) as e:
+        log.exception("Tinkoff Init failed: %s", e)
+        return JSONResponse(
+            status_code=502, content=Envelope.err("Платёжный шлюз недоступен. Попробуйте позже.")
+        )
+    err_init = int(result.get("ErrorCode") or 0)
+    if result.get("Success") is False or err_init != 0:
+        msg = str(result.get("Message") or result.get("Details") or "Ошибка T-Bank")
+        log.warning("Tinkoff Init err: %s", result)
+        return JSONResponse(status_code=400, content=Envelope.err(msg))
+    purl = result.get("PaymentURL")
+    if not purl:
+        return JSONResponse(status_code=400, content=Envelope.err("Нет ссылки на оплату (PaymentURL)"))
+    meta = dict(pay.meta or {})
+    if result.get("PaymentId") is not None:
+        meta["tinkoffPaymentId"] = result.get("PaymentId")
+    pay.meta = meta
     return Envelope.ok(
         {
             "paymentId": str(pay.id),
-            "orderId": order_key,
+            "orderId": new_order,
             "provider": "tbank",
-            "paymentUrl": f"{public_web}/payment/confirm?paymentId={payment_id_str}",
+            "paymentUrl": purl,
             "status": pay.status,
         }
     )

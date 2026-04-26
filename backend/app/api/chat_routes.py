@@ -44,6 +44,13 @@ def _msg_time(dt: datetime) -> str:
     return u.strftime("%H:%M")
 
 
+def _format_duration_str(sec: int | None) -> str | None:
+    if sec is None or sec < 0:
+        return None
+    m, s = divmod(min(sec, 3600), 60)
+    return f"{m}:{s:02d}"
+
+
 async def _find_direct_conversation(db: AsyncSession, a: UUID, b: UUID) -> Conversation | None:
     result = await db.execute(
         select(Conversation)
@@ -171,7 +178,7 @@ async def get_messages(
                 "sender": "me" if m.sender_id == user.id else "other",
                 "time": _msg_time(m.created_at),
                 "mediaUrl": m.media_url,
-                "duration": None,
+                "duration": _format_duration_str(m.duration_seconds),
             }
         )
     return Envelope.ok(items)
@@ -202,12 +209,16 @@ async def post_message(
         return JSONResponse(status_code=400, content=Envelope.err("Недопустимый mediaUrl"))
     if media and not body.media_type:
         return JSONResponse(status_code=400, content=Envelope.err("Укажите mediaType для медиа"))
+    dsec: int | None = body.duration_sec
+    if dsec is not None and body.media_type not in ("voice", "video"):
+        dsec = None
     msg = Message(
         conversation_id=conversation_id,
         sender_id=user.id,
         body=text,
         media_url=media,
         media_type=body.media_type,
+        duration_seconds=dsec,
     )
     db.add(msg)
     conv = (await db.execute(select(Conversation).where(Conversation.id == conversation_id))).scalar_one()
@@ -222,7 +233,7 @@ async def post_message(
         "sender": "me",
         "time": _msg_time(msg.created_at),
         "mediaUrl": msg.media_url,
-        "duration": None,
+        "duration": _format_duration_str(msg.duration_seconds),
     }
     # Create notification for conversation peers
     members = (

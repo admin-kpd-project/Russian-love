@@ -177,6 +177,7 @@ class SendMessageBody(BaseModel):
     text: str | None = None
     media_url: str | None = Field(default=None, alias="mediaUrl")
     media_type: str | None = Field(default=None, alias="mediaType")
+    duration_sec: int | None = Field(default=None, alias="durationSec", ge=0, le=3600)
 
 
 class UploadPresignBody(BaseModel):

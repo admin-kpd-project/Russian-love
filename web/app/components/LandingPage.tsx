@@ -10,6 +10,7 @@ export function LandingPage() {
   const navigate = useNavigate();
   const [showAuth, setShowAuth] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState<"login" | "register">("register");
+  const appDownloadUrl = (import.meta.env.VITE_APP_DOWNLOAD_URL ?? "").trim();
 
   const openRegister = () => {
     setAuthInitialMode("register");
@@ -506,6 +507,59 @@ export function LandingPage() {
               );
             })}
           </div>
+        </div>
+      </section>
+
+      {/* Android APK / скачивание вне магазина */}
+      <section className="py-16 md:py-24 bg-gradient-to-b from-amber-50/80 to-white">
+        <div className="max-w-2xl mx-auto px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="rounded-3xl border border-amber-200/80 bg-white/90 p-6 md:p-8 shadow-lg"
+          >
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <Download className="size-6 text-red-600 shrink-0" />
+              <h3 className="text-2xl md:text-3xl font-bold text-gray-900 text-center">
+                Приложение для Android
+              </h3>
+            </div>
+            {appDownloadUrl ? (
+              <>
+                <p className="text-gray-700 text-center mb-4">
+                  Скачайте APK-файл и установите приложение вручную (для теста и дистрибуции вне Google Play).
+                </p>
+                <a
+                  href={appDownloadUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-red-500 to-amber-500 px-6 py-3.5 text-lg font-medium text-white shadow-md hover:shadow-xl transition-shadow"
+                >
+                  <Download className="size-5 shrink-0" />
+                  Скачать APK
+                </a>
+                <p className="mt-4 text-xs text-gray-600 leading-relaxed border-t border-amber-100 pt-4">
+                  Установка из неизвестного источника: в настройках Android разрешите установку для браузера или
+                  проводника, с которого открываете файл. Скачивайте APK только с доверенного адреса; при появлении
+                  публикации в магазине ссылка может быть обновлена.
+                </p>
+              </>
+            ) : (
+              <p className="text-center text-gray-600">
+                Скоро: прямая ссылка на APK и, при публикации, магазин Google Play. Следите за обновлениями на{" "}
+                <a
+                  href="https://forruss.ru"
+                  className="text-red-600 hover:underline font-medium"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  forruss.ru
+                </a>
+                .
+              </p>
+            )}
+          </motion.div>
         </div>
       </section>
 
