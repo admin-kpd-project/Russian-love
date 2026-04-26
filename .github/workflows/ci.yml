@@ -79,7 +79,7 @@ jobs:
         id: meta-api
         uses: docker/metadata-action@v6
         with:
-          images: dating-api
+          images: cr.yandex/${{ secrets.REGISTRY_DOCKER_ID }}/dating-api
           tags: |
             type=raw,value=latest
             type=sha,prefix=sha-
@@ -98,10 +98,10 @@ jobs:
         id: meta-worker
         uses: docker/metadata-action@v6
         with:
-          images: dating-worker
+          images: cr.yandex/${{ secrets.REGISTRY_DOCKER_ID }}/dating-worker
           tags: |
             type=raw,value=latest
-            type=sha,prefix=
+            type=sha,prefix=sha-
             type=ref,event=pr
       - name: Build worker image
         uses: docker/build-push-action@v7
