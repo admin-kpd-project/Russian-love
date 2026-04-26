@@ -35,8 +35,8 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Install
@@ -65,11 +65,74 @@ jobs:
   docker-images:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Login to Yandex Container Registry
+        shell: bash
+        run: |
+          echo "${{ secrets.YC_OAUTH }}" | docker login \
+            --username oauth \
+            --password-stdin \
+            cr.yandex
+      - name: Docker meta API
+        id: meta-api
+        uses: docker/metadata-action@v6
+        with:
+          images: cr.yandex/${{ secrets.REGISTRY_DOCKER_ID }}/dating-api
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=sha-
+            type=ref,event=pr
       - name: Build API image
-        run: docker build -t dating-api:ci -f backend/Dockerfile backend
+        uses: docker/build-push-action@v7
+        with:
+          context: backend
+          file: backend/Dockerfile
+          push: ${{ github.event_name == 'push' && contains(fromJSON('["refs/heads/main", "refs/heads/master"]'), github.ref) }}
+          tags: ${{ steps.meta-api.outputs.tags }}
+          labels: ${{ steps.meta-api.outputs.labels }}
+          cache-from: type=registry,ref=cr.yandex/${{ secrets.REGISTRY_DOCKER_ID }}/dating-api:cache
+          cache-to: type=registry,ref=cr.yandex/${{ secrets.REGISTRY_DOCKER_ID }}/dating-api:cache,mode=max
+      - name: Docker meta Worker
+        id: meta-worker
+        uses: docker/metadata-action@v6
+        with:
+          images: cr.yandex/${{ secrets.REGISTRY_DOCKER_ID }}/dating-worker
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=sha-
+            type=ref,event=pr
       - name: Build worker image
-        run: docker build -t dating-worker:ci -f backend/Dockerfile.worker backend
+        uses: docker/build-push-action@v7
+        with:
+          context: backend
+          file: backend/Dockerfile.worker
+          push: ${{ github.event_name == 'push' && contains(fromJSON('["refs/heads/main", "refs/heads/master"]'), github.ref) }}
+          tags: ${{ steps.meta-worker.outputs.tags }}
+          labels: ${{ steps.meta-worker.outputs.labels }}
+          cache-from: type=registry,ref=cr.yandex/${{ secrets.REGISTRY_DOCKER_ID }}/dating-worker:cache
+          cache-to: type=registry,ref=cr.yandex/${{ secrets.REGISTRY_DOCKER_ID }}/dating-worker:cache,mode=max
+
+      - name: Docker meta Web
+        id: meta-web
+        uses: docker/metadata-action@v6
+        with:
+          images: cr.yandex/${{ secrets.REGISTRY_DOCKER_ID }}/dating-web
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=sha-
+            type=ref,event=pr
+      - name: Build web image
+        uses: docker/build-push-action@v7
+        with:
+          context: web
+          file: web/Dockerfile
+          push: ${{ github.event_name == 'push' && contains(fromJSON('["refs/heads/main", "refs/heads/master"]'), github.ref) }}
+          tags: ${{ steps.meta-web.outputs.tags }}
+          labels: ${{ steps.meta-web.outputs.labels }}
+          cache-from: type=registry,ref=cr.yandex/${{ secrets.REGISTRY_DOCKER_ID }}/dating-web:cache
+          cache-to: type=registry,ref=cr.yandex/${{ secrets.REGISTRY_DOCKER_ID }}/dating-web:cache,mode=max
 
   web:
     runs-on: ubuntu-latest
@@ -77,8 +140,8 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: "20"
           cache: npm
@@ -89,3 +152,33 @@ jobs:
         env:
           VITE_API_BASE_URL: http://localhost:8000
         run: npm run build
+      # - name: Upload to YC Registry
+      #   shell: bash
+      #   run: |
+      #     echo "Archive Web Dist"
+      #     tar -czf web-dist.tar.gz dist/
+      #     echo "Compute SHA256"
+      #     SHA256=$(openssl dgst -sha256 "web-dist.tar.gz" | awk '{print $2}')
+
+      #     curl \
+      #       --fail \
+      #       --request PUT \
+      #       --user "api_key:${{ secrets.YC_API_KEY }}" \
+      #       --header "X-Checksum-SHA256: ${SHA256}" \
+      #       --upload-file "web-dist.tar.gz" \
+      #       https://registry.yandexcloud.net/binaries/${{ secrets.REGISTRY_WEB_ARCHIVE }}/frontend/${GITHUB_SHA:0:7}/web-dist.tar.gz
+
+      # - name: Summary
+      #   shell: bash
+      #   run: |
+      #     echo "### ✅ Binary uploaded to YC Registry" >> $GITHUB_STEP_SUMMARY
+      #     echo "- **Artifact:** \`frontend\`" >> $GITHUB_STEP_SUMMARY
+      #     echo "- **Version:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+      #     echo "- **File:** \`web-dist.tar.gz\`" >> $GITHUB_STEP_SUMMARY
+      #     echo "- **SHA256:** \`${FILE_SHA256}\`" >> $GITHUB_STEP_SUMMARY
+
+  # deploy:
+  #   needs: [backend, docker-images, web]
+  #   if: github.event_name == 'push' && contains(fromJSON('["refs/heads/main", "refs/heads/master"]'), github.ref)
+  #   uses: ./.github/workflows/cd.yml
+  #   secrets: inherit

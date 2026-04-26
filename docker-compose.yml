@@ -10,7 +10,7 @@ services:
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U dating -d dating"]
+      test: [ "CMD-SHELL", "pg_isready -U dating -d dating" ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -20,7 +20,7 @@ services:
     ports:
       - "6379:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -41,7 +41,7 @@ services:
     image: minio/mc:latest
     depends_on:
       - minio
-    entrypoint: ["/bin/sh", "-c"]
+    entrypoint: [ "/bin/sh", "-c" ]
     command:
       - |
         sleep 8;
@@ -50,6 +50,7 @@ services:
         mc anonymous set download local/dating-media || true
 
   api:
+    image: cr.yandex/${REGISTRY_DOCKER_ID}/dating-api:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -85,6 +86,7 @@ services:
         condition: service_completed_successfully
 
   worker:
+    image: cr.yandex/${REGISTRY_DOCKER_ID}/dating-worker:latest
     build:
       context: ./backend
       dockerfile: Dockerfile.worker
@@ -99,6 +101,7 @@ services:
         condition: service_healthy
 
   web:
+    image: cr.yandex/${REGISTRY_DOCKER_ID}/dating-web:latest
     build:
       context: ./web
       dockerfile: Dockerfile
