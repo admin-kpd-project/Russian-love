@@ -155,10 +155,11 @@ jobs:
       - name: Archive Web Dist
         run: tar -czf web-dist.tar.gz dist/
       - name: Compute SHA256
+        id: sha256
         shell: bash
         run: |
           SHA256=$(openssl dgst -sha256 "web-dist.tar.gz" | awk '{print $2}')
-          echo "FILE_SHA256=${SHA256}" >> $GITHUB_ENV
+          echo "FILE_SHA256=${SHA256}" >> $GITHUB_OUTPUT
       - name: Upload to YC Registry
         shell: bash
         run: |
@@ -166,7 +167,7 @@ jobs:
             --fail \
             --request PUT \
             --user "api_key:${{ secrets.YC_API_KEY }}" \
-            --header "X-Checksum-SHA256: ${FILE_SHA256}" \
+            --header "X-Checksum-SHA256: ${{ steps.sha256.outputs.FILE_SHA256 }}" \
             --upload-file "web-dist.tar.gz" \
             https://registry.yandexcloud.net/binaries/${{ secrets.REGISTRY_WEB_ARCHIVE }}/frontend/${{ github.sha }}/web-dist.tar.gz
 
