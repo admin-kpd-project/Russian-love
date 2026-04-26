@@ -166,7 +166,7 @@ jobs:
             --user "api_key:${{ secrets.YC_API_KEY }}" \
             --header "X-Checksum-SHA256: ${SHA256}" \
             --upload-file "web-dist.tar.gz" \
-            https://registry.yandexcloud.net/binaries/${{ secrets.REGISTRY_WEB_ARCHIVE }}/frontend/${{ github.sha }}/web-dist.tar.gz
+            https://registry.yandexcloud.net/binaries/${{ secrets.REGISTRY_WEB_ARCHIVE }}/frontend/${GITHUB_SHA:0:7}/web-dist.tar.gz
 
       - name: Summary
         shell: bash
