@@ -152,30 +152,30 @@ jobs:
         env:
           VITE_API_BASE_URL: http://localhost:8000
         run: npm run build
-      - name: Upload to YC Registry
-        shell: bash
-        run: |
-          echo "Archive Web Dist"
-          tar -czf web-dist.tar.gz dist/
-          echo "Compute SHA256"
-          SHA256=$(openssl dgst -sha256 "web-dist.tar.gz" | awk '{print $2}')
+      # - name: Upload to YC Registry
+      #   shell: bash
+      #   run: |
+      #     echo "Archive Web Dist"
+      #     tar -czf web-dist.tar.gz dist/
+      #     echo "Compute SHA256"
+      #     SHA256=$(openssl dgst -sha256 "web-dist.tar.gz" | awk '{print $2}')
 
-          curl \
-            --fail \
-            --request PUT \
-            --user "api_key:${{ secrets.YC_API_KEY }}" \
-            --header "X-Checksum-SHA256: ${SHA256}" \
-            --upload-file "web-dist.tar.gz" \
-            https://registry.yandexcloud.net/binaries/${{ secrets.REGISTRY_WEB_ARCHIVE }}/frontend/${GITHUB_SHA:0:7}/web-dist.tar.gz
+      #     curl \
+      #       --fail \
+      #       --request PUT \
+      #       --user "api_key:${{ secrets.YC_API_KEY }}" \
+      #       --header "X-Checksum-SHA256: ${SHA256}" \
+      #       --upload-file "web-dist.tar.gz" \
+      #       https://registry.yandexcloud.net/binaries/${{ secrets.REGISTRY_WEB_ARCHIVE }}/frontend/${GITHUB_SHA:0:7}/web-dist.tar.gz
 
-      - name: Summary
-        shell: bash
-        run: |
-          echo "### ✅ Binary uploaded to YC Registry" >> $GITHUB_STEP_SUMMARY
-          echo "- **Artifact:** \`frontend\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **File:** \`web-dist.tar.gz\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **SHA256:** \`${FILE_SHA256}\`" >> $GITHUB_STEP_SUMMARY
+      # - name: Summary
+      #   shell: bash
+      #   run: |
+      #     echo "### ✅ Binary uploaded to YC Registry" >> $GITHUB_STEP_SUMMARY
+      #     echo "- **Artifact:** \`frontend\`" >> $GITHUB_STEP_SUMMARY
+      #     echo "- **Version:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+      #     echo "- **File:** \`web-dist.tar.gz\`" >> $GITHUB_STEP_SUMMARY
+      #     echo "- **SHA256:** \`${FILE_SHA256}\`" >> $GITHUB_STEP_SUMMARY
 
   # deploy:
   #   needs: [backend, docker-images, web]
