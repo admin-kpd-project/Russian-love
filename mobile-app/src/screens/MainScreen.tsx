@@ -18,6 +18,7 @@ import { getFeed } from "../api/feedApi";
 import { createConversation } from "../api/conversationsApi";
 import { logoutApi } from "../api/authApi";
 import { getCurrentUser } from "../api/usersApi";
+import { getApiBaseUrl } from "../api/apiBase";
 import { sendLike, sendSuperLike } from "../api/socialApi";
 import type { Profile } from "../api/authApi";
 import type { RootStackParamList } from "../navigation/types";
@@ -93,11 +94,12 @@ export function MainScreen() {
   const [purchasedAnalyses, setPurchasedAnalyses] = useState<string[]>([]);
 
   const reloadProfile = useCallback(async () => {
+    const base = await getApiBaseUrl();
     const u = await getCurrentUser();
     if (u.data) {
       setMe(u.data);
       try {
-        setSelf(mapApiProfileToUserProfile(u.data));
+        setSelf(mapApiProfileToUserProfile(u.data, base));
       } catch {
         /* keep self */
       }
@@ -107,11 +109,12 @@ export function MainScreen() {
   useEffect(() => {
     let c = false;
     void (async () => {
+      const base = await getApiBaseUrl();
       const u = await getCurrentUser();
       if (!c && u.data) {
         setMe(u.data);
         try {
-          setSelf(mapApiProfileToUserProfile(u.data));
+          setSelf(mapApiProfileToUserProfile(u.data, base));
         } catch {
           /* keep mockSelf */
         }
@@ -119,7 +122,7 @@ export function MainScreen() {
       const r = await getFeed();
       if (c) return;
       setLoadingFeed(false);
-      if (r.data?.length) setProfiles(r.data.map(mapApiProfileToUserProfile));
+      if (r.data?.length) setProfiles(r.data.map((p) => mapApiProfileToUserProfile(p, base)));
       else setProfiles([]);
     })();
     return () => {

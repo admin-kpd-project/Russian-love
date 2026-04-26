@@ -18,6 +18,8 @@ import type { Profile } from "../../api/authApi";
 import { updateProfile } from "../../api/usersApi";
 import { presignAuth, putFileToPresignedUrl } from "../../api/uploadApi";
 import { getAdultMaxDate, ageFromBirthDate } from "../../utils/profileDates";
+import { getApiBaseUrl } from "../../api/apiBase";
+import { resolveMediaUrl } from "../../utils/mediaUrl";
 
 type Props = {
   visible: boolean;
@@ -48,6 +50,11 @@ export function ProfileSettingsModal({
   const [newInterest, setNewInterest] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
+  const [apiBase, setApiBase] = useState("");
+
+  useEffect(() => {
+    void getApiBaseUrl().then(setApiBase);
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -67,6 +74,17 @@ export function ProfileSettingsModal({
 
   const displayName = (editing ? form.name : user?.name || "").trim() || user?.name || "";
   const displayAge = ageFromBirthDate(editing ? form.birthDate : user?.birthDate, user?.age ?? 0);
+
+  const displayAvatarUri = useMemo(() => {
+    if (!avatarUrl) return "";
+    if (avatarUrl.startsWith("file:") || /^https?:\/\//i.test(avatarUrl)) {
+      return avatarUrl;
+    }
+    if (apiBase) {
+      return resolveMediaUrl(avatarUrl, apiBase) || avatarUrl;
+    }
+    return avatarUrl;
+  }, [avatarUrl, apiBase]);
 
   const canSave = useMemo(
     () => !!form.name.trim() && !!form.email.trim() && !!form.birthDate.trim() && !!avatarUrl && !saving,
@@ -155,7 +173,7 @@ export function ProfileSettingsModal({
               <X size={22} color="#fff" />
             </Pressable>
             <View style={styles.avatarWrap}>
-              {avatarUrl ? <Image source={{ uri: avatarUrl }} style={styles.avatar} /> : <View style={[styles.avatar, styles.avatarPh]} />}
+              {displayAvatarUri ? <Image source={{ uri: displayAvatarUri }} style={styles.avatar} /> : <View style={[styles.avatar, styles.avatarPh]} />}
               {editing ? (
                 <Pressable style={styles.camOverlay} onPress={pickAvatar}>
                   <Camera size={28} color="#fff" />

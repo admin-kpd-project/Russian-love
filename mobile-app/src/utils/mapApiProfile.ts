@@ -1,5 +1,6 @@
 import type { Profile } from "../api/authApi";
 import type { UserProfile } from "./compatibilityAI";
+import { resolveMediaUrl } from "./mediaUrl";
 
 const defaultPersonality: UserProfile["personality"] = {
   extroversion: 50,
@@ -28,11 +29,16 @@ function coerceElement(v: unknown): UserProfile["astrology"]["element"] {
   return "air";
 }
 
-/** Как на вебе: API профиль → UserProfile для свайпа и совместимости */
-export function mapApiProfileToUserProfile(p: Profile): UserProfile {
+/** Как на вебе: API профиль → UserProfile для свайпа и совместимости. `apiBase` — для относительных URL фото. */
+export function mapApiProfileToUserProfile(p: Profile, apiBase?: string): UserProfile {
   const pers = (p.personality || {}) as Record<string, unknown>;
   const astro = (p.astrology || {}) as Record<string, unknown>;
   const num = (p.numerology || {}) as Record<string, unknown>;
+
+  let photo = p.photo || (p.photos && p.photos[0]) || "";
+  if (apiBase && photo) {
+    photo = resolveMediaUrl(photo, apiBase) || photo;
+  }
 
   return {
     id: p.id,
@@ -41,7 +47,7 @@ export function mapApiProfileToUserProfile(p: Profile): UserProfile {
     bio: p.bio || "",
     interests: p.interests ?? [],
     location: p.location ?? "",
-    photo: p.photo || (p.photos && p.photos[0]) || "",
+    photo,
     personality: {
       extroversion: Number(pers.extroversion ?? defaultPersonality.extroversion),
       openness: Number(pers.openness ?? defaultPersonality.openness),

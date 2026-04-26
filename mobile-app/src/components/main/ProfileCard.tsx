@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, Image, ScrollView, StyleSheet, Pressable } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import { Heart, MapPin, Sparkles, AlertTriangle, Star, Briefcase } from "lucide-react-native";
 import type { UserProfile } from "../../utils/compatibilityAI";
 import { getCompatibilityLabel } from "../../utils/compatibilityAI";
+import { tw } from "../../theme/designTokens";
 
 type Props = {
   profile: UserProfile;
@@ -23,12 +24,22 @@ function compatColors(pct: number): [string, string] {
 export function ProfileCard({ profile, compatibility, superLikesRemaining, likesCount, onOpenDetailedAnalysis }: Props) {
   const [c1, c2] = compatColors(compatibility);
   const photoUri = profile.photo || undefined;
+  const [imgErr, setImgErr] = useState(false);
+
+  useEffect(() => {
+    setImgErr(false);
+  }, [profile.id, profile.photo]);
 
   return (
     <View style={styles.card}>
       <View style={styles.photoWrap}>
-        {photoUri ? (
-          <Image source={{ uri: photoUri }} style={styles.photo} resizeMode="cover" />
+        {photoUri && !imgErr ? (
+          <Image
+            source={{ uri: photoUri }}
+            style={styles.photo}
+            resizeMode="cover"
+            onError={() => setImgErr(true)}
+          />
         ) : (
           <View style={[styles.photo, styles.photoPh]} />
         )}
@@ -69,7 +80,7 @@ export function ProfileCard({ profile, compatibility, superLikesRemaining, likes
       </View>
 
       <ScrollView style={styles.info} contentContainerStyle={styles.infoIn} showsVerticalScrollIndicator={false}>
-        <Text style={styles.bio} numberOfLines={4}>
+        <Text style={styles.bio} numberOfLines={3}>
           {profile.bio}
         </Text>
         <View style={styles.compatRow}>
@@ -142,12 +153,12 @@ const styles = StyleSheet.create({
   compatPct: { color: "#fff", fontSize: 22, fontWeight: "800" },
   compatSub: { color: "rgba(255,255,255,0.92)", fontSize: 10 },
   nameBlock: { position: "absolute", bottom: 12, left: 12, right: 72 },
-  name: { color: "#fff", fontSize: 26, fontWeight: "800" },
+  name: { color: "#fff", fontSize: tw.text3xl, fontWeight: "800" },
   locRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
   loc: { color: "rgba(255,255,255,0.9)", fontSize: 13 },
-  info: { maxHeight: "38%" },
-  infoIn: { padding: 16, paddingBottom: 24 },
-  bio: { color: "#44403c", fontSize: 15, lineHeight: 22, marginBottom: 12 },
+  info: { maxHeight: "40%" },
+  infoIn: { padding: tw.p4, paddingBottom: 24 },
+  bio: { color: "#44403c", fontSize: tw.textBase, lineHeight: 24, marginBottom: 12 },
   compatRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },
   compatLabel: {
     flex: 1,

@@ -1,25 +1,45 @@
 import React from "react";
-import { View, Text, StyleSheet, type ViewStyle } from "react-native";
-import LinearGradient from "react-native-linear-gradient";
+import { View, Image, type ViewStyle, StyleSheet } from "react-native";
 
-type Props = { size?: number; style?: ViewStyle };
+const LOGO_PNG = require("../assets/brand/matreshka.png");
 
-/** Плейсхолдер логотипа матрёшки (PNG из веб-импортов в репозитории нет). */
-export function MatreshkaLogo({ size = 40, style }: Props) {
+type Props = {
+  size?: number;
+  style?: ViewStyle;
+  /** Тот же PNG; на градиенте — лёгкая обводка для читаемости, как на forruss.ru. */
+  variant?: "default" | "onGradient";
+};
+
+/**
+ * Логотип с [forruss.ru](https://forruss.ru/) — `assets/1775050275_(1)_3_(1)-1-B5Gq71x9.png`, в репозитории: `src/assets/brand/matreshka.png`.
+ */
+export function MatreshkaLogo({ size = 40, style, variant = "default" }: Props) {
   const s = size;
+  const onGrad = variant === "onGradient";
   return (
-    <LinearGradient colors={["#fecaca", "#fde68a"]} style={[styles.ring, { width: s, height: s, borderRadius: s * 0.22 }, style]}>
-      <View style={[styles.in, { width: s * 0.78, height: s * 0.78, borderRadius: s * 0.18 }]}>
-        <Text style={[styles.emoji, { fontSize: s * 0.45 }]} allowFontScaling={false}>
-          🪆
-        </Text>
-      </View>
-    </LinearGradient>
+    <View
+      style={[
+        { width: s, height: s },
+        onGrad && styles.onGradFrame,
+        style,
+      ]}
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel="Матрёшка, логотип"
+    >
+      <Image
+        source={LOGO_PNG}
+        style={{ width: s, height: s, resizeMode: "contain" }}
+        accessibilityIgnoresInvertColors
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  ring: { alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#fff" },
-  in: { backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
-  emoji: { textAlign: "center" },
+  onGradFrame: {
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.45)",
+    borderRadius: 12,
+  },
 });

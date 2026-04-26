@@ -15,6 +15,7 @@ import { Heart, Sparkles } from "lucide-react-native";
 
 import type { RootStackParamList } from "../navigation/types";
 import { getUserById } from "../api/usersApi";
+import { getApiBaseUrl } from "../api/apiBase";
 import { mapApiProfileToUserProfile } from "../utils/mapApiProfile";
 import type { UserProfile } from "../utils/compatibilityAI";
 
@@ -30,6 +31,7 @@ export function InviteScreen({ route, navigation }: Props) {
   useEffect(() => {
     let c = false;
     void (async () => {
+      const base = await getApiBaseUrl();
       const res = await getUserById(inviterId);
       if (c) return;
       setLoading(false);
@@ -37,7 +39,7 @@ export function InviteScreen({ route, navigation }: Props) {
         setErr(res.error || "Профиль пригласившего недоступен");
         return;
       }
-      setInviter(mapApiProfileToUserProfile(res.data));
+      setInviter(mapApiProfileToUserProfile(res.data, base));
     })();
     return () => {
       c = true;

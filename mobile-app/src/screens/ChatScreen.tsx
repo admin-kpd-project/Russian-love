@@ -26,6 +26,9 @@ import { X, Send, Mic, Image as ImageIcon, Smile, Gift, Video } from "lucide-rea
 import { getMessages, sendTextMessage, sendMediaMessage, type MessageResponse } from "../api/messagesApi";
 import { presignAuth, putFileToPresignedUrl, createChatWebSocket } from "../api/uploadApi";
 import { getPaymentsStatus, initTbankPayment } from "../api/paymentsApi";
+import { getApiBaseUrl } from "../api/apiBase";
+import { resolveMediaUrl } from "../utils/mediaUrl";
+import { tw } from "../theme/designTokens";
 import type { RootStackParamList } from "../navigation/types";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Chat">;
@@ -66,6 +69,7 @@ function audioContentTypeForPath(p: string): string {
 export function ChatScreen({ route, navigation }: Props) {
   const { conversationId, title, avatarUrl, prefilledMessage } = route.params;
   const insets = useSafeAreaInsets();
+  const [resolvedAvatar, setResolvedAvatar] = useState<string | undefined>(avatarUrl);
   const [rows, setRows] = useState<MessageResponse[]>([]);
   const [text, setText] = useState(prefilledMessage ?? "");
   const [loading, setLoading] = useState(true);
@@ -86,6 +90,25 @@ export function ChatScreen({ route, navigation }: Props) {
       setPaymentsEnabled(r.data?.paymentsEnabled ?? false);
     })();
   }, []);
+
+  useEffect(() => {
+    if (!avatarUrl) {
+      setResolvedAvatar(undefined);
+      return;
+    }
+    if (/^https?:\/\//i.test(avatarUrl)) {
+      setResolvedAvatar(avatarUrl);
+      return;
+    }
+    void (async () => {
+      const b = await getApiBaseUrl();
+      if (b) {
+        setResolvedAvatar(resolveMediaUrl(avatarUrl, b) || avatarUrl);
+        return;
+      }
+      setResolvedAvatar(avatarUrl);
+    })();
+  }, [avatarUrl]);
 
   useEffect(() => {
     if (prefilledMessage) setText((prev) => (prev.trim() ? prev : prefilledMessage));
@@ -259,8 +282,8 @@ export function ChatScreen({ route, navigation }: Props) {
       <LinearGradient colors={["#ef4444", "#f59e0b"]} style={[styles.topBar, { paddingTop: insets.top + 10 }]}>
         <View style={styles.topRow}>
           <View style={styles.peer}>
-            {avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+            {resolvedAvatar ? (
+              <Image source={{ uri: resolvedAvatar }} style={styles.avatar} />
             ) : (
               <View style={[styles.avatar, styles.avatarPh]} />
             )}
@@ -506,7 +529,7 @@ const styles = StyleSheet.create({
   peer: { flexDirection: "row", alignItems: "center", gap: 12 },
   avatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: "#fff" },
   avatarPh: { backgroundColor: "rgba(255,255,255,0.35)" },
-  peerName: { fontSize: 17, fontWeight: "800", color: "#fff" },
+  peerName: { fontSize: tw.textLg, fontWeight: "800", color: "#fff" },
   peerSub: { fontSize: 12, color: "rgba(255,255,255,0.85)", marginTop: 2 },
   closeHit: { width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.22)", alignItems: "center", justifyContent: "center" },
   errB: { backgroundColor: "#fee2e2", color: "#b91c1c", padding: 8, textAlign: "center" },

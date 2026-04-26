@@ -70,7 +70,7 @@ export function LandingScreen({ navigation }: Props) {
         <View style={styles.hero}>
           <View style={styles.heroLogoWrap}>
             <LinearGradient colors={["#ef4444", "#f59e0b"]} style={styles.heroGlow} />
-            <MatreshkaLogo size={112} style={styles.heroLogoMat} />
+            <MatreshkaLogo size={112} style={styles.heroLogoMat} variant="onGradient" />
           </View>
           <Text style={styles.heroTitle}>
             <Text style={{ color: "#dc2626" }}>Знакомства </Text>
@@ -197,7 +197,7 @@ export function LandingScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#fff7ed" },
   header: {
-    backgroundColor: "rgba(255,255,255,0.88)",
+    backgroundColor: "rgba(255,255,255,0.8)",
     paddingHorizontal: 14,
     paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,

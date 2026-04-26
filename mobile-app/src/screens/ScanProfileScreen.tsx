@@ -7,6 +7,7 @@ import { ArrowLeft, Heart, Sparkles, MapPin, User } from "lucide-react-native";
 
 import type { RootStackParamList } from "../navigation/types";
 import { getCurrentUser, getUserById } from "../api/usersApi";
+import { getApiBaseUrl } from "../api/apiBase";
 import { mapApiProfileToUserProfile } from "../utils/mapApiProfile";
 import { calculateCompatibility, type UserProfile } from "../utils/compatibilityAI";
 import { MatreshkaLogo } from "../components/MatreshkaLogo";
@@ -24,14 +25,15 @@ export function ScanProfileScreen({ route, navigation }: Props) {
   useEffect(() => {
     let c = false;
     void (async () => {
+      const base = await getApiBaseUrl();
       const [meRes, scannedRes] = await Promise.all([getCurrentUser(), getUserById(userId)]);
       if (c) return;
       if (!meRes.data || !scannedRes.data) {
         setLoading(false);
         return;
       }
-      const me = mapApiProfileToUserProfile(meRes.data);
-      const scanned = mapApiProfileToUserProfile(scannedRes.data);
+      const me = mapApiProfileToUserProfile(meRes.data, base);
+      const scanned = mapApiProfileToUserProfile(scannedRes.data, base);
       setCurrentUser(me);
       setScannedUser(scanned);
       setCompatibility(calculateCompatibility(me, scanned));
@@ -46,7 +48,7 @@ export function ScanProfileScreen({ route, navigation }: Props) {
     return (
       <LinearGradient colors={["#fef2f2", "#fffbeb", "#fefce8"]} style={styles.page}>
         <View style={[styles.center, { paddingTop: insets.top + 24 }]}>
-          <MatreshkaLogo size={72} />
+          <MatreshkaLogo size={72} variant="onGradient" />
           <Text style={styles.loadT}>Загрузка профиля...</Text>
         </View>
       </LinearGradient>

@@ -88,3 +88,5 @@ export const inputBase: ViewStyle = {
 };
 
 export const placeholderColor = colors.stone500;
+
+export { tw } from "./designTokens";
