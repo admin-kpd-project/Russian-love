@@ -114,6 +114,26 @@ jobs:
           cache-from: type=registry,ref=cr.yandex/${{ secrets.REGISTRY_DOCKER_ID }}/dating-worker:cache
           cache-to: type=registry,ref=cr.yandex/${{ secrets.REGISTRY_DOCKER_ID }}/dating-worker:cache,mode=max
 
+      - name: Docker meta Web
+        id: meta-web
+        uses: docker/metadata-action@v6
+        with:
+          images: cr.yandex/${{ secrets.REGISTRY_DOCKER_ID }}/dating-web
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=sha-
+            type=ref,event=pr
+      - name: Build web image
+        uses: docker/build-push-action@v7
+        with:
+          context: web
+          file: web/Dockerfile
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: ${{ steps.meta-web.outputs.tags }}
+          labels: ${{ steps.meta-web.outputs.labels }}
+          cache-from: type=registry,ref=cr.yandex/${{ secrets.REGISTRY_DOCKER_ID }}/dating-web:cache
+          cache-to: type=registry,ref=cr.yandex/${{ secrets.REGISTRY_DOCKER_ID }}/dating-web:cache,mode=max
+
   web:
     runs-on: ubuntu-latest
     defaults:
