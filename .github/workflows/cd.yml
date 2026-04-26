@@ -34,7 +34,7 @@ jobs:
               cr.yandex
 
             # Скачиваем новые образы
-            docker-compose pull
+            docker compose pull
 
             # Перезапускаем изменившиеся контейнеры
-            docker-compose up -d
+            docker compose up -d
