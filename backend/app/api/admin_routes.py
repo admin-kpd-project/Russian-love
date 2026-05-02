@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, require_roles
+from app.api.deps import require_roles
 from app.core.envelope import Envelope
 from app.db.models import SupportTicket, User, UserReport
 from app.db.session import get_db

@@ -93,7 +93,7 @@ def _public_origin_from_nginx(request: Request) -> str | None:
 def _client_visible_base_url(request: Request) -> str | None:
     """Публичный base URL, если X-Forwarded-* нет (внешний балансировщик не прокидывает).
 
-    Same-origin `fetch` с сайта (например `http://81.26.176.56:8080`) шлёт `Origin` с этим
+    Same-origin `fetch` с сайта (например `http://81.26.181.58:8080`) шлёт `Origin` с этим
     хостом — presign в MinIO совпадёт с PUT, иначе в ответе остаётся `localhost` из .env.
     `localhost` / `127.0.0.1` сюда не подставляем: для них presign остаётся на env/прокси.
     """

@@ -1,7 +1,5 @@
 """User-submitted reports about other users."""
 
-from uuid import UUID
-
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
