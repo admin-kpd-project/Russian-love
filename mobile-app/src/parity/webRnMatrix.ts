@@ -30,4 +30,7 @@ export const WEB_RN_PARITY: Record<string, string> = {
   "components/InvitePage.tsx": "screens/InviteScreen.tsx",
   "pages/ScanProfile.tsx": "screens/ScanProfileScreen.tsx",
   "pages/PaymentConfirmPage.tsx": "screens/PaymentConfirmScreen.tsx",
+  "pages/SupportPage.tsx": "screens/SupportScreen.tsx",
+  "pages/AdminPage.tsx": "(web only — admin panel)",
+  "routes.tsx /support + SettingsModal": "navigation/Support + SettingsModal → Support",
 };

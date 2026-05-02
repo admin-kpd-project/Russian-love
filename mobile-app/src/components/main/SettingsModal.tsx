@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from "react";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import {
   Modal,
   View,
@@ -29,6 +31,7 @@ import {
 
 import { REGIONS_CITIES } from "../../data/settingsRegions";
 import { brandGradients, tw } from "../../theme/designTokens";
+import type { RootStackParamList } from "../../navigation/types";
 
 type Props = { visible: boolean; onClose: () => void };
 
@@ -64,6 +67,7 @@ function RowSwitch({
 }
 
 export function SettingsModal({ visible, onClose }: Props) {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
   const [notifications, setNotifications] = useState(true);
   const [privateProfile, setPrivateProfile] = useState(false);
@@ -237,6 +241,16 @@ export function SettingsModal({ visible, onClose }: Props) {
               iconBg="#ede9fe"
             />
 
+            <Pressable
+              style={styles.listBtn}
+              onPress={() => {
+                onClose();
+                navigation.navigate("Support");
+              }}
+            >
+              <Text style={styles.listBtnT}>Поддержка</Text>
+              <ChevronRight size={20} color="#a8a29e" />
+            </Pressable>
             <Pressable
               style={styles.listBtn}
               onPress={() =>

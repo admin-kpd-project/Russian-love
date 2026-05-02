@@ -40,7 +40,14 @@ export function InvitePage() {
     photos: [] as string[],
     bio: "",
     interests: "",
+    agreeToAge18: false,
   });
+
+  useEffect(() => {
+    if (step === "register") {
+      window.scrollTo(0, 0);
+    }
+  }, [step]);
 
   useEffect(() => {
     let cancelled = false;
@@ -93,6 +100,10 @@ export function InvitePage() {
       formData.email.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email);
     const phoneOk = !!normalizeRuPhone(formData.loginPhone);
     const idOk = formData.authMethod === "email" ? emailOk : phoneOk;
+    if (!formData.agreeToAge18) {
+      setSubmitError("Подтвердите, что вам 18 лет или больше");
+      return;
+    }
     if (!formData.name || !formData.password || !formData.birthDate || !formData.avatarUrl || !idOk) {
       setSubmitError("Заполните все обязательные поля, укажите email или корректный телефон и загрузите фото");
       return;
@@ -110,6 +121,7 @@ export function InvitePage() {
       agreeToOffer: true,
       agreeToPrivacy: true,
       agreeToTerms: true,
+      agreeToAge18: formData.agreeToAge18,
       name: formData.name.trim(),
       birthDate: formData.birthDate,
       gender: formData.gender,
@@ -401,10 +413,23 @@ export function InvitePage() {
               </label>
             </div>
 
+            <label className="flex items-start gap-3 cursor-pointer pt-2">
+              <input
+                type="checkbox"
+                checked={formData.agreeToAge18}
+                onChange={(e) => setFormData((d) => ({ ...d, agreeToAge18: e.target.checked }))}
+                className="mt-1 size-4 text-red-500 border-gray-300 rounded focus:ring-red-500"
+              />
+              <span className="text-sm text-gray-700 leading-relaxed font-medium">
+                Мне исполнилось 18 лет (обязательно)
+              </span>
+            </label>
+
             <button
               onClick={() => void handleRegister()}
               disabled={
                 submitting ||
+                !formData.agreeToAge18 ||
                 !formData.name ||
                 !formData.password ||
                 !formData.birthDate ||

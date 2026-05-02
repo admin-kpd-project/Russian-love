@@ -5,10 +5,14 @@ import { InvitePage } from "./components/InvitePage";
 import { ScanProfile } from "./pages/ScanProfile";
 import { useAuth } from "./contexts/AuthContext";
 import { PaymentConfirmPage } from "./pages/PaymentConfirmPage";
+import { SupportPage } from "./pages/SupportPage";
+import { AdminPage } from "./pages/AdminPage";
+
+const STAFF_ROLES = new Set(["admin", "moderator", "support"]);
 
 // Protected Route Component
 function ProtectedRoute() {
-  const { isAuthenticated, loading, user } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
   
   if (loading) {
     return (
@@ -25,6 +29,28 @@ function ProtectedRoute() {
     return <Navigate to="/" replace />;
   }
 
+  return <Outlet />;
+}
+
+function StaffRoute() {
+  const { isAuthenticated, loading, user } = useAuth();
+  if (loading) {
+    return (
+      <div className="size-full flex items-center justify-center bg-stone-100">
+        <div className="text-center">
+          <div className="size-16 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Загрузка...</p>
+        </div>
+      </div>
+    );
+  }
+  if (!isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+  const role = user?.role ?? "user";
+  if (!STAFF_ROLES.has(role)) {
+    return <Navigate to="/app" replace />;
+  }
   return <Outlet />;
 }
 
@@ -65,6 +91,16 @@ export const router = createBrowserRouter([
   {
     path: "/invite/:inviterId",
     element: <InvitePage />,
+  },
+  {
+    path: "/support",
+    element: <ProtectedRoute />,
+    children: [{ index: true, element: <SupportPage /> }],
+  },
+  {
+    path: "/admin",
+    element: <StaffRoute />,
+    children: [{ index: true, element: <AdminPage /> }],
   },
   {
     path: "*",

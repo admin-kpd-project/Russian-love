@@ -119,6 +119,7 @@ async def list_conversations(
         out.append(
             {
                 "id": str(c.id),
+                "peerUserId": str(other_id),
                 "name": ou.display_name,
                 "avatar": ou.avatar_url or "",
                 "lastMessage": last_text,

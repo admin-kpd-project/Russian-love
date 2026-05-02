@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   View,
   Text,
@@ -53,6 +54,14 @@ export function RegisterScreen({ navigation, route }: Props) {
   const [agreePrivacy, setAgreePrivacy] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreeOffer, setAgreeOffer] = useState(false);
+  const [agreeAdult, setAgreeAdult] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+    }, [])
+  );
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -100,6 +109,10 @@ export function RegisterScreen({ navigation, route }: Props) {
       setErr("Необходимо согласие с пользовательским соглашением");
       return;
     }
+    if (!agreeAdult) {
+      setErr("Подтвердите, что вам 18 лет или больше");
+      return;
+    }
     if (!name.trim()) {
       setErr("Введите имя");
       return;
@@ -132,6 +145,7 @@ export function RegisterScreen({ navigation, route }: Props) {
       agreeToPrivacy: agreePrivacy,
       agreeToTerms: agreeTerms,
       agreeToOffer: agreeOffer,
+      agreeToAge18: agreeAdult,
       name: name.trim(),
       birthDate,
       gender,
@@ -153,7 +167,12 @@ export function RegisterScreen({ navigation, route }: Props) {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <LinearGradient colors={[...brandGradients.page]} style={StyleSheet.absoluteFill} />
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        ref={scrollRef}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+      >
         <FadeInView style={styles.shell}>
           <LinearGradient colors={[...brandGradients.primary]} style={styles.hero}>
             <ScalePressable style={styles.backButton} onPress={() => navigation.goBack()} disabled={loading}>
@@ -268,6 +287,10 @@ export function RegisterScreen({ navigation, route }: Props) {
               </ScalePressable>
             </View>
 
+            <ScalePressable style={styles.row} onPress={() => setAgreeAdult((v) => !v)}>
+              <View style={[styles.cb, agreeAdult && styles.cbOn]}>{agreeAdult ? <Check size={14} color="#fff" /> : null}</View>
+              <Text style={styles.rowT}>Мне исполнилось 18 лет (обязательно)</Text>
+            </ScalePressable>
             <ScalePressable style={styles.row} onPress={() => setAgreePrivacy((v) => !v)}>
               <View style={[styles.cb, agreePrivacy && styles.cbOn]}>{agreePrivacy ? <Check size={14} color="#fff" /> : null}</View>
               <Text style={styles.rowT}>Согласие на обработку персональных данных</Text>

@@ -41,6 +41,7 @@ export type RegisterParams = {
   agreeToPrivacy: boolean;
   agreeToTerms: boolean;
   agreeToOffer: boolean;
+  agreeToAge18: boolean;
   name: string;
   birthDate: string;
   gender: "male" | "female";
@@ -60,6 +61,7 @@ export async function register(p: RegisterParams): Promise<ApiResult<AuthData>> 
     agreeToPrivacy: p.agreeToPrivacy,
     agreeToTerms: p.agreeToTerms,
     agreeToOffer: p.agreeToOffer,
+    agreeToAge18: p.agreeToAge18,
     name: p.name.trim(),
     birthDate: p.birthDate,
     gender: p.gender,

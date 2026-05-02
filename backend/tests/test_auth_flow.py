@@ -22,6 +22,7 @@ def test_register_login_feed(client: TestClient):
             "agreeToPrivacy": True,
             "agreeToTerms": True,
             "agreeToOffer": True,
+            "agreeToAge18": True,
         },
     )
     assert r.status_code == 201, r.text

@@ -2,6 +2,8 @@ import { apiFetch, type ApiResult } from "./client";
 
 export type ConversationListItem = {
   id: string;
+  /** Собеседник (для жалоб и т.п.) */
+  peerUserId?: string;
   name: string;
   avatar: string;
   lastMessage: string;

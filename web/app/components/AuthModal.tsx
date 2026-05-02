@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "motion/react";
 import { X, Mail, Lock, Heart, Shield, MessageCircle, ArrowLeft, CheckCircle, Eye, EyeOff, Camera, Phone } from "lucide-react";
 import "react-datepicker/dist/react-datepicker.css";
@@ -43,12 +43,19 @@ export function AuthModal({
 
   const [mode, setMode] = useState<"login" | "register" | "reset">(initialMode);
   const [resetEmail, setResetEmail] = useState("");
+  const formScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (show) {
       setMode(initialMode);
     }
   }, [show, initialMode]);
+
+  useEffect(() => {
+    if (show && formScrollRef.current) {
+      formScrollRef.current.scrollTop = 0;
+    }
+  }, [show, mode, initialMode]);
   const isLogin = mode === "login";
   const isRegister = mode === "register";
   const isReset = mode === "reset";
@@ -71,6 +78,7 @@ export function AuthModal({
     agreeToPrivacy: false,
     agreeToTerms: false,
     agreeToOffer: false,
+    agreeToAge18: false,
     agreeToNewsletter: false,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -122,6 +130,10 @@ export function AuthModal({
 
     if (!isLogin && !formData.agreeToOffer) {
       newErrors.agreeToOffer = "Необходимо согласие с публичной офертой";
+    }
+
+    if (!isLogin && !formData.agreeToAge18) {
+      newErrors.agreeToAge18 = "Подтвердите, что вам 18 лет или больше";
     }
 
     if (!isLogin) {
@@ -187,6 +199,7 @@ export function AuthModal({
           agreeToPrivacy: formData.agreeToPrivacy,
           agreeToTerms: formData.agreeToTerms,
           agreeToOffer: formData.agreeToOffer,
+          agreeToAge18: formData.agreeToAge18,
           name: formData.name.trim(),
           birthDate: formData.birthDate,
           gender: formData.gender,
@@ -300,7 +313,10 @@ export function AuthModal({
         </div>
 
         {/* Form */}
-        <div className="px-6 py-6 overflow-y-auto max-h-[calc(90vh-180px)]">
+        <div
+          ref={formScrollRef}
+          className="px-6 py-6 overflow-y-auto max-h-[calc(90vh-180px)]"
+        >
           {isReset ? (
             /* Password Reset Form */
             <form onSubmit={handleResetPassword} className="space-y-4">
@@ -645,6 +661,22 @@ export function AuthModal({
               {/* Terms and Conditions (registration only) */}
               {!isLogin && (
                 <div className="space-y-3 pt-2">
+                  <div>
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.agreeToAge18}
+                        onChange={(e) => handleInputChange("agreeToAge18", e.target.checked)}
+                        className="mt-1 size-4 text-red-500 border-gray-300 rounded focus:ring-red-500"
+                      />
+                      <span className="text-sm text-gray-600 leading-relaxed font-medium">
+                        Мне исполнилось 18 лет (обязательно)
+                      </span>
+                    </label>
+                    {errors.agreeToAge18 && (
+                      <p className="text-red-500 text-xs mt-1 ml-7">{errors.agreeToAge18}</p>
+                    )}
+                  </div>
                   {/* Privacy Policy */}
                   <div>
                     <label className="flex items-start gap-3 cursor-pointer">
@@ -801,6 +833,7 @@ export function AuthModal({
                         agreeToPrivacy: false,
                         agreeToTerms: false,
                         agreeToOffer: false,
+                        agreeToAge18: false,
                         agreeToNewsletter: false,
                       });
                     }}

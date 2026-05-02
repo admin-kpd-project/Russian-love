@@ -34,6 +34,12 @@
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string></string>
+	<key>NSCameraUsageDescription</key>
+	<string>Съёмка видео-сообщений и фото в чате</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Запись голосовых и видео с звуком в чате</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Выбор фото и видео для отправки в чате</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIRequiredDeviceCapabilities</key>

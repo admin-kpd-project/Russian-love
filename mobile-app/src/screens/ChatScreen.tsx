@@ -18,7 +18,8 @@ import {
 import LinearGradient from "react-native-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AudioRecorderPlayer from "react-native-audio-recorder-player";
-import { launchImageLibrary } from "react-native-image-picker";
+import RNVideo from "react-native-video";
+import { launchCamera, launchImageLibrary } from "react-native-image-picker";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { X, Send, Mic, Image as ImageIcon, Smile, Gift, Video, MoreVertical } from "lucide-react-native";
 
@@ -26,6 +27,7 @@ import { markConversationRead, deleteConversation } from "../api/conversationsAp
 import { getMessages, sendTextMessage, sendMediaMessage, type MessageResponse } from "../api/messagesApi";
 import { presignAuth, putFileToPresignedUrl, createChatWebSocket } from "../api/uploadApi";
 import { getPaymentsStatus, initTbankPayment } from "../api/paymentsApi";
+import { submitUserReport } from "../api/reportsApi";
 import { getApiBaseUrl } from "../api/apiBase";
 import { resolveMediaUrl } from "../utils/mediaUrl";
 import { brandGradients, tw } from "../theme/designTokens";
@@ -78,7 +80,7 @@ function dedupeMessagesById(msgs: MessageResponse[]): MessageResponse[] {
 }
 
 export function ChatScreen({ route, navigation }: Props) {
-  const { conversationId, title, avatarUrl, prefilledMessage } = route.params;
+  const { conversationId, title, avatarUrl, prefilledMessage, peerUserId } = route.params;
   const insets = useSafeAreaInsets();
   const [resolvedAvatar, setResolvedAvatar] = useState<string | undefined>(avatarUrl);
   const [rows, setRows] = useState<MessageResponse[]>([]);
@@ -94,6 +96,25 @@ export function ChatScreen({ route, navigation }: Props) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showGiftModal, setShowGiftModal] = useState(false);
   const [paymentsEnabled, setPaymentsEnabled] = useState<boolean | null>(null);
+  const [apiBase, setApiBase] = useState<string | null>(null);
+  const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
+  /** Какое видео сейчас играет в ленте (остальные на паузе). */
+  const [activeVideoMsgId, setActiveVideoMsgId] = useState<string | null>(null);
+
+  useEffect(() => {
+    void getApiBaseUrl().then(setApiBase);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      void audioPlayer.stopPlayer();
+      try {
+        audioPlayer.removePlayBackListener();
+      } catch {
+        /* noop */
+      }
+    };
+  }, []);
 
   useEffect(() => {
     void (async () => {
@@ -125,6 +146,50 @@ export function ChatScreen({ route, navigation }: Props) {
     if (prefilledMessage) setText((prev) => (prev.trim() ? prev : prefilledMessage));
   }, [prefilledMessage]);
 
+  const resolveMsgMediaUrl = useCallback(
+    (url?: string | null) => {
+      if (!url) return "";
+      const u = url.trim();
+      if (/^https?:\/\//i.test(u)) return u;
+      if (!apiBase) return u;
+      return resolveMediaUrl(u, apiBase) || u;
+    },
+    [apiBase],
+  );
+
+  const toggleVoicePlayback = useCallback(
+    async (m: MessageResponse) => {
+      const uri = resolveMsgMediaUrl(m.mediaUrl);
+      if (!uri) return;
+      try {
+        if (playingVoiceId === m.id) {
+          await audioPlayer.stopPlayer();
+          audioPlayer.removePlayBackListener();
+          setPlayingVoiceId(null);
+          return;
+        }
+        await audioPlayer.stopPlayer();
+        audioPlayer.removePlayBackListener();
+        setPlayingVoiceId(m.id);
+        setActiveVideoMsgId(null);
+        await audioPlayer.startPlayer(uri);
+        audioPlayer.addPlayBackListener((e) => {
+          const durationMs = e.duration ?? 0;
+          const posMs = e.currentPosition ?? 0;
+          if (durationMs > 0 && posMs >= durationMs - 100) {
+            void audioPlayer.stopPlayer();
+            audioPlayer.removePlayBackListener();
+            setPlayingVoiceId(null);
+          }
+        });
+      } catch {
+        setPlayingVoiceId(null);
+        setErr("Не удалось воспроизвести голосовое");
+      }
+    },
+    [playingVoiceId, resolveMsgMediaUrl],
+  );
+
   const load = useCallback(async () => {
     setErr(null);
     setLoading(true);
@@ -149,7 +214,27 @@ export function ChatScreen({ route, navigation }: Props) {
     Alert.alert("Действия", undefined, [
       {
         text: "Пожаловаться",
-        onPress: () => Alert.alert("Жалоба", "Мы рассмотрим обращение в ближайшее время."),
+        onPress: () => {
+          if (!peerUserId) {
+            Alert.alert(
+              "Жалоба",
+              "Не удалось определить пользователя. Закройте чат и откройте диалог из списка переписок."
+            );
+            return;
+          }
+          Alert.alert("Пожаловаться", "Отправить жалобу модерации?", [
+            { text: "Отмена", style: "cancel" },
+            {
+              text: "Отправить",
+              onPress: () =>
+                void (async () => {
+                  const r = await submitUserReport(peerUserId, "Жалоба из чата");
+                  if (r.error) Alert.alert("Ошибка", r.error);
+                  else Alert.alert("Жалоба", "Обращение отправлено модерации.");
+                })(),
+            },
+          ]);
+        },
       },
       {
         text: "Удалить чат",
@@ -257,6 +342,82 @@ export function ChatScreen({ route, navigation }: Props) {
     });
   };
 
+  const uploadVideoFromAsset = async (a: { uri?: string; type?: string; fileSize?: number; duration?: number } | undefined) => {
+    if (!a?.uri) return;
+    setSending(true);
+    setErr(null);
+    try {
+      const ct = a.type || "video/mp4";
+      const size = a.fileSize ?? 5_000_000;
+      let rawDur = typeof a.duration === "number" && a.duration > 0 ? a.duration : 1;
+      if (rawDur > 600) rawDur = rawDur / 1000;
+      const durationSec = Math.min(3600, Math.max(1, Math.round(rawDur)));
+      const p = await presignAuth(ct, size);
+      if (p.error || !p.data) {
+        setErr(p.error ?? "presign video");
+        return;
+      }
+      const up = await putFileToPresignedUrl(p.data.uploadUrl, a.uri, ct);
+      if (!up.ok) {
+        setErr(up.error ?? "upload video");
+        return;
+      }
+      const sm = await sendMediaMessage(conversationId, p.data.fileUrl, "video", durationSec);
+      if (sm.data) setRows((prev) => [sm.data!, ...prev]);
+      else if (sm.error) setErr(sm.error);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const sendVideoFromGallery = () => {
+    setShowAttachMenu(false);
+    void launchImageLibrary({ mediaType: "video", selectionLimit: 1 }, (res) => {
+      if (res.errorMessage) {
+        setErr(res.errorMessage);
+        return;
+      }
+      void uploadVideoFromAsset(res.assets?.[0]);
+    });
+  };
+
+  const ensureCameraAndMic = async (): Promise<boolean> => {
+    if (Platform.OS !== "android") return true;
+    const res = await PermissionsAndroid.requestMultiple([
+      PermissionsAndroid.PERMISSIONS.CAMERA,
+      PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+    ]);
+    const cam = res[PermissionsAndroid.PERMISSIONS.CAMERA];
+    const mic = res[PermissionsAndroid.PERMISSIONS.RECORD_AUDIO];
+    return cam === PermissionsAndroid.RESULTS.GRANTED && mic === PermissionsAndroid.RESULTS.GRANTED;
+  };
+
+  const recordVideoCircle = async () => {
+    setShowAttachMenu(false);
+    const ok = await ensureCameraAndMic();
+    if (!ok) {
+      setErr("Нужны разрешения камеры и микрофона для видео");
+      return;
+    }
+    void launchCamera(
+      {
+        mediaType: "video",
+        cameraType: "front",
+        durationLimit: 60,
+        videoQuality: "medium",
+        saveToPhotos: false,
+      },
+      (res) => {
+        if (res.didCancel) return;
+        if (res.errorCode || res.errorMessage) {
+          setErr(res.errorMessage ?? "Не удалось открыть камеру");
+          return;
+        }
+        void uploadVideoFromAsset(res.assets?.[0]);
+      },
+    );
+  };
+
   const ensureMic = async () => {
     if (Platform.OS === "android") {
       const g = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
@@ -277,6 +438,14 @@ export function ChatScreen({ route, navigation }: Props) {
 
   const startVoice = async () => {
     setShowAttachMenu(false);
+    setActiveVideoMsgId(null);
+    await audioPlayer.stopPlayer();
+    try {
+      audioPlayer.removePlayBackListener();
+    } catch {
+      /* noop */
+    }
+    setPlayingVoiceId(null);
     const ok = await ensureMic();
     if (!ok) {
       setErr("Нет разрешения на микрофон");
@@ -371,21 +540,65 @@ export function ChatScreen({ route, navigation }: Props) {
             keyExtractor={(m, index) => `${m.id}__${index}`}
             renderItem={({ item: m }) => {
               const mine = m.sender === "me";
+              const mediaUri = resolveMsgMediaUrl(m.mediaUrl);
               const bubble = (
-                <View style={[styles.bubIn, m.type === "image" ? styles.bubImg : null]}>
+                <View style={[styles.bubIn, m.type === "image" || m.type === "video" ? styles.bubImg : null]}>
                   {m.text ? (
                     <Text style={[styles.t, mine && styles.tMine]}>{m.text}</Text>
                   ) : null}
-                  {m.type === "image" && m.mediaUrl ? (
-                    <Image source={{ uri: m.mediaUrl }} style={styles.img} resizeMode="cover" />
+                  {m.type === "image" && mediaUri ? (
+                    <Image source={{ uri: mediaUri }} style={styles.img} resizeMode="cover" />
                   ) : null}
-                  {m.type === "voice" && m.mediaUrl ? (
-                    <ScalePressable onPress={() => void Linking.openURL(m.mediaUrl!)} style={styles.voiceL}>
-                      <Text style={[styles.voiceLtxt, mine && styles.tMine]}>▶ {m.duration || "аудио"}</Text>
+                  {m.type === "voice" && mediaUri ? (
+                    <ScalePressable
+                      onPress={() => void toggleVoicePlayback(m)}
+                      style={[styles.voiceBubble, mine ? styles.voiceBubbleMine : styles.voiceBubbleThem]}
+                    >
+                      <Text style={[styles.voicePlay, mine && styles.voicePlayOnMine]}>
+                        {playingVoiceId === m.id ? "■" : "▶"}
+                      </Text>
+                      <Text style={[styles.voiceDur, mine && styles.tMine]} numberOfLines={1}>
+                        {m.duration ?? "0:00"}
+                      </Text>
                     </ScalePressable>
                   ) : null}
-                  {m.type === "video" && m.mediaUrl ? (
-                    <Text style={[styles.t, mine && styles.tMine]}>Видео: откройте ссылку</Text>
+                  {m.type === "video" && mediaUri ? (
+                    <View style={styles.videoCircleWrap}>
+                      <RNVideo
+                        source={{ uri: mediaUri }}
+                        style={styles.videoCircleVideo}
+                        resizeMode="cover"
+                        paused={activeVideoMsgId !== m.id}
+                        repeat={false}
+                        ignoreSilentSwitch="ignore"
+                        playInBackground={false}
+                        playWhenInactive={false}
+                        onEnd={() => setActiveVideoMsgId((id) => (id === m.id ? null : id))}
+                      />
+                      <Pressable
+                        style={styles.videoCircleHit}
+                        onPress={() => {
+                          void (async () => {
+                            await audioPlayer.stopPlayer();
+                            try {
+                              audioPlayer.removePlayBackListener();
+                            } catch {
+                              /* noop */
+                            }
+                            setPlayingVoiceId(null);
+                            setActiveVideoMsgId((cur) => (cur === m.id ? null : m.id));
+                          })();
+                        }}
+                        accessibilityRole="button"
+                        accessibilityLabel={activeVideoMsgId === m.id ? "Пауза" : "Воспроизвести видео"}
+                      >
+                        {activeVideoMsgId !== m.id ? (
+                          <View style={styles.videoPlayBadge}>
+                            <Text style={styles.videoPlayIcon}>▶</Text>
+                          </View>
+                        ) : null}
+                      </Pressable>
+                    </View>
                   ) : null}
                   <Text style={[styles.time, mine ? styles.timeMine : styles.timeThem]}>{m.time}</Text>
                 </View>
@@ -475,13 +688,19 @@ export function ChatScreen({ route, navigation }: Props) {
                   </ScalePressable>
                   <ScalePressable
                     style={styles.attachRow}
-                    onPress={() => {
-                      setShowAttachMenu(false);
-                      Alert.alert("Видео", "Запись видео-кружка в мобильном клиенте появится в следующей версии.");
-                    }}
+                    onPress={() => void recordVideoCircle()}
+                    disabled={sending || recording}
                   >
                     <Video size={18} color="#ef4444" />
-                    <Text style={styles.attachTxt}>Видео кружочек</Text>
+                    <Text style={styles.attachTxt}>Записать кружок (камера)</Text>
+                  </ScalePressable>
+                  <ScalePressable
+                    style={styles.attachRow}
+                    onPress={() => void sendVideoFromGallery()}
+                    disabled={sending || recording}
+                  >
+                    <ImageIcon size={18} color="#c2410c" />
+                    <Text style={styles.attachTxt}>Видео из галереи</Text>
                   </ScalePressable>
                   <ScalePressable style={styles.attachRow} onPress={() => void startVoice()} disabled={sending || recording}>
                     <Mic size={18} color="#ef4444" />
@@ -605,7 +824,58 @@ const styles = StyleSheet.create({
   time: { fontSize: 11, marginTop: 6 },
   timeMine: { color: "rgba(255,255,255,0.75)" },
   timeThem: { color: "#a8a29e" },
-  img: { width: 220, height: 220, borderRadius: 12, marginTop: 4 },
+  img: { width: 220, height: 220, borderRadius: 12, marginTop: 4, backgroundColor: "#f5f5f4" },
+  videoCircleWrap: {
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    marginTop: 6,
+    alignSelf: "center",
+    overflow: "hidden",
+    backgroundColor: "#1c1917",
+  },
+  videoCircleVideo: {
+    width: 220,
+    height: 220,
+  },
+  videoCircleHit: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  videoPlayBadge: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  videoPlayIcon: { color: "#fff", fontSize: 22, marginLeft: 3 },
+  voiceBubble: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    backgroundColor: "rgba(125, 211, 252, 0.35)",
+    alignSelf: "flex-start",
+    maxWidth: 260,
+  },
+  voiceBubbleMine: {
+    backgroundColor: "rgba(255,255,255,0.22)",
+  },
+  voiceBubbleThem: {},
+  voicePlay: {
+    fontSize: 16,
+    color: "#0369a1",
+    width: 22,
+    textAlign: "center",
+  },
+  voicePlayOnMine: { color: "#fff" },
+  voiceDur: { fontSize: 14, color: "#0c4a6e", fontWeight: "600", flex: 1 },
   recBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -740,6 +1010,4 @@ const styles = StyleSheet.create({
   giftEm: { fontSize: 28, marginBottom: 4 },
   giftName: { fontSize: 13, fontWeight: "700", color: "#c2410c", textAlign: "center" },
   giftPrice: { fontSize: 11, color: "#78716c", marginTop: 2 },
-  voiceL: { marginTop: 4 },
-  voiceLtxt: { color: "#1d4ed8", textDecorationLine: "underline", fontSize: 14 },
 });

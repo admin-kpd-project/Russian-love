@@ -23,6 +23,8 @@ export interface ProfileResponse {
     maxAge: number;
     maxDistance: number;
   };
+  /** user | admin | moderator | support */
+  role?: string;
 }
 
 export interface AuthResponse {
@@ -40,6 +42,7 @@ export interface RegisterRequest {
   agreeToPrivacy: boolean;
   agreeToTerms: boolean;
   agreeToOffer: boolean;
+  agreeToAge18: boolean;
   name: string;
   birthDate: string;
   gender: "male" | "female";

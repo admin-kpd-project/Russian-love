@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Heart, User, MessageCircle, Flame, QrCode, Bookmark } from "lucide-react";
+import { Heart, User, MessageCircle, Flame, QrCode, Bookmark, Shield } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useNavigate } from "react-router";
 import matreshkaLogo from "../../imports/1775050275_(1)_3_(1)-1.png";
@@ -213,6 +213,17 @@ export function MainApp() {
             </div>
           </div>
           <div className="flex items-end gap-2 sm:gap-3 flex-shrink-0">
+            {authUser &&
+              ["admin", "moderator", "support"].includes(authUser.role ?? "") && (
+                <button
+                  type="button"
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors active:scale-95 flex items-center justify-center"
+                  onClick={() => navigate("/admin")}
+                  title="Админ-панель"
+                >
+                  <Shield className="size-5 sm:size-6 text-amber-700" />
+                </button>
+              )}
             <button 
               className="p-2 hover:bg-gray-100 rounded-full transition-colors active:scale-95 flex items-center justify-center"
               onClick={() => setShowProfile(true)}

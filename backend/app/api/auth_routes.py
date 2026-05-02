@@ -68,6 +68,11 @@ async def register(body: RegisterBody, db: AsyncSession = Depends(get_db)):
             status_code=400,
             content=Envelope.err("Необходимо согласие с условиями"),
         )
+    if not body.agree_adult:
+        return JSONResponse(
+            status_code=400,
+            content=Envelope.err("Подтвердите, что вам исполнилось 18 лет"),
+        )
     if not _is_adult(body.birth_date):
         return JSONResponse(
             status_code=400,

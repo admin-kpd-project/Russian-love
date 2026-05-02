@@ -21,6 +21,7 @@ def _register(client: TestClient, prefix: str) -> tuple[str, str]:
             "agreeToPrivacy": True,
             "agreeToTerms": True,
             "agreeToOffer": True,
+            "agreeToAge18": True,
         },
     )
     assert r.status_code == 201, r.text

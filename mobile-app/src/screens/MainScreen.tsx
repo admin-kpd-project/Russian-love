@@ -176,6 +176,7 @@ export function MainScreen() {
       title: p.name,
       avatarUrl: p.photo,
       prefilledMessage,
+      peerUserId: String(p.id),
     });
   };
 
@@ -190,6 +191,7 @@ export function MainScreen() {
         conversationId: params.conversationId,
         title: params.userName,
         avatarUrl: params.userAvatar,
+        peerUserId: params.peerUserId,
       });
       return;
     }
@@ -200,13 +202,19 @@ export function MainScreen() {
         conversationId: r.data.id,
         title: params.userName,
         avatarUrl: params.userAvatar,
+        peerUserId: params.peerUserId,
       });
     }
   };
 
   const openChatFromList = (item: ConversationListItem) => {
     setShowChats(false);
-    navigation.navigate("Chat", { conversationId: item.id, title: item.name, avatarUrl: item.avatar });
+    navigation.navigate("Chat", {
+      conversationId: item.id,
+      title: item.name,
+      avatarUrl: item.avatar,
+      peerUserId: item.peerUserId,
+    });
   };
 
   const compatForProfile = (p: UserProfile) => {

@@ -6,7 +6,14 @@ export type RootStackParamList = {
   Login: undefined;
   Register: { inviterId?: string } | undefined;
   Main: undefined;
-  Chat: { conversationId: string; title: string; avatarUrl?: string; prefilledMessage?: string };
+  Chat: {
+    conversationId: string;
+    title: string;
+    avatarUrl?: string;
+    prefilledMessage?: string;
+    peerUserId?: string;
+  };
+  Support: undefined;
   /** Диплинк как /scan/:userId */
   ScanProfile: { userId: string };
   /** Диплинк как /invite/:inviterId */

@@ -54,3 +54,18 @@ async def get_current_completed_user(
             detail="PROFILE_INCOMPLETE",
         )
     return user
+
+
+def require_roles(*allowed_roles: str):
+    """Staff-only: user.user_role must be one of allowed_roles."""
+
+    async def _dep(user: User = Depends(get_current_user)) -> User:
+        role = getattr(user, "user_role", None) or "user"
+        if role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Недостаточно прав",
+            )
+        return user
+
+    return _dep

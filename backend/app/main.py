@@ -9,7 +9,18 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from app.api import auth_routes, chat_routes, feed_routes, payments_routes, social_routes, upload_routes, users_routes
+from app.api import (
+    admin_routes,
+    auth_routes,
+    chat_routes,
+    feed_routes,
+    payments_routes,
+    reports_routes,
+    social_routes,
+    upload_routes,
+    user_support_routes,
+    users_routes,
+)
 from app.config.settings import get_settings
 from app.core.envelope import Envelope
 from app.core.rate_limit import allow_request
@@ -117,3 +128,6 @@ app.include_router(upload_routes.router)
 app.include_router(feed_routes.router)
 app.include_router(social_routes.router)
 app.include_router(payments_routes.router)
+app.include_router(user_support_routes.router)
+app.include_router(reports_routes.router)
+app.include_router(admin_routes.router)

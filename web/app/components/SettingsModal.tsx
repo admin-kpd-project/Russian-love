@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import { X, Bell, Shield, MapPin, UsersRound, Globe, Trash2, ChevronRight, QrCode, Sparkles, AlertTriangle } from "lucide-react";
 import { UserGuideModal } from "./UserGuideModal";
@@ -39,6 +40,7 @@ const REGIONS_CITIES = {
 type SearchMode = "distance" | "city" | "both";
 
 export function SettingsModal({ onClose }: SettingsModalProps) {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState(true);
   const [privateProfile, setPrivateProfile] = useState(false);
   const [searchMode, setSearchMode] = useState<SearchMode>("distance");
@@ -334,6 +336,17 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
 
           {/* Account Actions */}
           <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                navigate("/support");
+              }}
+              className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors"
+            >
+              <span className="text-gray-700 font-medium">Поддержка</span>
+              <ChevronRight className="size-5 text-gray-400" />
+            </button>
             <button
               onClick={() => setShowUserGuide(true)}
               className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors"

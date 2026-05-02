@@ -29,6 +29,7 @@ class ProfileResponse(BaseModel):
     superLikesBalance: int = 0
     hasUnlimitedAnalysis: bool = False
     purchasedAnalysisUserIds: list[str] = []
+    role: str = "user"
 
     model_config = {"populate_by_name": True}
 
@@ -73,6 +74,7 @@ def user_to_profile(u: User) -> ProfileResponse:
         superLikesBalance=int(getattr(u, "super_likes_balance", 5) or 0),
         hasUnlimitedAnalysis=bool(getattr(u, "has_unlimited_analysis", False)),
         purchasedAnalysisUserIds=pids,
+        role=str(getattr(u, "user_role", None) or "user"),
     )
 
 
@@ -102,6 +104,7 @@ class RegisterBody(BaseModel):
     agree_privacy: bool | None = Field(default=None, alias="agreeToPrivacy")
     agree_terms: bool | None = Field(default=None, alias="agreeToTerms")
     agree_offer: bool | None = Field(default=None, alias="agreeToOffer")
+    agree_adult: bool = Field(alias="agreeToAge18")
     name: str = Field(min_length=1, max_length=200)
     birth_date: date = Field(alias="birthDate")
     gender: str

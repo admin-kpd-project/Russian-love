@@ -17,6 +17,7 @@ export const rootLinking: LinkingOptions<RootStackParamList> = {
       Invite: "invite/:inviterId",
       /** orderId чаще в query (?orderId=) — экран дополнительно читает URL через Linking */
       PaymentConfirm: "payment/confirm",
+      Support: "support",
     },
   },
 };
