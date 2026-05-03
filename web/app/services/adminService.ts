@@ -43,11 +43,11 @@ export async function createAdminPublicUser(body: {
 }
 
 export async function getAdminStats(): Promise<ApiResponse<AdminStats>> {
-  return apiFetch<AdminStats>("/api/admin/stats", {}, adminReadPublic);
+  return withPublicThenPrivateFallback<AdminStats>("/api/admin/stats");
 }
 
 export async function listAdminTickets(): Promise<ApiResponse<AdminTicket[]>> {
-  return apiFetch<AdminTicket[]>("/api/admin/tickets", {}, adminReadPublic);
+  return withPublicThenPrivateFallback<AdminTicket[]>("/api/admin/tickets");
 }
 
 export async function patchAdminTicket(
@@ -61,7 +61,7 @@ export async function patchAdminTicket(
 }
 
 export async function listAdminReports(): Promise<ApiResponse<AdminReport[]>> {
-  return apiFetch<AdminReport[]>("/api/admin/reports", {}, adminReadPublic);
+  return withPublicThenPrivateFallback<AdminReport[]>("/api/admin/reports");
 }
 
 export async function patchAdminReport(

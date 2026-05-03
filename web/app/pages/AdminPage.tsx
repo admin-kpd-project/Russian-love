@@ -27,6 +27,18 @@ function canSeeReports(role: string | undefined) {
   return role && MOD.includes(role as (typeof MOD)[number]);
 }
 
+function isAuthDenied(error: string | null): boolean {
+  if (!error) return false;
+  const e = error.toLowerCase();
+  return (
+    e.includes("http 401") ||
+    e.includes("http 403") ||
+    e.includes("требуется вход") ||
+    e.includes("not authenticated") ||
+    e.includes("недостаточно прав")
+  );
+}
+
 type AdminTab = "overview" | "apk" | "tickets" | "reports" | "users";
 
 export function AdminPage() {
@@ -61,9 +73,17 @@ export function AdminPage() {
     setLoading(true);
     setErr(null);
     const s = await getAdminStats();
-    const tk = await listAdminTickets();
-    if (s.error) setErr(s.error);
+    if (s.error) {
+      setErr(s.error);
+      // If admin public mode is disabled and there is no valid session,
+      // avoid cascading the same 401/403 errors for every tab request.
+      if (isAuthDenied(s.error)) {
+        setLoading(false);
+        return;
+      }
+    }
     else if (s.data) setStats(s.data);
+    const tk = await listAdminTickets();
     if (tk.data) setTickets(tk.data);
     if (canReportsTab) {
       const rp = await listAdminReports();
