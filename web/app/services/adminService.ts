@@ -101,10 +101,17 @@ function isAuthError(error: string | null): boolean {
 }
 
 async function withPublicThenPrivateFallback<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
+  const hasToken = !!tokenStorage.getAccessToken();
+  // Prefer authenticated request first when user already has a session:
+  // this avoids noisy "public 401 -> private 403" chains in admin logs.
+  if (hasToken) {
+    const privateResult = await apiFetch<T>(endpoint, options);
+    if (!isAuthError(privateResult.error)) return privateResult;
+    return privateResult;
+  }
   const publicResult = await apiFetch<T>(endpoint, options, adminReadPublic);
   if (!isAuthError(publicResult.error)) return publicResult;
-  if (!tokenStorage.getAccessToken()) return publicResult;
-  return apiFetch<T>(endpoint, options);
+  return publicResult;
 }
 
 export async function getAdminMobileApk(): Promise<ApiResponse<MobileApkSetting>> {

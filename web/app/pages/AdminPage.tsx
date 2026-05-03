@@ -173,7 +173,12 @@ export function AdminPage() {
             <p className="text-sm text-amber-900 font-medium mb-2">
               Временный вход в админку по коду
             </p>
-            <div className="flex flex-wrap gap-2 items-center">
+            <form
+              className="flex flex-wrap gap-2 items-center"
+              onSubmit={(e) => {
+                e.preventDefault();
+              }}
+            >
               <input
                 type="password"
                 placeholder="Код доступа"
@@ -197,7 +202,14 @@ export function AdminPage() {
                   setAdminCodeBusy(true);
                   const r = await loginByAdminCode({ code });
                   if (r.error || !r.data) {
-                    setAdminCodeErr(r.error || "Не удалось авторизоваться.");
+                    const e = (r.error || "").toLowerCase();
+                    if (e.includes("http 404") || e.includes("not found")) {
+                      setAdminCodeErr(
+                        "Эндпоинт /api/auth/admin-code-login не найден на сервере. Нужен деплой свежего backend."
+                      );
+                    } else {
+                      setAdminCodeErr(r.error || "Не удалось авторизоваться.");
+                    }
                     setAdminCodeBusy(false);
                     return;
                   }
@@ -210,7 +222,7 @@ export function AdminPage() {
               >
                 {adminCodeBusy ? "Вход..." : "Войти как admin"}
               </button>
-            </div>
+            </form>
             {adminCodeErr ? <p className="text-xs text-red-600 mt-2">{adminCodeErr}</p> : null}
             {adminCodeMsg ? <p className="text-xs text-green-700 mt-2">{adminCodeMsg}</p> : null}
           </div>
