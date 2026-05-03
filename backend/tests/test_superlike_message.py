@@ -52,7 +52,9 @@ def test_superlike_message_in_notifications(client: TestClient):
     assert super_items, items
     top = super_items[0]
     assert top.get("superMessage") == note
-    assert note in (top.get("message") or "")
+    # Текст к суперлайку только в superMessage; message — короткая строка без дублирования.
+    assert note not in (top.get("message") or "")
+    assert "суперлайк" in (top.get("message") or "").lower()
 
     dup = client.post(
         "/api/superlikes",
