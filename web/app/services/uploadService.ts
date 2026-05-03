@@ -100,6 +100,9 @@ export async function uploadFileToS3(
     });
 
     if (!response.ok) {
+      if (response.status === 413) {
+        return { url: null, error: "Файл слишком большой для сервера загрузки (HTTP 413). Обратитесь к администратору для увеличения лимита." };
+      }
       return { url: null, error: `Ошибка загрузки в хранилище (HTTP ${response.status})` };
     }
     return { url: null, error: null };

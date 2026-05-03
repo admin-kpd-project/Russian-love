@@ -12,16 +12,21 @@ export function LandingPage() {
   const [showAuth, setShowAuth] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState<"login" | "register">("register");
   const envApkUrl = (import.meta.env.VITE_APP_DOWNLOAD_URL ?? "").trim();
+  const defaultApkUrl = "/api/public/mobile-apk/file";
   const [mobileApkFromApi, setMobileApkFromApi] = useState("");
   useEffect(() => {
     void (async () => {
-      const r = await getPublicMobileApk();
-      const u = (r.data?.downloadUrl ?? "").trim();
-      if (u) setMobileApkFromApi(u);
+      try {
+        const r = await getPublicMobileApk();
+        const u = (r.data?.downloadUrl ?? "").trim();
+        if (u) setMobileApkFromApi(u);
+      } catch {
+        // Leave fallback URL below if public endpoint is unavailable.
+      }
     })();
   }, []);
   /** Сначала ссылка из админки (БД), иначе запасной VITE_APP_DOWNLOAD_URL. */
-  const resolvedApkUrl = (mobileApkFromApi || envApkUrl).trim();
+  const resolvedApkUrl = (mobileApkFromApi || envApkUrl || defaultApkUrl).trim();
 
   const openRegister = () => {
     setAuthInitialMode("register");
