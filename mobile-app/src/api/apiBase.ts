@@ -30,7 +30,7 @@ function preferHttpsForForrussStaging(url: string): string {
 }
 
 export function normalizeApiBase(s: string): string {
-  let t = s.trim();
+  let t = s.trim().replace(/[\u200B-\u200D\uFEFF]/g, "");
   if (!t) return "";
   t = t.replace(/\/+$/, "");
   if (!/^https?:\/\//i.test(t)) {

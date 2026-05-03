@@ -8,6 +8,10 @@ const REFRESH = "@rl_refresh";
 
 const DEFAULT_API_FETCH_TIMEOUT_MS = 45_000;
 
+/** Как мобильный Chrome — иначе часть WAF/ALPN рвёт соединение, хотя /health в браузере открывается. */
+const API_USER_AGENT =
+  "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
+
 function isLocalDevApiHost(hostname: string): boolean {
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "10.0.2.2";
 }
@@ -24,6 +28,21 @@ function devStackHeadersForBase(base: string): Record<string, string> {
     }
   }
   return {};
+}
+
+/** Часть WAF ожидает «браузерный» контекст; Chrome к /api открывается с главной origin. */
+function xhrStyleHeadersForPublicApi(base: string): Record<string, string> {
+  try {
+    const host = new URL(base).hostname;
+    if (isLocalDevApiHost(host)) return {};
+    const origin = new URL(base).origin;
+    return {
+      Referer: `${origin}/`,
+      "X-Requested-With": "XMLHttpRequest",
+    };
+  } catch {
+    return {};
+  }
 }
 
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
@@ -95,6 +114,8 @@ async function tryRefresh(): Promise<boolean> {
   if (!base) return false;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
+    Accept: "application/json",
+    "User-Agent": API_USER_AGENT,
     ...devStackHeadersForBase(base),
   };
   let r: Response;
@@ -141,9 +162,10 @@ export async function apiFetch<T>(
     const headers: Record<string, string> = {
       ...(init.headers as Record<string, string> | undefined),
       ...devStackHeadersForBase(base),
+      ...xhrStyleHeadersForPublicApi(base),
     };
     if (!headers.Accept) headers.Accept = "application/json";
-    if (!headers["User-Agent"]) headers["User-Agent"] = "RussianLoveApp/1 (Android; React Native)";
+    if (!headers["User-Agent"]) headers["User-Agent"] = API_USER_AGENT;
     const hasBody = init.body != null;
     if (hasBody && !headers["Content-Type"] && !(init.body instanceof FormData)) {
       headers["Content-Type"] = "application/json";

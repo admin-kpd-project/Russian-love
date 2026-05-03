@@ -1,8 +1,10 @@
 # Скопируйте в local.properties (не коммитить) или добавьте в существующий local.properties.
-# Сборка прокидывает значение в BuildConfig — приложение увидит дефолт без ввода на экране.
-# Staging (как в src/config.ts API_URL_FALLBACK_JS):
+# Сборка прокидывает значение в BuildConfig — приложение увидит дефолт без ввода на экране (приоритет выше JS-fallback).
+# Статический стенд (как в src/config.ts API_URL_FALLBACK_JS по умолчанию):
+# API_BASE_URL=http://81.26.181.58:8080
+# Эмулятор → API на этом же ПК (uvicorn 8000 или nginx 8080):
+# API_BASE_URL=http://10.0.2.2:8000
+# Staging HTTPS:
 # API_BASE_URL=https://dev.forruss.ru
-# Эмулятор → API на ПК:
-# API_BASE_URL=http://10.0.2.2:8080
 
 API_BASE_URL=

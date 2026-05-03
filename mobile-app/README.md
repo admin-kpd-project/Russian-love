@@ -11,23 +11,28 @@
    В каталоге `android` создайте или отредактируйте **`local.properties`** (файл обычно в `.gitignore`):
 
    ```properties
-   API_BASE_URL=http://10.0.2.2:8080
+   # uvicorn на ПК — чаще 8000; если фронт через nginx — 8080
+   API_BASE_URL=http://10.0.2.2:8000
    ```
 
    Скопируйте шаблон из [`android/local.properties.example`](android/local.properties.example).  
    Значение попадает в `BuildConfig` и в JS как `NativeModules.RNNativeApiConfig.defaultApiBase` (см. `getApiBaseUrl` в `src/api/apiBase.ts`).
 
 3. **JS-fallback**  
-   В [`src/config.ts`](src/config.ts): **`API_URL_FALLBACK_JS`** по умолчанию указывает на staging **`https://dev.forruss.ru`** (можно сменить на `""` или `http://10.0.2.2:8080` для чисто локального API). **`WEB_PUBLIC_BASE_URL`** — тот же dev для QR; на проде замените на `https://forruss.ru`.
+   В [`src/config.ts`](src/config.ts): **`API_URL_FALLBACK_JS`** по умолчанию — **`http://81.26.181.58:8080`** (статический стенд, удобно с эмулятора). Для только локального API: `http://10.0.2.2:8000` или `:8080`. Staging: `https://dev.forruss.ru`. **`WEB_PUBLIC_BASE_URL`** по умолчанию пустой — для QR берётся origin от базы API; для прод-ссылок задайте `https://forruss.ru`.
 
 ## Подсказки по сети
 
 | Сценарий | Пример base URL |
 |----------|-----------------|
-| Эмулятор, API на `localhost:8080` на ПК | `http://10.0.2.2:8080` |
+| Эмулятор, API на `localhost` на ПК (uvicorn) | `http://10.0.2.2:8000` |
+| Эмулятор, только nginx на ПК `:8080` | `http://10.0.2.2:8080` |
+| Эмулятор / телефон, статический стенд | `http://81.26.181.58:8080` (дефолт в `config.ts`) |
 | Телефон в Wi‑Fi, API на ПК | `http://<LAN-IP_ПК>:8080` |
 | USB, `adb reverse tcp:8080 tcp:8080` | `http://127.0.0.1:8080` |
 | Прод | `https://api.ваш-домен` (валидный TLS) |
+
+- Если после смены дефолта в `config.ts` всё ещё не тот сервер — в приложении уже мог быть сохранён старый URL (**«Сервер»** → вставьте нужный base, или **очистка данных** приложения / переустановка сбросит AsyncStorage).
 
 - **Debug-сборка** (`src/debug/AndroidManifest.xml`): разрешён **cleartext HTTP** — удобно для LAN. **Release** собирается без `src/debug/`, cleartext по умолчанию **выключен** — для проды нужен **HTTPS** (или своя `networkSecurityConfig`).
 
