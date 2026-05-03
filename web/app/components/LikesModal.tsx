@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Heart, Sparkles, Star } from "lucide-react";
 import { motion } from "motion/react";
 import { ModalShell } from "./ui/modal-shell";
+import { normalizeAssetUrlForHttps } from "../utils/mediaUrl";
 
 interface Profile {
   id: number | string;
@@ -85,7 +86,7 @@ export function LikesModal({ onClose, likedEntries, onOpenProfile }: LikesModalP
                 >
                   <div className="relative shrink-0">
                     <img
-                      src={profile.photo}
+                      src={normalizeAssetUrlForHttps(profile.photo)}
                       alt={profile.name}
                       className={`size-20 rounded-xl object-cover ${isSuperLike ? "ring-2 ring-sky-400 ring-offset-2" : ""}`}
                     />

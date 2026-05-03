@@ -3,6 +3,7 @@ import { X, Sparkles, Heart, MapPin } from "lucide-react";
 import { ScanEvent, markScanEventAsViewed } from "../utils/scanEvents";
 import { UserProfileModal } from "./UserProfileModal";
 import { useState } from "react";
+import { normalizeAssetUrlForHttps } from "../utils/mediaUrl";
 
 interface ScanNotificationCardProps {
   scanEvent: ScanEvent;
@@ -63,7 +64,7 @@ export function ScanNotificationCard({ scanEvent, onClose }: ScanNotificationCar
       {/* Profile Image */}
       <div className="relative h-80">
         <img
-          src={scannerProfile.photo}
+          src={normalizeAssetUrlForHttps(scannerProfile.photo)}
           alt={scannerProfile.name}
           className="w-full h-full object-cover"
         />

@@ -2,6 +2,7 @@ import { motion } from "motion/react";
 import { Heart, MessageCircle, MapPin, Briefcase, BookOpen, Bookmark } from "lucide-react";
 import { User } from "../types";
 import { useState, forwardRef } from "react";
+import { normalizeAssetUrlForHttps } from "../utils/mediaUrl";
 import { useFavorites } from "../contexts/FavoritesContext";
 
 interface FavoriteCardProps {
@@ -41,7 +42,7 @@ export const FavoriteCard = forwardRef<HTMLDivElement, FavoriteCardProps>(
         <div className="relative aspect-[3/4] overflow-hidden bg-gradient-to-br from-red-100 to-amber-100">
           {!imageError && user.photos && user.photos.length > 0 && user.photos[0] ? (
             <img
-              src={user.photos[0]}
+              src={normalizeAssetUrlForHttps(user.photos[0])}
               alt={user.name}
               className="w-full h-full object-cover"
               onError={() => setImageError(true)}

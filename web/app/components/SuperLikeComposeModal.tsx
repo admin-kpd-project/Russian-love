@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Star, Send } from "lucide-react";
 import { ModalShell } from "./ui/modal-shell";
+import { normalizeAssetUrlForHttps } from "../utils/mediaUrl";
 
 const MAX = 500;
 
@@ -37,7 +38,11 @@ export function SuperLikeComposeModal({ open, peerName, peerPhoto, onClose, onSe
         <div className="min-h-0 flex-1 overflow-y-auto modal-scroll p-5">
           <div className="flex items-center gap-3 rounded-2xl border border-sky-100 bg-sky-50/60 p-3">
             {peerPhoto ? (
-              <img src={peerPhoto} alt="" className="size-14 shrink-0 rounded-xl object-cover ring-2 ring-white" />
+              <img
+                src={normalizeAssetUrlForHttps(peerPhoto)}
+                alt=""
+                className="size-14 shrink-0 rounded-xl object-cover ring-2 ring-white"
+              />
             ) : (
               <div className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-sky-200/80 text-sky-800">
                 <Star className="size-7 fill-white text-white" />

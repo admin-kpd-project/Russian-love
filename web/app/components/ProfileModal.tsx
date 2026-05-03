@@ -3,6 +3,7 @@ import { X, MapPin, Cake, Mail, Heart, Sparkles, QrCode, LogOut, Camera } from "
 import { currentUser } from "../utils/compatibilityAI";
 import { Badge } from "./ui/badge";
 import { ModalShell } from "./ui/modal-shell";
+import { normalizeAssetUrlForHttps } from "../utils/mediaUrl";
 
 interface ProfileModalProps {
   onClose: () => void;
@@ -101,7 +102,7 @@ export function ProfileModal({ onClose, onOpenQR, onOpenSettings, onLogout }: Pr
           <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 z-10">
             <div className="relative size-24 sm:size-28 rounded-full border-4 border-white shadow-xl overflow-hidden bg-white">
               <img
-                src={profilePhoto}
+                src={normalizeAssetUrlForHttps(profilePhoto)}
                 alt={currentUser.name}
                 className="w-full h-full object-cover"
               />

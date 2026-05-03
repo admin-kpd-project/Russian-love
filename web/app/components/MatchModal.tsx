@@ -6,6 +6,7 @@ import { Button } from "./ui/button";
 import { CompatibilityDetailsModal } from "./CompatibilityDetailsModal";
 import { EventsModal } from "./EventsModal";
 import { ModalShell } from "./ui/modal-shell";
+import { normalizeAssetUrlForHttps } from "../utils/mediaUrl";
 import { useState } from "react";
 
 interface MatchModalProps {
@@ -110,7 +111,7 @@ export function MatchModal({ profile, compatibility, onClose, onOpenChat, onReco
             {/* Profile Preview */}
             <div className="flex items-center gap-3 mb-4 p-3 sm:p-4 bg-gray-50 rounded-2xl">
               <img
-                src={profile.photo}
+                src={normalizeAssetUrlForHttps(profile.photo)}
                 alt={profile.name}
                 className="size-12 sm:size-14 rounded-full object-cover flex-shrink-0"
               />

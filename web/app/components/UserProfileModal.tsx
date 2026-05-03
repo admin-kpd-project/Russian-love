@@ -2,6 +2,7 @@ import { MapPin, Cake, Heart, Sparkles } from "lucide-react";
 import { UserProfile } from "../utils/compatibilityAI";
 import { Badge } from "./ui/badge";
 import { ModalShell } from "./ui/modal-shell";
+import { normalizeAssetUrlForHttps } from "../utils/mediaUrl";
 
 interface UserProfileModalProps {
   profile?: UserProfile;
@@ -34,7 +35,7 @@ export function UserProfileModal({ profile, user, onClose }: UserProfileModalPro
           <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 z-10">
             <div className="size-24 sm:size-28 rounded-full border-4 border-white shadow-xl overflow-hidden bg-white">
               <img
-                src={photoUrl}
+                src={normalizeAssetUrlForHttps(photoUrl)}
                 alt={userName}
                 className="w-full h-full object-cover"
               />

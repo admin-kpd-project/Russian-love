@@ -11,6 +11,7 @@ import {
   deleteConversation,
 } from "../services/conversationsService";
 import { ModalShell } from "./ui/modal-shell";
+import { normalizeAssetUrlForHttps } from "../utils/mediaUrl";
 
 interface Chat {
   id: string;
@@ -280,7 +281,7 @@ export function ChatsList({ onClose, onOpenChat }: ChatsListProps) {
                   
                   <div className="relative flex-shrink-0">
                     <img
-                      src={chat.avatar}
+                      src={normalizeAssetUrlForHttps(chat.avatar)}
                       alt={chat.name}
                       className="size-14 rounded-full object-cover"
                     />

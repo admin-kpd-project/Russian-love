@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import type { OpenChatParams } from "../types/chat";
 import { getNotifications, markNotificationsRead, type NotificationItem } from "../services/notificationsService";
 import { ModalShell } from "./ui/modal-shell";
+import { normalizeAssetUrlForHttps } from "../utils/mediaUrl";
 
 interface NotificationsModalProps {
   onClose: () => void;
@@ -119,7 +120,7 @@ export function NotificationsModal({ onClose, onOpenChat, onMarkedAllRead }: Not
                   <div className={`flex-shrink-0 size-12 rounded-full flex items-center justify-center ${getBackgroundColor(notification.type)}`}>
                     {notification.avatar ? (
                       <img
-                        src={notification.avatar}
+                        src={normalizeAssetUrlForHttps(notification.avatar)}
                         alt=""
                         className="size-12 rounded-full object-cover"
                       />

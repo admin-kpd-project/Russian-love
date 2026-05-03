@@ -7,6 +7,7 @@ import { uploadFile } from "../services/uploadService";
 import { profileStatsPlaceholder } from "../constants/profileDisplay";
 import { Badge } from "./ui/badge";
 import { ModalShell } from "./ui/modal-shell";
+import { normalizeAssetUrlForHttps } from "../utils/mediaUrl";
 
 interface ProfileSettingsModalProps {
   onClose: () => void;
@@ -147,7 +148,7 @@ export function ProfileSettingsModal({
             <div className="relative size-24 sm:size-28 overflow-hidden rounded-full border-4 border-white bg-white shadow-xl">
               {avatarUrl ? (
                 <img
-                  src={avatarUrl}
+                  src={normalizeAssetUrlForHttps(avatarUrl)}
                   alt={user.name}
                   className="h-full w-full object-cover"
                   onError={(e) => {

@@ -6,6 +6,7 @@ import { UserProfile, calculateCompatibility } from "../utils/compatibilityAI";
 import matreshkaLogo from "../../imports/1775050275_(1)_3_(1)-1.png";
 import { getCurrentUser, getUserById } from "../services/usersService";
 import { mapApiProfileToUserProfile } from "../utils/mapApiProfile";
+import { normalizeAssetUrlForHttps } from "../utils/mediaUrl";
 
 export function ScanProfile() {
   const { userId } = useParams<{ userId: string }>();
@@ -230,7 +231,7 @@ export function ScanProfile() {
           <div className="bg-white rounded-3xl overflow-hidden shadow-xl">
             <div className="relative h-96">
               <img
-                src={scannedUser.photo}
+                src={normalizeAssetUrlForHttps(scannedUser.photo)}
                 alt={scannedUser.name}
                 className="w-full h-full object-cover"
               />

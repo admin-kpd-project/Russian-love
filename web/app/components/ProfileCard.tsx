@@ -1,4 +1,5 @@
 import { Heart, X, MapPin, Briefcase, GraduationCap, Sparkles, AlertTriangle, Star } from "lucide-react";
+import { normalizeAssetUrlForHttps } from "../utils/mediaUrl";
 import { Badge } from "./ui/badge";
 
 interface ProfileCardProps {
@@ -29,7 +30,7 @@ export function ProfileCard({ profile, compatibility, superLikesRemaining, likes
       {/* Profile Image */}
       <div className="relative flex-1 min-h-0 overflow-hidden bg-gray-100">
         <img
-          src={profile.photo}
+          src={normalizeAssetUrlForHttps(profile.photo)}
           alt={profile.name}
           className="absolute inset-0 w-full h-full object-cover object-center"
           style={{ objectFit: 'cover' }}

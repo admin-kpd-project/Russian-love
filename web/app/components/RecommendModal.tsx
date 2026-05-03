@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { UsersRound, Send, Check } from "lucide-react";
 import { UserProfile } from "../utils/compatibilityAI";
+import { normalizeAssetUrlForHttps } from "../utils/mediaUrl";
 import { ModalShell } from "./ui/modal-shell";
 
 interface RecommendModalProps {
@@ -49,7 +50,7 @@ export function RecommendModal({ onClose, profileToRecommend, availableFriends }
             <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-red-50 to-amber-50 rounded-xl">
               <div className="size-14 rounded-full overflow-hidden flex-shrink-0">
                 <img
-                  src={profileToRecommend.photo}
+                  src={normalizeAssetUrlForHttps(profileToRecommend.photo)}
                   alt={profileToRecommend.name}
                   className="w-full h-full object-cover"
                 />
@@ -79,7 +80,7 @@ export function RecommendModal({ onClose, profileToRecommend, availableFriends }
                 >
                   <div className="size-12 rounded-full overflow-hidden flex-shrink-0">
                     <img
-                      src={friend.photo}
+                      src={normalizeAssetUrlForHttps(friend.photo)}
                       alt={friend.name}
                       className="w-full h-full object-cover"
                     />

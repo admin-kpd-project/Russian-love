@@ -12,6 +12,7 @@ import { getPaymentsStatus, initTbankPayment } from "../services/paymentsService
 import { getUserById } from "../services/usersService";
 import { ModalShell } from "./ui/modal-shell";
 import { formatPeerPresenceLabel } from "../utils/presenceLabel";
+import { normalizeAssetUrlForHttps } from "../utils/mediaUrl";
 
 interface ChatModalProps {
   onClose: () => void;
@@ -542,7 +543,7 @@ export function ChatModal({
         <div className="bg-gradient-to-r from-red-600 to-amber-500 px-4 sm:px-5 py-3 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <img
-              src={userAvatar}
+              src={normalizeAssetUrlForHttps(userAvatar)}
               alt={userName}
               className="size-10 rounded-full object-cover border-2 border-white flex-shrink-0"
             />
@@ -602,7 +603,7 @@ export function ChatModal({
                 {message.type === "image" && (
                   <div>
                     <img
-                      src={message.mediaUrl}
+                      src={normalizeAssetUrlForHttps(message.mediaUrl)}
                       alt="Shared"
                       className="rounded-xl max-w-full h-auto"
                     />
@@ -619,7 +620,7 @@ export function ChatModal({
                 {message.type === "voice" && message.mediaUrl && (
                   <div className="min-w-[200px] max-w-full">
                     <audio
-                      src={message.mediaUrl}
+                      src={normalizeAssetUrlForHttps(message.mediaUrl)}
                       controls
                       className="w-full max-w-[280px] h-9 [color-scheme:light]"
                       preload="metadata"
@@ -638,7 +639,7 @@ export function ChatModal({
                 {message.type === "video" && message.mediaUrl && (
                   <div>
                     <video
-                      src={message.mediaUrl}
+                      src={normalizeAssetUrlForHttps(message.mediaUrl)}
                       controls
                       className="rounded-xl max-w-full max-h-64 w-full"
                       playsInline

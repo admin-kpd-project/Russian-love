@@ -17,6 +17,7 @@ function getAdultMaxDate(): string {
 import { mapApiProfileToUserProfile } from "../utils/mapApiProfile";
 import { useAuth } from "../contexts/AuthContext";
 import { normalizeRuPhone } from "../utils/phone";
+import { normalizeAssetUrlForHttps } from "../utils/mediaUrl";
 
 export function InvitePage() {
   const { inviterId } = useParams<{ inviterId: string }>();
@@ -175,7 +176,7 @@ export function InvitePage() {
           <div className="p-8">
             <div className="flex justify-center mb-6">
               <img
-                src={inviterProfile.photo}
+                src={normalizeAssetUrlForHttps(inviterProfile.photo)}
                 alt={inviterProfile.name}
                 className="size-32 rounded-full object-cover border-4 border-gradient-to-r from-red-500 to-amber-500 shadow-xl"
               />
