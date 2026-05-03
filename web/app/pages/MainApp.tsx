@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Heart, User, MessageCircle, Flame, QrCode, Bookmark, Shield } from "lucide-react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { Heart, User, MessageCircle, Flame, QrCode, Bookmark, Shield, Bell } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useNavigate } from "react-router";
 import matreshkaLogo from "../../imports/1775050275_(1)_3_(1)-1.png";
@@ -12,6 +12,7 @@ import { ChatsList } from "../components/ChatsList";
 import { QRShareModal } from "../components/QRShareModal";
 import { ActionButtons } from "../components/ActionButtons";
 import { LikesModal } from "../components/LikesModal";
+import { SuperLikeBurstOverlay } from "../components/SuperLikeBurstOverlay";
 import { Favorites } from "../components/Favorites";
 import { SubscriptionModal } from "../components/SubscriptionModal";
 import { SettingsModal } from "../components/SettingsModal";
@@ -26,11 +27,31 @@ import { useFavorites } from "../contexts/FavoritesContext";
 import { useAuth } from "../contexts/AuthContext";
 import { calculateCompatibility, type UserProfile } from "../utils/compatibilityAI";
 import { getFeed } from "../services/feedService";
-import { createConversation } from "../services/conversationsService";
+import { createConversation, getConversations } from "../services/conversationsService";
 import { mapApiProfileToUserProfile } from "../utils/mapApiProfile";
 import type { OpenChatParams } from "../types/chat";
 import { tokenStorage } from "../services/api";
-import { sendLike, sendSuperLike } from "../services/socialService";
+import { sendLike, sendSuperLike, getMatches } from "../services/socialService";
+import { getNotifications } from "../services/notificationsService";
+
+function profileId(p: UserProfile): string {
+  return String(p.id);
+}
+
+type LikedEntry = { profile: UserProfile; isSuperLike: boolean };
+
+/** Один профиль в списке лайков; суперлайк помечает особый интерес и не дублирует строку. */
+function mergeLikedEntry(prev: LikedEntry[], p: UserProfile, isSuper: boolean): LikedEntry[] {
+  const id = profileId(p);
+  const idx = prev.findIndex((e) => profileId(e.profile) === id);
+  if (idx === -1) return [...prev, { profile: p, isSuperLike: isSuper }];
+  const cur = prev[idx];
+  const next: LikedEntry = {
+    profile: cur.profile,
+    isSuperLike: cur.isSuperLike || isSuper,
+  };
+  return [...prev.slice(0, idx), next, ...prev.slice(idx + 1)];
+}
 
 export function MainApp() {
   const navigate = useNavigate();
@@ -44,7 +65,7 @@ export function MainApp() {
   const [compatibility, setCompatibility] = useState<number[]>([]);
   const [showMatch, setShowMatch] = useState(false);
   const [matchedProfile, setMatchedProfile] = useState<UserProfile | null>(null);
-  const [history, setHistory] = useState<{ profile: UserProfile; liked: boolean }[]>([]);
+  const [history, setHistory] = useState<{ profile: UserProfile; liked: boolean; superLike?: boolean }[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showChats, setShowChats] = useState(false);
   const [showQR, setShowQR] = useState(false);
@@ -52,7 +73,9 @@ export function MainApp() {
   const [chatSession, setChatSession] = useState<OpenChatParams | null>(null);
   const [showLikes, setShowLikes] = useState(false);
   const [showFavorites, setShowFavorites] = useState(false);
-  const [likedProfiles, setLikedProfiles] = useState<UserProfile[]>([]);
+  const [likedEntries, setLikedEntries] = useState<LikedEntry[]>([]);
+  const [superLikeBurst, setSuperLikeBurst] = useState(false);
+  const superLikeInFlightRef = useRef(false);
   const [superLikesRemaining, setSuperLikesRemaining] = useState(5);
   const [showSubscription, setShowSubscription] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
@@ -68,6 +91,30 @@ export function MainApp() {
   const [hasUnlimitedAnalysis, setHasUnlimitedAnalysis] = useState(false);
   const [scanEvents, setScanEvents] = useState<any[]>([]);
   const [selectedLikedProfile, setSelectedLikedProfile] = useState<UserProfile | null>(null);
+  const [headerUnreadNotifications, setHeaderUnreadNotifications] = useState(0);
+  const [unreadChatsCount, setUnreadChatsCount] = useState(0);
+
+  const knownMatchIdsRef = useRef<Set<string> | null>(null);
+  const showMatchRef = useRef(false);
+  const showChatRef = useRef(false);
+  const selectedLikedProfileRef = useRef<UserProfile | null>(null);
+
+  useEffect(() => {
+    showMatchRef.current = showMatch;
+  }, [showMatch]);
+  useEffect(() => {
+    showChatRef.current = showChat;
+  }, [showChat]);
+  useEffect(() => {
+    selectedLikedProfileRef.current = selectedLikedProfile;
+  }, [selectedLikedProfile]);
+
+  const matchModalCompatibility = useMemo(() => {
+    if (!matchedProfile || !authUser) return 0;
+    const idx = profiles.findIndex((p) => String(p.id) === String(matchedProfile.id));
+    if (idx >= 0) return compatibility[idx] ?? 0;
+    return calculateCompatibility(mapApiProfileToUserProfile(authUser), matchedProfile);
+  }, [matchedProfile, authUser, profiles, compatibility]);
 
   useEffect(() => {
     let cancelled = false;
@@ -97,6 +144,7 @@ export function MainApp() {
 
   const handleSwipe = (liked: boolean) => {
     if (currentIndex >= profiles.length) return;
+    if (superLikeBurst || superLikeInFlightRef.current) return;
 
     const currentProfile = profiles[currentIndex];
     
@@ -104,7 +152,7 @@ export function MainApp() {
     setHistory(prev => [...prev, { profile: currentProfile, liked }]);
 
     if (liked) {
-      setLikedProfiles(prev => [...prev, currentProfile]);
+      setLikedEntries((prev) => mergeLikedEntry(prev, currentProfile, false));
       void (async () => {
         const res = await sendLike(String(currentProfile.id));
         if (res.error) {
@@ -112,6 +160,10 @@ export function MainApp() {
           return;
         }
         if (res.data?.matched) {
+          if (res.data.matchId) {
+            if (!knownMatchIdsRef.current) knownMatchIdsRef.current = new Set();
+            knownMatchIdsRef.current.add(res.data.matchId);
+          }
           setMatchedProfile(currentProfile);
           setShowMatch(true);
         }
@@ -123,25 +175,56 @@ export function MainApp() {
 
   const handleUndo = () => {
     if (history.length === 0) return;
-    
+    if (superLikeBurst || superLikeInFlightRef.current) return;
+
     const lastAction = history[history.length - 1];
-    setHistory(prev => prev.slice(0, -1));
-    setCurrentIndex(prev => prev - 1);
+    setHistory((prev) => prev.slice(0, -1));
+    setCurrentIndex((prev) => prev - 1);
+    if (lastAction.liked) {
+      const pid = profileId(lastAction.profile);
+      setLikedEntries((prev) => prev.filter((e) => profileId(e.profile) !== pid));
+    }
   };
 
   const handleSuperLike = () => {
     if (currentIndex >= profiles.length) return;
-    
-    // Send super like and show match
-    const currentProfile = profiles[currentIndex];
-    setLikedProfiles(prev => [...prev, currentProfile]);
-    void sendSuperLike(String(currentProfile.id));
-    setCurrentIndex(prev => prev + 1);
-    
-    // Decrease super likes only if not premium and has super likes
-    if (!isPremium && superLikesRemaining > 0) {
-      setSuperLikesRemaining(prev => prev - 1);
+    if (superLikeBurst || superLikeInFlightRef.current) return;
+    if (!isPremium && superLikesRemaining <= 0) {
+      setShowSuperLikeShop(true);
+      return;
     }
+
+    const currentProfile = profiles[currentIndex];
+    superLikeInFlightRef.current = true;
+    setSuperLikeBurst(true);
+
+    const t0 = Date.now();
+    void (async () => {
+      const res = await sendSuperLike(String(currentProfile.id));
+      const wait = Math.max(0, 720 - (Date.now() - t0));
+      await new Promise((r) => setTimeout(r, wait));
+
+      if (res.error) {
+        setSuperLikeBurst(false);
+        superLikeInFlightRef.current = false;
+        const msg = (res.error || "").toLowerCase();
+        if (msg.includes("нет суперлайков") || msg.includes("купите") || msg.includes("подписк")) {
+          setShowSuperLikeShop(true);
+        } else {
+          window.alert(res.error);
+        }
+        return;
+      }
+
+      const bal = res.data?.superLikesBalance;
+      if (typeof bal === "number") setSuperLikesRemaining(bal);
+
+      setLikedEntries((prev) => mergeLikedEntry(prev, currentProfile, true));
+      setHistory((h) => [...h, { profile: currentProfile, liked: true, superLike: true }]);
+      setCurrentIndex((i) => i + 1);
+      setSuperLikeBurst(false);
+      superLikeInFlightRef.current = false;
+    })();
   };
 
   const handlePurchaseSuperLikes = (amount: number) => {
@@ -180,6 +263,13 @@ export function MainApp() {
     setShowLikes(false);
   };
 
+  const refreshUnreadChats = useCallback(async () => {
+    const convRes = await getConversations();
+    if (convRes.data && !convRes.error) {
+      setUnreadChatsCount(convRes.data.filter((c) => c.unread).length);
+    }
+  }, []);
+
   const handleLogout = () => {
     // Clear all authentication tokens and data
     tokenStorage.clearTokens();
@@ -194,6 +284,78 @@ export function MainApp() {
   useEffect(() => {
     setScanEvents([]);
   }, []);
+
+  /** Периодическая синхронизация мэтчей и уведомлений (взаимный лайк без перезагрузки). */
+  useEffect(() => {
+    if (!authUser) return;
+    let cancelled = false;
+    let intervalId: ReturnType<typeof setInterval> | undefined;
+    const POLL_MS = 4000;
+
+    const runPoll = async () => {
+      if (cancelled) return;
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+
+      const [matchesRes, notifRes, convRes] = await Promise.all([
+        getMatches(),
+        getNotifications(),
+        getConversations(),
+      ]);
+      if (cancelled) return;
+
+      if (notifRes.data && !notifRes.error) {
+        setHeaderUnreadNotifications(notifRes.data.filter((n) => !n.read).length);
+      }
+      if (convRes.data && !convRes.error) {
+        setUnreadChatsCount(convRes.data.filter((c) => c.unread).length);
+      }
+
+      const list = matchesRes.error ? [] : (matchesRes.data ?? []);
+      if (knownMatchIdsRef.current === null) {
+        knownMatchIdsRef.current = new Set(list.map((m) => m.id));
+        return;
+      }
+
+      const known = knownMatchIdsRef.current;
+      let openedMatchModalThisPoll = false;
+      for (const item of list) {
+        if (known.has(item.id)) continue;
+        known.add(item.id);
+        const peer = mapApiProfileToUserProfile(item.peer);
+        setLikedEntries((prev) => mergeLikedEntry(prev, peer, false));
+        const canShowMatchModal =
+          !openedMatchModalThisPoll &&
+          !showMatchRef.current &&
+          !showChatRef.current &&
+          selectedLikedProfileRef.current === null;
+        if (canShowMatchModal) {
+          openedMatchModalThisPoll = true;
+          setMatchedProfile(peer);
+          setShowMatch(true);
+        }
+      }
+    };
+
+    void (async () => {
+      const seed = await getMatches();
+      if (cancelled) return;
+      knownMatchIdsRef.current = new Set((seed.data ?? []).map((m) => m.id));
+      const [n, convs] = await Promise.all([getNotifications(), getConversations()]);
+      if (!cancelled && n.data) {
+        setHeaderUnreadNotifications(n.data.filter((x) => !x.read).length);
+      }
+      if (!cancelled && convs.data) {
+        setUnreadChatsCount(convs.data.filter((c) => c.unread).length);
+      }
+      intervalId = setInterval(() => void runPoll(), POLL_MS);
+      void runPoll();
+    })();
+
+    return () => {
+      cancelled = true;
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [authUser?.id]);
 
   return (
     <div className="size-full bg-gradient-to-br from-red-50 via-amber-50 to-yellow-50 flex flex-col overflow-hidden">
@@ -230,12 +392,16 @@ export function MainApp() {
             >
               <User className="size-5 sm:size-6 text-gray-600" />
             </button>
-            <button 
+            <button
+              type="button"
+              title="Уведомления"
               className="p-2 hover:bg-gray-100 rounded-full transition-colors relative active:scale-95 flex items-center justify-center"
               onClick={() => setShowNotifications(true)}
             >
-              <MessageCircle className="size-5 sm:size-6 text-gray-600" />
-              <span className="absolute top-1 right-1 size-2 bg-red-500 rounded-full" />
+              <Bell className="size-5 sm:size-6 text-gray-600" />
+              {headerUnreadNotifications > 0 && (
+                <span className="absolute top-1 right-1 min-w-[8px] size-2 sm:min-w-[10px] sm:size-2.5 bg-red-500 rounded-full ring-2 ring-white" />
+              )}
             </button>
           </div>
         </div>
@@ -265,6 +431,7 @@ export function MainApp() {
                     <SwipeableCard
                       key={profile.id}
                       index={index}
+                      dragEnabled={!superLikeBurst}
                       onSwipeLeft={() => index === 0 && handleSwipe(false)}
                       onSwipeRight={() => index === 0 && handleSwipe(true)}
                     >
@@ -272,7 +439,7 @@ export function MainApp() {
                         profile={profile}
                         compatibility={compatibility[absoluteIndex] || 0}
                         superLikesRemaining={superLikesRemaining}
-                        likesCount={likedProfiles.length}
+                        likesCount={likedEntries.length}
                         onOpenDetailedAnalysis={index === 0 ? () => {
                           setAnalysisProfile(profile);
                           if (isPremium || purchasedAnalyses.includes(profile.id) || hasUnlimitedAnalysis) {
@@ -285,6 +452,7 @@ export function MainApp() {
                     </SwipeableCard>
                   );
                 })}
+                <AnimatePresence>{superLikeBurst ? <SuperLikeBurstOverlay key="superlike-fx" /> : null}</AnimatePresence>
               </div>
 
               {/* Action Buttons */}
@@ -297,6 +465,7 @@ export function MainApp() {
                   onFavorite={() => currentProfile && toggleFavorite(currentProfile)}
                   hasUndo={history.length > 0}
                   isFavorite={currentProfile ? isFavorite(currentProfile.id) : false}
+                  disabled={superLikeBurst}
                 />
               </div>
             </>
@@ -314,7 +483,12 @@ export function MainApp() {
                   Попробуйте вернуться позже
                 </p>
                 <button
+                  type="button"
                   onClick={() => {
+                    setProfiles((prev) => {
+                      const likedIds = new Set(likedEntries.map((e) => profileId(e.profile)));
+                      return prev.filter((p) => !likedIds.has(profileId(p)));
+                    });
                     setCurrentIndex(0);
                     setHistory([]);
                   }}
@@ -334,7 +508,7 @@ export function MainApp() {
           <MatchModal
             key="match-modal"
             profile={matchedProfile}
-            compatibility={compatibility[profiles.indexOf(matchedProfile)] || 0}
+            compatibility={matchModalCompatibility}
             onClose={() => {
               setShowMatch(false);
               setMatchedProfile(null);
@@ -362,13 +536,17 @@ export function MainApp() {
             key="notifications-modal"
             onClose={() => setShowNotifications(false)} 
             onOpenChat={handleOpenChat}
+            onMarkedAllRead={() => setHeaderUnreadNotifications(0)}
           />
         )}
         
         {showChats && (
           <ChatsList 
             key="chats-list-modal"
-            onClose={() => setShowChats(false)} 
+            onClose={() => {
+              setShowChats(false);
+              void refreshUnreadChats();
+            }} 
             onOpenChat={handleOpenChat}
           />
         )}
@@ -380,10 +558,13 @@ export function MainApp() {
             onClose={() => {
               setShowChat(false);
               setChatSession(null);
+              void refreshUnreadChats();
             }}
             userName={chatSession.userName}
             userAvatar={chatSession.userAvatar}
             prefilledMessage={chatSession.prefilledMessage}
+            peerUserId={chatSession.peerUserId}
+            peerLastSeenAt={chatSession.peerLastSeenAt}
           />
         )}
         
@@ -398,7 +579,7 @@ export function MainApp() {
           <LikesModal 
             key="likes-modal"
             onClose={() => setShowLikes(false)}
-            likedProfiles={likedProfiles}
+            likedEntries={likedEntries}
             onOpenProfile={handleOpenProfileFromLikes}
           />
         )}
@@ -471,7 +652,7 @@ export function MainApp() {
           <RecommendModal
             key="recommend-modal"
             profileToRecommend={profileToRecommend}
-            availableFriends={likedProfiles}
+            availableFriends={likedEntries.map((e) => e.profile)}
             onClose={() => {
               setShowRecommend(false);
               setProfileToRecommend(null);
@@ -553,12 +734,16 @@ export function MainApp() {
           >
             <Heart className="size-7 sm:size-[34px]" />
           </button>
-          <button 
+          <button
+            type="button"
+            title="Сообщения"
             className="p-2.5 sm:p-3 text-gray-400 hover:text-gray-600 transition-colors relative active:scale-95 flex items-center justify-center"
             onClick={() => setShowChats(true)}
           >
             <MessageCircle className="size-7 sm:size-[34px]" />
-            <span className="absolute top-2 right-2 size-2 bg-red-500 rounded-full" />
+            {unreadChatsCount > 0 && (
+              <span className="absolute top-2 right-2 size-2 bg-red-500 rounded-full ring-2 ring-white" />
+            )}
           </button>
           <button 
             className="p-2.5 sm:p-3 text-gray-400 hover:text-gray-600 transition-colors active:scale-95 flex items-center justify-center"

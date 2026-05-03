@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Heart, Star, MessageCircle, UserPlus, Gift, Send } from "lucide-react";
+import { Heart, Star, MessageCircle, UserPlus, Gift, Send, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import type { OpenChatParams } from "../types/chat";
@@ -9,9 +9,11 @@ import { ModalShell } from "./ui/modal-shell";
 interface NotificationsModalProps {
   onClose: () => void;
   onOpenChat: (params: OpenChatParams) => void;
+  /** После «Отметить все как прочитанные» — обновить счётчик в шапке. */
+  onMarkedAllRead?: () => void;
 }
 
-export function NotificationsModal({ onClose, onOpenChat }: NotificationsModalProps) {
+export function NotificationsModal({ onClose, onOpenChat, onMarkedAllRead }: NotificationsModalProps) {
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,12 +38,12 @@ export function NotificationsModal({ onClose, onOpenChat }: NotificationsModalPr
     };
   }, []);
 
-  const getIcon = (type: Notification["type"]) => {
+  const getIcon = (type: NotificationItem["type"]) => {
     switch (type) {
       case "match":
         return <Heart className="size-5 text-red-500" />;
       case "superlike":
-        return <Star className="size-5 text-amber-500" />;
+        return <Star className="size-5 text-sky-600 fill-sky-400" />;
       case "like":
         return <Heart className="size-5 text-pink-500" />;
       case "message":
@@ -53,12 +55,12 @@ export function NotificationsModal({ onClose, onOpenChat }: NotificationsModalPr
     }
   };
 
-  const getBackgroundColor = (type: Notification["type"]) => {
+  const getBackgroundColor = (type: NotificationItem["type"]) => {
     switch (type) {
       case "match":
         return "bg-red-50";
       case "superlike":
-        return "bg-amber-50";
+        return "bg-gradient-to-br from-sky-100 to-indigo-100";
       case "like":
         return "bg-pink-50";
       case "message":
@@ -73,7 +75,7 @@ export function NotificationsModal({ onClose, onOpenChat }: NotificationsModalPr
   const unreadCount = items.filter(n => !n.read).length;
 
   return (
-    <ModalShell onClose={onClose} ariaLabel="Уведомления" variant="sheet">
+    <ModalShell onClose={onClose} ariaLabel="Уведомления">
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="flex-shrink-0 bg-gradient-to-r from-red-600 to-amber-500 px-5 sm:px-6 py-4 pr-14">
@@ -104,7 +106,13 @@ export function NotificationsModal({ onClose, onOpenChat }: NotificationsModalPr
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   className={`flex items-start gap-3 p-4 rounded-2xl transition-colors ${
-                    !notification.read ? "bg-gradient-to-r from-red-50 to-amber-50" : "bg-white border border-gray-100"
+                    notification.type === "superlike"
+                      ? !notification.read
+                        ? "border-2 border-sky-400/80 bg-gradient-to-r from-sky-50 via-white to-indigo-50 shadow-md shadow-sky-200/40"
+                        : "border-2 border-sky-200 bg-white"
+                      : !notification.read
+                        ? "bg-gradient-to-r from-red-50 to-amber-50"
+                        : "bg-white border border-gray-100"
                   }`}
                 >
                   {/* Avatar or Icon */}
@@ -123,8 +131,14 @@ export function NotificationsModal({ onClose, onOpenChat }: NotificationsModalPr
                   {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2 mb-1">
-                      <h3 className="font-semibold text-gray-800 text-sm">
+                      <h3 className="font-semibold text-gray-800 text-sm flex flex-wrap items-center gap-2">
                         {notification.title}
+                        {notification.type === "superlike" ? (
+                          <span className="inline-flex items-center gap-0.5 rounded-full bg-gradient-to-r from-sky-500 to-indigo-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                            <Sparkles className="size-3" />
+                            Особый интерес
+                          </span>
+                        ) : null}
                       </h3>
                       {!notification.read && (
                         <div className="size-2 bg-red-500 rounded-full flex-shrink-0 mt-1" />
@@ -166,6 +180,7 @@ export function NotificationsModal({ onClose, onOpenChat }: NotificationsModalPr
               onClick={async () => {
                 await markNotificationsRead();
                 setItems((prev) => prev.map((n) => ({ ...n, read: true })));
+                onMarkedAllRead?.();
               }}
               className="w-full text-center text-sm text-red-500 hover:text-red-600 font-medium transition-colors"
             >

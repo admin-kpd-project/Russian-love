@@ -3,46 +3,24 @@ import { X } from "lucide-react";
 import { ReactNode, useEffect } from "react";
 
 /**
- * Унифицированная "оболочка" модального окна.
- *
- * Два варианта геометрии:
- *
- *  variant="card" (по умолчанию для коротких попапов):
- *      Жёстко зафиксированное соотношение сторон 9:16 (как карточка профиля).
- *      Размер всегда вписывается в видимую область:
- *      width = min(идеальная, ширина_окна, высота_окна·9/16);
- *      height высчитывается из aspect-ratio. Используется для модалок,
- *      которые показывают компактную информацию (мэтч, QR, рекомендация).
- *
- *  variant="sheet" (по умолчанию для контентных списков):
- *      «Высокий» лист — занимает до 90% высоты окна, ширина ограничена
- *      базовой (примерно как `max-w-md`). Контент скроллится внутри.
- *      Используется для длинных списков: чаты, лайки, избранное,
- *      уведомления, профиль, настройки и т. п.
- *
- * size — базовый размер ширины (одинаков для card/sheet):
- *  - "card"    — основной размер.
- *  - "compact" — уже (простые подтверждения / алерты).
- *  - "wide"    — шире (детальный анализ, события).
- *
- * Безопасные отступы (safe-area) учитываются на iOS/Android-веб в обоих режимах.
+ * Унифицированная «рамка» модалок — та же геометрия, что у карточки профиля в ленте:
+ * пропорция 9:16, ширина как у колонки max-w-md (28rem), вписывание в экран.
+ * Скругления как у ProfileCard: rounded-2xl sm:rounded-3xl.
+ * z-index выше шапки/карточек, чтобы окно открывалось поверх ленты.
  */
-export type ModalShellSize = "card" | "compact" | "wide";
-export type ModalShellVariant = "card" | "sheet";
 
 const ASPECT_W = 9;
 const ASPECT_H = 16;
+/** Совпадает с max-w-md в MainApp — как ширина области ProfileCard. */
+const FRAME_IDEAL_WIDTH_REM = 28;
 
 interface ModalShellProps {
   onClose?: () => void;
   /** Не закрывать модалку по клику вне рамки (например, формы регистрации). */
   disableBackdropClose?: boolean;
-  size?: ModalShellSize;
-  /** "card" — пропорция 9:16; "sheet" — высокий лист (контентные списки). */
-  variant?: ModalShellVariant;
   /** Скрыть встроенную кнопку закрытия (если у модалки уже есть своя в header). */
   hideCloseButton?: boolean;
-  /** Дополнительные классы для внутреннего "тела" модалки. */
+  /** Дополнительные классы для внутреннего «тела» модалки. */
   className?: string;
   /** Содержимое — обычно flex-колонка (header + scroll-area + footer). */
   children: ReactNode;
@@ -59,13 +37,11 @@ interface ModalShellProps {
  * </ModalShell>
  *
  * Body имеет min-h-0 + overflow-y-auto, что гарантирует, что модалка
- * не "разъезжается" даже на маленьких экранах.
+ * не «разъезжается» даже на маленьких экранах.
  */
 export function ModalShell({
   onClose,
   disableBackdropClose = false,
-  size = "card",
-  variant = "card",
   hideCloseButton = false,
   className = "",
   children,
@@ -81,33 +57,18 @@ export function ModalShell({
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  // Базовая «идеальная» ширина для каждого размера.
-  const idealWidthRem = size === "compact" ? 21 : size === "wide" ? 30 : 26;
-
-  // Геометрия отличается для card / sheet.
-  const frameStyle: React.CSSProperties =
-    variant === "sheet"
-      ? {
-          // «Высокий лист»: ширина ограничена базовой, высота — до 90% видимой
-          // области. Контент скроллится внутри. Пропорции не «жёсткие» —
-          // важно, чтобы поместился список (чаты/лайки/уведомления).
-          width: `min(${idealWidthRem}rem, calc(100vw - 1.5rem))`,
-          maxHeight: "min(90dvh, calc(100dvh - 1.5rem))",
-          height: "auto",
-        }
-      : {
-          // Жёсткое 9:16: вписываем рамку и в ширину, и в высоту окна.
-          width: `min(${idealWidthRem}rem, calc(100vw - 1.5rem), calc((100dvh - 1.5rem) * ${ASPECT_W} / ${ASPECT_H}))`,
-          aspectRatio: `${ASPECT_W} / ${ASPECT_H}`,
-          maxHeight: "calc(100dvh - 1.5rem)",
-        };
+  const frameStyle: React.CSSProperties = {
+    width: `min(${FRAME_IDEAL_WIDTH_REM}rem, calc(100vw - 1.5rem), calc((100dvh - 1.5rem) * ${ASPECT_W} / ${ASPECT_H}))`,
+    aspectRatio: `${ASPECT_W} / ${ASPECT_H}`,
+    maxHeight: "calc(100dvh - 1.5rem)",
+  };
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-hidden"
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-hidden"
       onClick={() => {
         if (!disableBackdropClose && onClose) onClose();
       }}
@@ -127,7 +88,7 @@ export function ModalShell({
         exit={{ scale: 0.92, opacity: 0, y: 12 }}
         transition={{ type: "spring", duration: 0.45 }}
         className={[
-          "relative bg-white rounded-3xl shadow-2xl",
+          "relative bg-white rounded-2xl sm:rounded-3xl shadow-2xl",
           "flex flex-col overflow-hidden",
           className,
         ].join(" ")}

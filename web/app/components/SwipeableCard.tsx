@@ -6,9 +6,11 @@ interface SwipeableCardProps {
   onSwipeLeft: () => void;
   onSwipeRight: () => void;
   index: number;
+  /** Например, во время анимации суперлайка */
+  dragEnabled?: boolean;
 }
 
-export function SwipeableCard({ children, onSwipeLeft, onSwipeRight, index }: SwipeableCardProps) {
+export function SwipeableCard({ children, onSwipeLeft, onSwipeRight, index, dragEnabled = true }: SwipeableCardProps) {
   const [exitX, setExitX] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const x = useMotionValue(0);
@@ -46,7 +48,7 @@ export function SwipeableCard({ children, onSwipeLeft, onSwipeRight, index }: Sw
         cursor: "grab",
         zIndex: 10 - index, // Передняя карточка (index 0) имеет самый высокий z-index
       }}
-      drag={index === 0 ? "x" : false} // Только передняя карточка может свайпаться
+      drag={index === 0 && dragEnabled ? "x" : false} // Только передняя карточка может свайпаться
       dragConstraints={{ left: 0, right: 0 }}
       onDragEnd={handleDragEnd}
       initial={{ scale: 0.92, opacity: 0 }}

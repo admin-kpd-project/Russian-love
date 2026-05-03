@@ -14,32 +14,42 @@ type Props = {
   onFavorite: () => void;
   hasUndo: boolean;
   isFavorite: boolean;
+  disabled?: boolean;
 };
 
-export function ActionButtons({ onReject, onLike, onUndo, onSuperLike, onFavorite, hasUndo, isFavorite }: Props) {
+export function ActionButtons({
+  onReject,
+  onLike,
+  onUndo,
+  onSuperLike,
+  onFavorite,
+  hasUndo,
+  isFavorite,
+  disabled = false,
+}: Props) {
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, disabled && styles.rowDis]}>
       <ScalePressable
         onPress={onUndo}
-        disabled={!hasUndo}
-        style={[styles.small, !hasUndo ? styles.disUndo : styles.okUndo]}
+        disabled={!hasUndo || disabled}
+        style={[styles.small, !hasUndo || disabled ? styles.disUndo : styles.okUndo]}
       >
         <RotateCcw size={26} color={hasUndo ? "#ca8a04" : tw.gray400} />
       </ScalePressable>
-      <ScalePressable onPress={onReject} style={styles.reject}>
+      <ScalePressable onPress={onReject} style={styles.reject} disabled={disabled}>
         <X size={36} color="#ef4444" />
       </ScalePressable>
-      <ScalePressable onPress={onSuperLike}>
+      <ScalePressable onPress={onSuperLike} disabled={disabled}>
         <LinearGradient colors={[tw.blue400, tw.blue600]} style={styles.big}>
           <Star size={36} color="#fff" fill="#fff" />
         </LinearGradient>
       </ScalePressable>
-      <ScalePressable onPress={onLike}>
+      <ScalePressable onPress={onLike} disabled={disabled}>
         <LinearGradient colors={[...brandGradients.primary]} style={styles.big}>
           <Heart size={36} color="#fff" fill="#fff" />
         </LinearGradient>
       </ScalePressable>
-      <ScalePressable onPress={onFavorite} style={styles.small}>
+      <ScalePressable onPress={onFavorite} style={styles.small} disabled={disabled}>
         {isFavorite ? (
           <LinearGradient colors={[...brandGradients.favorite]} style={styles.smallGrad}>
             <Bookmark size={24} color="#fff" fill="#fff" />
@@ -63,6 +73,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingBottom: 4,
   },
+  rowDis: { opacity: 0.45 },
   /** Веб: `p-3` / `p-4` + иконка — компактные боковые */
   small: { width: 50, height: 50, borderRadius: 25, overflow: "hidden", alignItems: "center", justifyContent: "center" },
   smallGrad: { width: "100%", height: "100%", alignItems: "center", justifyContent: "center" },

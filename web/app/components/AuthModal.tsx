@@ -73,7 +73,6 @@ export function AuthModal({
     birthDate: "",
     gender: "female" as "male" | "female",
     avatarUrl: "",
-    photos: [] as string[],
     bio: "",
     interests: "",
     agreeToPrivacy: false,
@@ -162,16 +161,6 @@ export function AuthModal({
     });
   };
 
-  const handleExtraPhoto = async (file?: File) => {
-    if (!file) return;
-    const res = await uploadFile(file, { forRegistration: true });
-    if (!res.url) {
-      setErrors((prev) => ({ ...prev, photos: res.error || "Ошибка загрузки" }));
-      return;
-    }
-    setFormData((p) => ({ ...p, photos: [...p.photos, res.url!] }));
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -205,7 +194,6 @@ export function AuthModal({
           birthDate: formData.birthDate,
           gender: formData.gender,
           avatarUrl: formData.avatarUrl,
-          photos: formData.photos.length ? formData.photos : undefined,
           bio: formData.bio.trim() || undefined,
           interests: (() => {
             const list = formData.interests
@@ -259,7 +247,6 @@ export function AuthModal({
       ariaLabel={isReset ? "Восстановление пароля" : isLogin ? "Вход" : "Регистрация"}
       disableBackdropClose
       hideCloseButton
-      variant="sheet"
     >
       <div className="flex flex-col h-full">
         {/* Header */}
@@ -634,23 +621,6 @@ export function AuthModal({
                       placeholder="Кино, спорт, путешествия"
                     />
                   </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700">Дополнительные фото</label>
-                    <label className="mt-1 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 p-2 text-sm text-gray-600 hover:bg-gray-50">
-                      <Camera className="size-4" />
-                      <span>Добавить</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => void handleExtraPhoto(e.target.files?.[0])}
-                      />
-                    </label>
-                    {formData.photos.length > 0 && (
-                      <p className="mt-1 text-xs text-gray-500">Добавлено: {formData.photos.length}</p>
-                    )}
-                    {errors.photos && <p className="mt-1 text-xs text-red-500">{errors.photos}</p>}
-                  </div>
                 </div>
               )}
 
@@ -823,7 +793,6 @@ export function AuthModal({
                         birthDate: "",
                         gender: "female",
                         avatarUrl: "",
-                        photos: [],
                         bio: "",
                         interests: "",
                         agreeToPrivacy: false,

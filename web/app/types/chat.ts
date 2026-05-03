@@ -7,4 +7,6 @@ export interface OpenChatParams {
   conversationId?: string;
   /** Other user's id when starting from feed/match — API will create or return conversation. */
   peerUserId?: string;
+  /** ISO last activity of peer (from списка чатов или первого опроса). */
+  peerLastSeenAt?: string | null;
 }

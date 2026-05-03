@@ -9,11 +9,26 @@ interface ActionButtonsProps {
   onFavorite: () => void;
   hasUndo: boolean;
   isFavorite: boolean;
+  /** Блокировка во время суперлайка и т.п. */
+  disabled?: boolean;
 }
 
-export function ActionButtons({ onReject, onLike, onUndo, onSuperLike, onFavorite, hasUndo, isFavorite }: ActionButtonsProps) {
+export function ActionButtons({
+  onReject,
+  onLike,
+  onUndo,
+  onSuperLike,
+  onFavorite,
+  hasUndo,
+  isFavorite,
+  disabled = false,
+}: ActionButtonsProps) {
   return (
-    <div className="flex items-center justify-center gap-2 sm:gap-4 px-2 sm:px-4">
+    <div
+      className={`flex items-center justify-center gap-2 sm:gap-4 px-2 sm:px-4 ${
+        disabled ? "pointer-events-none opacity-45" : ""
+      }`}
+    >
       {/* Undo Button */}
       <motion.button
         whileTap={{ scale: 0.9 }}
@@ -39,9 +54,10 @@ export function ActionButtons({ onReject, onLike, onUndo, onSuperLike, onFavorit
 
       {/* Super Like Button */}
       <motion.button
-        whileTap={{ scale: 0.9 }}
+        whileTap={disabled ? undefined : { scale: 0.9 }}
         onClick={onSuperLike}
-        className="p-5 sm:p-7 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 shadow-xl hover:shadow-2xl transition-all group active:scale-90 flex items-center justify-center"
+        disabled={disabled}
+        className="p-5 sm:p-7 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 shadow-xl hover:shadow-2xl transition-all group active:scale-90 flex items-center justify-center disabled:opacity-80"
       >
         <Star className="size-9 sm:size-11 text-white transition-transform fill-white group-active:scale-110" />
       </motion.button>

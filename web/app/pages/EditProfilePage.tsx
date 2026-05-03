@@ -19,7 +19,6 @@ export function EditProfilePage() {
   const [error, setError] = useState<string | null>(null);
 
   const [avatarUrl, setAvatarUrl] = useState(user?.photo || "");
-  const [photos, setPhotos] = useState<string[]>(user?.photos || []);
   const [form, setForm] = useState({
     name: user?.name || "",
     email: user?.email || "",
@@ -42,14 +41,6 @@ export function EditProfilePage() {
     setError(null);
   };
 
-  const handleUploadExtraPhoto = async (file?: File) => {
-    if (!file) return;
-    const res = await uploadFile(file);
-    if (!res.url) return setError(res.error || "Не удалось загрузить фото");
-    setPhotos((prev) => [...prev, res.url]);
-    setError(null);
-  };
-
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
@@ -60,7 +51,7 @@ export function EditProfilePage() {
       birthDate: form.birthDate,
       bio: form.bio.trim() || "",
       avatarUrl,
-      photos,
+      photos: [],
       interests: form.interests
         .split(",")
         .map((x) => x.trim())
@@ -125,16 +116,6 @@ export function EditProfilePage() {
           <div>
             <label className="text-sm font-medium text-gray-700">Интересы (через запятую)</label>
             <input className="mt-1 w-full rounded-xl border border-gray-300 px-4 py-3" value={form.interests} onChange={(e) => setForm((p) => ({ ...p, interests: e.target.value }))} />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-gray-700">Дополнительные фото</label>
-            <label className="mt-2 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 p-3 text-gray-600 hover:bg-gray-50">
-              <Camera className="size-4" />
-              <span>Добавить фото</span>
-              <input type="file" accept="image/*" className="hidden" onChange={(e) => void handleUploadExtraPhoto(e.target.files?.[0])} />
-            </label>
-            <p className="mt-1 text-xs text-gray-500">Загружено: {photos.length}</p>
           </div>
 
           {error && <p className="text-sm text-red-600">{error}</p>}

@@ -3,6 +3,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import decode_access_token
+from app.core.presence import touch_user_presence
 from app.db.models import User
 from app.db.session import get_db
 
@@ -36,6 +37,7 @@ async def get_current_user(
         )
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
+    await touch_user_presence(db, user)
     return user
 
 

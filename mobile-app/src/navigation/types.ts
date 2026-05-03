@@ -12,6 +12,7 @@ export type RootStackParamList = {
     avatarUrl?: string;
     prefilledMessage?: string;
     peerUserId?: string;
+    peerLastSeenAt?: string | null;
   };
   Support: undefined;
   /** Диплинк как /scan/:userId */

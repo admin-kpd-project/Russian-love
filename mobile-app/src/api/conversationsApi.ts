@@ -4,6 +4,7 @@ export type ConversationListItem = {
   id: string;
   /** Собеседник (для жалоб и т.п.) */
   peerUserId?: string;
+  peerLastSeenAt?: string | null;
   name: string;
   avatar: string;
   lastMessage: string;

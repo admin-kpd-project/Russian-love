@@ -15,6 +15,7 @@ export type Profile = {
   personality?: Record<string, unknown>;
   astrology?: Record<string, unknown>;
   numerology?: Record<string, unknown>;
+  lastSeenAt?: string | null;
 };
 
 export type AuthData = {

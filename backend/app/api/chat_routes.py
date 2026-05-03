@@ -116,12 +116,19 @@ async def list_conversations(
             last_text = last_msg.body or ""
             ts = last_msg.created_at
         unread = await _has_unread_from_peer(db, c.id, other_id, my_mem.last_read_at)
+        peer_ls = getattr(ou, "last_seen_at", None)
+        peer_last_seen = (
+            peer_ls.astimezone(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+            if peer_ls
+            else None
+        )
         out.append(
             {
                 "id": str(c.id),
                 "peerUserId": str(other_id),
                 "name": ou.display_name,
                 "avatar": ou.avatar_url or "",
+                "peerLastSeenAt": peer_last_seen,
                 "lastMessage": last_text,
                 "timestamp": ts.astimezone(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
                 "unread": unread,
@@ -281,6 +288,7 @@ async def get_messages(
                 "text": m.body,
                 "type": mtype,
                 "sender": "me" if m.sender_id == user.id else "other",
+                "senderUserId": str(m.sender_id),
                 "time": _msg_time(m.created_at),
                 "mediaUrl": m.media_url,
                 "duration": _format_duration_str(m.duration_seconds),
@@ -336,6 +344,7 @@ async def post_message(
         "text": msg.body,
         "type": mtype,
         "sender": "me",
+        "senderUserId": str(user.id),
         "time": _msg_time(msg.created_at),
         "mediaUrl": msg.media_url,
         "duration": _format_duration_str(msg.duration_seconds),

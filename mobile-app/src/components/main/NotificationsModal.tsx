@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import LinearGradient from "react-native-linear-gradient";
-import { X, Heart, Star, MessageCircle, UserPlus, Gift, Send } from "lucide-react-native";
+import { X, Heart, Star, MessageCircle, UserPlus, Gift, Send, Sparkles } from "lucide-react-native";
 
 import { getNotifications, markNotificationsRead, type NotificationItem } from "../../api/notificationsApi";
 import { brandGradients, tw } from "../../theme/designTokens";
@@ -27,6 +27,7 @@ type Props = {
     conversationId?: string;
     peerUserId?: string;
   }) => void;
+  onMarkedAllRead?: () => void;
 };
 
 function iconFor(type: NotificationItem["type"]) {
@@ -35,7 +36,7 @@ function iconFor(type: NotificationItem["type"]) {
     case "match":
       return <Heart size={s} color={tw.red500} />;
     case "superlike":
-      return <Star size={s} color={tw.amber500} />;
+      return <Star size={s} color="#0284c7" fill="#7dd3fc" />;
     case "like":
       return <Heart size={s} color="#ec4899" />;
     case "message":
@@ -52,7 +53,7 @@ function iconBg(type: NotificationItem["type"]): string {
     case "match":
       return "#fef2f2";
     case "superlike":
-      return "#fffbeb";
+      return "#e0f2fe";
     case "like":
       return "#fdf2f8";
     case "message":
@@ -64,7 +65,7 @@ function iconBg(type: NotificationItem["type"]): string {
   }
 }
 
-export function NotificationsModal({ visible, onClose, onOpenChat }: Props) {
+export function NotificationsModal({ visible, onClose, onOpenChat, onMarkedAllRead }: Props) {
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -133,7 +134,13 @@ export function NotificationsModal({ visible, onClose, onOpenChat }: Props) {
                   key={n.id}
                   style={[
                     styles.row,
-                    !n.read ? styles.rowUnread : styles.rowRead,
+                    n.type === "superlike"
+                      ? !n.read
+                        ? styles.rowSuperUnread
+                        : styles.rowSuperRead
+                      : !n.read
+                        ? styles.rowUnread
+                        : styles.rowRead,
                   ]}
                 >
                   <View style={[styles.icoWrap, { backgroundColor: iconBg(n.type) }]}>
@@ -145,7 +152,15 @@ export function NotificationsModal({ visible, onClose, onOpenChat }: Props) {
                   </View>
                   <View style={styles.body}>
                     <View style={styles.titleR}>
-                      <Text style={styles.title}>{n.title}</Text>
+                      <View style={styles.titleCol}>
+                        <Text style={styles.title}>{n.title}</Text>
+                        {n.type === "superlike" ? (
+                          <View style={styles.superBadge}>
+                            <Sparkles size={12} color="#fff" fill="#fff" />
+                            <Text style={styles.superBadgeT}>Особый интерес</Text>
+                          </View>
+                        ) : null}
+                      </View>
                       {!n.read ? <View style={styles.dot} /> : null}
                     </View>
                     <Text style={styles.msg}>{n.message}</Text>
@@ -181,6 +196,7 @@ export function NotificationsModal({ visible, onClose, onOpenChat }: Props) {
                 onPress={async () => {
                   await markNotificationsRead();
                   setItems((prev) => prev.map((x) => ({ ...x, read: true })));
+                  onMarkedAllRead?.();
                 }}
               >
                 <Text style={styles.markAll}>Отметить все как прочитанные</Text>
@@ -229,11 +245,30 @@ const styles = StyleSheet.create({
   },
   rowUnread: { backgroundColor: "#fff7ed", borderColor: "#ffedd5" },
   rowRead: { backgroundColor: "#fff", borderColor: "#f5f5f4" },
+  rowSuperUnread: {
+    backgroundColor: "#f0f9ff",
+    borderColor: "#38bdf8",
+    borderWidth: 2,
+  },
+  rowSuperRead: { backgroundColor: "#fff", borderColor: "#bae6fd", borderWidth: 2 },
   icoWrap: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   avatar: { width: 48, height: 48, borderRadius: 24 },
   body: { flex: 1, minWidth: 0 },
   titleR: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 4 },
-  title: { flex: 1, fontWeight: "700", fontSize: 14, color: "#292524" },
+  titleCol: { flex: 1, minWidth: 0, gap: 6 },
+  title: { fontWeight: "700", fontSize: 14, color: "#292524" },
+  superBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 4,
+    marginTop: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: "#0284c7",
+  },
+  superBadgeT: { fontSize: 10, fontWeight: "800", color: "#fff", letterSpacing: 0.3 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: tw.red500, marginTop: 4 },
   msg: { fontSize: 13, color: "#57534e", marginBottom: 4 },
   time: { fontSize: 11, color: "#a8a29e" },

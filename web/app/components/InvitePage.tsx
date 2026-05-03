@@ -37,7 +37,6 @@ export function InvitePage() {
     birthDate: "",
     gender: "female" as "male" | "female",
     avatarUrl: "",
-    photos: [] as string[],
     bio: "",
     interests: "",
     agreeToAge18: false,
@@ -126,7 +125,6 @@ export function InvitePage() {
       birthDate: formData.birthDate,
       gender: formData.gender,
       avatarUrl: formData.avatarUrl,
-      photos: formData.photos.length ? formData.photos : undefined,
       bio: formData.bio.trim() || undefined,
       interests: interestList.length ? interestList : undefined,
     });
@@ -392,25 +390,6 @@ export function InvitePage() {
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
                 placeholder="Кино, музыка"
               />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Доп. фото</label>
-              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 p-2 text-sm text-gray-600 hover:bg-gray-50">
-                <Camera className="size-4" />
-                <span>Добавить</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    const r = await uploadFile(file, { forRegistration: true });
-                    if (r.url) setFormData((d) => ({ ...d, photos: [...d.photos, r.url!] }));
-                  }}
-                />
-              </label>
             </div>
 
             <label className="flex items-start gap-3 cursor-pointer pt-2">

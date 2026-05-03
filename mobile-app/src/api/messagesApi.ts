@@ -5,6 +5,7 @@ export type MessageResponse = {
   text?: string | null;
   type: string;
   sender: "me" | "other";
+  senderUserId?: string;
   time: string;
   mediaUrl?: string | null;
   duration?: string | null;

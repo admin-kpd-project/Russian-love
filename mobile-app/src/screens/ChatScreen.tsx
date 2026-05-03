@@ -25,6 +25,8 @@ import { X, Send, Mic, Image as ImageIcon, Smile, Gift, Video, MoreVertical } fr
 
 import { markConversationRead, deleteConversation } from "../api/conversationsApi";
 import { getMessages, sendTextMessage, sendMediaMessage, type MessageResponse } from "../api/messagesApi";
+import { getCurrentUser, getUserById } from "../api/usersApi";
+import { formatPeerPresenceLabel } from "../utils/presenceLabel";
 import { presignAuth, putFileToPresignedUrl, createChatWebSocket } from "../api/uploadApi";
 import { getPaymentsStatus, initTbankPayment } from "../api/paymentsApi";
 import { submitUserReport } from "../api/reportsApi";
@@ -79,11 +81,27 @@ function dedupeMessagesById(msgs: MessageResponse[]): MessageResponse[] {
   });
 }
 
+function normalizeMessage(m: MessageResponse, selfId: string | null): MessageResponse {
+  if (!selfId || !m.senderUserId) return m;
+  return {
+    ...m,
+    sender: m.senderUserId === selfId ? "me" : "other",
+  };
+}
+
+/** Новые сообщения в начале списка; одна запись на id (как в веб-чате). */
+function upsertMessageFront(prev: MessageResponse[], incoming: MessageResponse): MessageResponse[] {
+  return [incoming, ...prev.filter((x) => x.id !== incoming.id)];
+}
+
 export function ChatScreen({ route, navigation }: Props) {
-  const { conversationId, title, avatarUrl, prefilledMessage, peerUserId } = route.params;
+  const { conversationId, title, avatarUrl, prefilledMessage, peerUserId, peerLastSeenAt: peerLastSeenParam } =
+    route.params;
   const insets = useSafeAreaInsets();
   const [resolvedAvatar, setResolvedAvatar] = useState<string | undefined>(avatarUrl);
+  const [peerLastSeenAt, setPeerLastSeenAt] = useState<string | null | undefined>(peerLastSeenParam);
   const [rows, setRows] = useState<MessageResponse[]>([]);
+  const [selfUserId, setSelfUserId] = useState<string | null>(null);
   const [text, setText] = useState(prefilledMessage ?? "");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -146,6 +164,26 @@ export function ChatScreen({ route, navigation }: Props) {
     if (prefilledMessage) setText((prev) => (prev.trim() ? prev : prefilledMessage));
   }, [prefilledMessage]);
 
+  useEffect(() => {
+    setPeerLastSeenAt(peerLastSeenParam);
+  }, [peerLastSeenParam, peerUserId]);
+
+  useEffect(() => {
+    if (!peerUserId) return;
+    let cancelled = false;
+    const poll = async () => {
+      const res = await getUserById(peerUserId);
+      if (cancelled || res.error || !res.data) return;
+      setPeerLastSeenAt(res.data.lastSeenAt ?? null);
+    };
+    void poll();
+    const t = setInterval(() => void poll(), 25_000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, [peerUserId]);
+
   const resolveMsgMediaUrl = useCallback(
     (url?: string | null) => {
       if (!url) return "";
@@ -193,18 +231,32 @@ export function ChatScreen({ route, navigation }: Props) {
   const load = useCallback(async () => {
     setErr(null);
     setLoading(true);
-    const r = await getMessages(conversationId, 1, 100);
+    const [r, me] = await Promise.all([getMessages(conversationId, 1, 100), getCurrentUser()]);
+    const sid = me.data?.id ?? null;
+    setSelfUserId(sid);
     setLoading(false);
     if (r.error) {
       setErr(r.error);
       return;
     }
-    setRows(dedupeMessagesById((r.data ?? []).slice().reverse()));
+    setRows(
+      dedupeMessagesById(
+        (r.data ?? [])
+          .slice()
+          .reverse()
+          .map((m) => normalizeMessage(m, sid))
+      )
+    );
   }, [conversationId]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!selfUserId) return;
+    setRows((prev) => prev.map((m) => normalizeMessage(m, selfUserId)));
+  }, [selfUserId]);
 
   useEffect(() => {
     void markConversationRead(conversationId);
@@ -266,6 +318,7 @@ export function ChatScreen({ route, navigation }: Props) {
   };
 
   useEffect(() => {
+    if (!conversationId || loading) return;
     void (async () => {
       const ws = await createChatWebSocket(conversationId);
       if (!ws) return;
@@ -274,8 +327,8 @@ export function ChatScreen({ route, navigation }: Props) {
         try {
           const p = JSON.parse(String(ev.data)) as { event?: string; message?: MessageResponse };
           if (p?.event === "message" && p?.message) {
-            const m = p.message;
-            setRows((prev) => (prev.some((x) => x.id === m.id) ? prev : [m, ...prev]));
+            const m = normalizeMessage(p.message, selfUserId);
+            setRows((prev) => upsertMessageFront(prev, m));
           }
         } catch {
           /* empty */
@@ -286,7 +339,7 @@ export function ChatScreen({ route, navigation }: Props) {
       wsRef.current?.close();
       wsRef.current = null;
     };
-  }, [conversationId]);
+  }, [conversationId, selfUserId, loading]);
 
   const sendQuick = async (msg: string) => {
     setSending(true);
@@ -296,7 +349,7 @@ export function ChatScreen({ route, navigation }: Props) {
       setErr(r.error || "Ошибка отправки");
       return;
     }
-    setRows((prev) => [r.data!, ...prev]);
+    setRows((prev) => upsertMessageFront(prev, normalizeMessage(r.data!, selfUserId)));
   };
 
   const sendText = async () => {
@@ -311,7 +364,7 @@ export function ChatScreen({ route, navigation }: Props) {
       setErr(r.error || "Ошибка отправки");
       return;
     }
-    setRows((prev) => [r.data!, ...prev]);
+    setRows((prev) => upsertMessageFront(prev, normalizeMessage(r.data!, selfUserId)));
   };
 
   const sendImage = () => {
@@ -337,7 +390,7 @@ export function ChatScreen({ route, navigation }: Props) {
         }
         const sm = await sendMediaMessage(conversationId, p.data.fileUrl, "image");
         setSending(false);
-        if (sm.data) setRows((prev) => [sm.data!, ...prev]);
+        if (sm.data) setRows((prev) => upsertMessageFront(prev, normalizeMessage(sm.data!, selfUserId)));
       })();
     });
   };
@@ -363,7 +416,7 @@ export function ChatScreen({ route, navigation }: Props) {
         return;
       }
       const sm = await sendMediaMessage(conversationId, p.data.fileUrl, "video", durationSec);
-      if (sm.data) setRows((prev) => [sm.data!, ...prev]);
+      if (sm.data) setRows((prev) => upsertMessageFront(prev, normalizeMessage(sm.data!, selfUserId)));
       else if (sm.error) setErr(sm.error);
     } finally {
       setSending(false);
@@ -491,7 +544,7 @@ export function ChatScreen({ route, navigation }: Props) {
     const d = Math.max(1, durSecRef.current);
     const sm = await sendMediaMessage(conversationId, ps.data.fileUrl, "voice", d);
     setSending(false);
-    if (sm.data) setRows((prev) => [sm.data!, ...prev]);
+    if (sm.data) setRows((prev) => upsertMessageFront(prev, normalizeMessage(sm.data!, selfUserId)));
   };
 
   const hasText = text.trim().length > 0;
@@ -508,7 +561,7 @@ export function ChatScreen({ route, navigation }: Props) {
             )}
             <View>
               <Text style={styles.peerName}>{title || "Чат"}</Text>
-              <Text style={styles.peerSub}>в сети</Text>
+              <Text style={styles.peerSub}>{formatPeerPresenceLabel(peerLastSeenAt)}</Text>
             </View>
           </View>
           <View style={styles.topRight}>

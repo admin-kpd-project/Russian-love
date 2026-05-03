@@ -61,7 +61,6 @@ export function ProfileSettingsModal({
   const [interestTags, setInterestTags] = useState<string[]>([]);
   const [newInterest, setNewInterest] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
-  const [photos, setPhotos] = useState<string[]>([]);
   const [apiBase, setApiBase] = useState("");
 
   useEffect(() => {
@@ -79,7 +78,6 @@ export function ProfileSettingsModal({
     });
     setInterestTags(user.interests || []);
     setAvatarUrl(user.photo || "");
-    setPhotos(user.photos || []);
     setEditing(false);
     setError(null);
   }, [user, visible]);
@@ -125,20 +123,6 @@ export function ProfileSettingsModal({
     });
   };
 
-  const pickExtra = () => {
-    void launchImageLibrary({ mediaType: "photo" }, async (res) => {
-      const a = res.assets?.[0];
-      if (!a?.uri) return;
-      try {
-        const url = await uploadImageUri(a.uri, a.type || "image/jpeg", a.fileSize ?? 600_000);
-        setPhotos((p) => [...p, url]);
-        setError(null);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Ошибка загрузки");
-      }
-    });
-  };
-
   const addInterest = () => {
     const t = newInterest.trim();
     if (t && !interestTags.includes(t)) {
@@ -158,7 +142,7 @@ export function ProfileSettingsModal({
       location: form.location.trim(),
       bio: form.bio.trim(),
       avatarUrl,
-      photos,
+      photos: [],
       interests: interestTags,
     });
     setSaving(false);
@@ -307,10 +291,6 @@ export function ProfileSettingsModal({
                     <Text style={styles.plusT}>+</Text>
                   </Pressable>
                 </View>
-                <Pressable style={styles.extraPho} onPress={pickExtra}>
-                  <Camera size={18} color="#57534e" />
-                  <Text style={styles.extraPhoT}>Добавить фото ({photos.length})</Text>
-                </Pressable>
               </>
             ) : (
               <View style={styles.tags}>
@@ -359,7 +339,6 @@ export function ProfileSettingsModal({
                     });
                     setInterestTags(user.interests || []);
                     setAvatarUrl(user.photo || "");
-                    setPhotos(user.photos || []);
                   }}
                 >
                   <Text style={styles.cancelT}>Отмена</Text>
@@ -503,18 +482,6 @@ const styles = StyleSheet.create({
   addRow: { flexDirection: "row", gap: 8, marginBottom: 10 },
   plus: { width: 48, borderRadius: 12, backgroundColor: tw.red500, alignItems: "center", justifyContent: "center" },
   plusT: { color: "#fff", fontSize: 22, fontWeight: "700" },
-  extraPho: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    borderWidth: 1,
-    borderStyle: "dashed",
-    borderColor: "#d6d3d1",
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  extraPhoT: { color: "#57534e", fontSize: 14 },
   muted: { fontSize: 14, color: "#a8a29e" },
   contacts: { marginBottom: 12 },
   mailRow: { flexDirection: "row", alignItems: "center", gap: 8 },

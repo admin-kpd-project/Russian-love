@@ -60,7 +60,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
   const cities = selectedRegion ? REGIONS_CITIES[selectedRegion as keyof typeof REGIONS_CITIES] : [];
 
   return (
-    <ModalShell onClose={onClose} ariaLabel="Настройки" variant="sheet">
+    <ModalShell onClose={onClose} ariaLabel="Настройки">
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="bg-gradient-to-r from-red-500 to-amber-500 px-5 sm:px-6 py-4 sm:py-5 text-white flex-shrink-0 pr-14">
@@ -369,7 +369,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4"
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
                 onClick={(e) => e.stopPropagation()}
               >
                 <motion.div

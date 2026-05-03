@@ -20,7 +20,7 @@ const traitLabels: { [key: string]: string } = {
 
 export function CompatibilityDetailsModal({ details, userName, onClose, onOpenDetailedAnalysis, compatibility }: CompatibilityDetailsModalProps) {
   return (
-    <ModalShell onClose={onClose} ariaLabel="Анализ совместимости" size="wide" variant="sheet">
+    <ModalShell onClose={onClose} ariaLabel="Анализ совместимости">
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="bg-gradient-to-r from-red-500 to-amber-500 px-5 sm:px-6 py-4 flex-shrink-0 pr-14">

@@ -14,6 +14,8 @@ import { ModalShell } from "./ui/modal-shell";
 
 interface Chat {
   id: string;
+  peerUserId?: string;
+  peerLastSeenAt?: string | null;
   name: string;
   avatar: string;
   lastMessage: string;
@@ -60,6 +62,8 @@ export function ChatsList({ onClose, onOpenChat }: ChatsListProps) {
     setChats(
       rows.map((c) => ({
         id: c.id,
+        peerUserId: c.peerUserId,
+        peerLastSeenAt: c.peerLastSeenAt ?? null,
         name: c.name,
         avatar: c.avatar || "",
         lastMessage: c.lastMessage || "",
@@ -145,7 +149,7 @@ export function ChatsList({ onClose, onOpenChat }: ChatsListProps) {
   };
 
   return (
-    <ModalShell onClose={onClose} ariaLabel="Личные чаты" variant="sheet">
+    <ModalShell onClose={onClose} ariaLabel="Личные чаты">
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="bg-gradient-to-r from-red-600 to-amber-500 px-5 sm:px-6 py-4 text-white flex-shrink-0 pr-14">
@@ -248,6 +252,8 @@ export function ChatsList({ onClose, onOpenChat }: ChatsListProps) {
                         userName: chat.name,
                         userAvatar: chat.avatar,
                         conversationId: chat.id,
+                        peerUserId: chat.peerUserId,
+                        peerLastSeenAt: chat.peerLastSeenAt ?? undefined,
                       });
                       onClose();
                     }
@@ -322,7 +328,7 @@ export function ChatsList({ onClose, onOpenChat }: ChatsListProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
             onClick={() => setShowDeleteConfirm(false)}
           >
             <motion.div
@@ -370,7 +376,7 @@ export function ChatsList({ onClose, onOpenChat }: ChatsListProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
             onClick={() => setShowClearAllConfirm(false)}
           >
             <motion.div

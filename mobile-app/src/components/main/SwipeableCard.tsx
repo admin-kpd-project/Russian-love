@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { StyleSheet } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -15,36 +15,43 @@ type Props = {
   onSwipeLeft: () => void;
   onSwipeRight: () => void;
   children: React.ReactNode;
+  /** false — во время суперлайка и т.п. */
+  dragEnabled?: boolean;
 };
 
-export function SwipeableCard({ cardKey, onSwipeLeft, onSwipeRight, children }: Props) {
+export function SwipeableCard({ cardKey, onSwipeLeft, onSwipeRight, children, dragEnabled = true }: Props) {
   const tx = useSharedValue(0);
 
   useEffect(() => {
     tx.value = 0;
   }, [cardKey, tx]);
 
-  const pan = Gesture.Pan()
-    // Горизонтальный свайп карточки не должен отбирать жест у вертикального скролла (если появится).
-    .activeOffsetX([-18, 18])
-    .failOffsetY([-14, 14])
-    .onUpdate((e) => {
-      tx.value = e.translationX;
-    })
-    .onEnd((e) => {
-      const ox = e.translationX;
-      if (ox > 100) {
-        tx.value = withSpring(420, { damping: 18, stiffness: 120 }, (done) => {
-          if (done) runOnJS(onSwipeRight)();
-        });
-      } else if (ox < -100) {
-        tx.value = withSpring(-420, { damping: 18, stiffness: 120 }, (done) => {
-          if (done) runOnJS(onSwipeLeft)();
-        });
-      } else {
-        tx.value = withSpring(0);
-      }
-    });
+  const pan = useMemo(
+    () =>
+      Gesture.Pan()
+        .enabled(dragEnabled)
+        // Горизонтальный свайп карточки не должен отбирать жест у вертикального скролла (если появится).
+        .activeOffsetX([-18, 18])
+        .failOffsetY([-14, 14])
+        .onUpdate((e) => {
+          tx.value = e.translationX;
+        })
+        .onEnd((e) => {
+          const ox = e.translationX;
+          if (ox > 100) {
+            tx.value = withSpring(420, { damping: 18, stiffness: 120 }, (done) => {
+              if (done) runOnJS(onSwipeRight)();
+            });
+          } else if (ox < -100) {
+            tx.value = withSpring(-420, { damping: 18, stiffness: 120 }, (done) => {
+              if (done) runOnJS(onSwipeLeft)();
+            });
+          } else {
+            tx.value = withSpring(0);
+          }
+        }),
+    [dragEnabled, onSwipeLeft, onSwipeRight, tx]
+  );
 
   const animatedStyle = useAnimatedStyle(() => {
     const rot = interpolate(tx.value, [-200, 0, 200], [-22, 0, 22]);

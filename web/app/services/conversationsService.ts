@@ -3,6 +3,8 @@ import { apiFetch, ApiResponse } from "./api";
 // Conversation type
 export interface ConversationResponse {
   id: string;
+  peerUserId?: string;
+  peerLastSeenAt?: string | null;
   name: string;
   avatar: string;
   lastMessage: string;

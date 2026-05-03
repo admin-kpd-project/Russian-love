@@ -5,6 +5,8 @@ export interface MessageResponse {
   text?: string | null;
   type: string;
   sender: "me" | "other";
+  /** Автор сообщения; клиент сверяет с текущим пользователем (WS раньше отдавал всем sender: "other"). */
+  senderUserId?: string;
   time: string;
   mediaUrl?: string | null;
   duration?: string | null;

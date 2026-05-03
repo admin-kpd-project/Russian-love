@@ -1,13 +1,17 @@
 import { motion, AnimatePresence } from "motion/react";
 import { X, Send, Image, Smile, Heart, Mic, Video, Gift } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
+import { useAuth } from "../contexts/AuthContext";
 import { getMessages, sendTextMessage, sendMediaMessage } from "../services/messagesService";
+import type { MessageResponse } from "../services/messagesService";
 import { markConversationRead } from "../services/conversationsService";
 import { uploadFile } from "../services/uploadService";
 import { createChatWebSocket } from "../services/socialService";
 import { getPaymentsStatus, initTbankPayment } from "../services/paymentsService";
+import { getUserById } from "../services/usersService";
 import { ModalShell } from "./ui/modal-shell";
+import { formatPeerPresenceLabel } from "../utils/presenceLabel";
 
 interface ChatModalProps {
   onClose: () => void;
@@ -16,6 +20,9 @@ interface ChatModalProps {
   userName: string;
   userAvatar: string;
   prefilledMessage?: string;
+  /** Для статуса «онлайн» / «был в сети» и опроса профиля. */
+  peerUserId?: string;
+  peerLastSeenAt?: string | null;
 }
 
 interface Message {
@@ -23,24 +30,42 @@ interface Message {
   text?: string;
   type: "text" | "image" | "voice" | "video";
   sender: "me" | "other";
+  /** Сырой id отправителя с API — для корректной стороны при WS (там раньше всем приходило sender: other). */
+  senderUserId?: string;
   time: string;
   mediaUrl?: string;
   duration?: string;
 }
 
-function mapApiMessage(m: import("../services/messagesService").MessageResponse): Message {
+function mapApiMessage(m: MessageResponse, selfUserId: string | null | undefined): Message {
   let mt: Message["type"] = "text";
   if (m.type === "image" || m.type === "voice" || m.type === "video") mt = m.type;
   else if (m.mediaUrl) mt = "image";
+  const sender: "me" | "other" =
+    selfUserId && m.senderUserId
+      ? m.senderUserId === selfUserId
+        ? "me"
+        : "other"
+      : m.sender;
   return {
     id: m.id,
     text: m.text ?? undefined,
     type: mt,
-    sender: m.sender,
+    sender,
+    senderUserId: m.senderUserId,
     time: m.time,
     mediaUrl: m.mediaUrl ?? undefined,
     duration: m.duration ?? undefined,
   };
+}
+
+/** Одно сообщение по id: обновляет существующую строку или добавляет в конец. */
+function upsertMessageById(prev: Message[], incoming: Message): Message[] {
+  const i = prev.findIndex((x) => x.id === incoming.id);
+  if (i === -1) return [...prev, incoming];
+  const next = [...prev];
+  next[i] = incoming;
+  return next;
 }
 
 /**
@@ -87,7 +112,13 @@ export function ChatModal({
   userName,
   userAvatar,
   prefilledMessage,
+  peerUserId,
+  peerLastSeenAt: peerLastSeenAtInitial,
 }: ChatModalProps) {
+  const { user } = useAuth();
+  const selfUserId = user?.id ?? null;
+  const selfUserIdRef = useRef<string | null>(null);
+  selfUserIdRef.current = selfUserId;
   const [messages, setMessages] = useState<Message[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [messagesError, setMessagesError] = useState<string | null>(null);
@@ -111,10 +142,35 @@ export function ChatModal({
   const recordKindRef = useRef<"voice" | "video" | null>(null);
   const durationSecRef = useRef(0);
   const recordCancelledRef = useRef(false);
+  const [peerLastSeenAt, setPeerLastSeenAt] = useState<string | null | undefined>(peerLastSeenAtInitial);
+
+  useEffect(() => {
+    setPeerLastSeenAt(peerLastSeenAtInitial);
+  }, [peerLastSeenAtInitial, peerUserId]);
+
+  useEffect(() => {
+    if (!peerUserId) return;
+    let cancelled = false;
+    const poll = async () => {
+      const res = await getUserById(peerUserId);
+      if (cancelled || res.error || !res.data) return;
+      const iso = res.data.lastSeenAt ?? null;
+      setPeerLastSeenAt(iso);
+    };
+    void poll();
+    if (typeof window === "undefined") return () => { cancelled = true; };
+    const id = window.setInterval(() => void poll(), 25_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [peerUserId]);
 
   useEffect(() => {
     if (prefilledMessage) setInputText((prev) => (prev.trim() ? prev : prefilledMessage));
   }, [prefilledMessage]);
+
+  const toUiMessage = useCallback((m: MessageResponse) => mapApiMessage(m, selfUserId), [selfUserId]);
 
   useEffect(() => {
     void (async () => {
@@ -143,12 +199,24 @@ export function ChatModal({
         setMessages([]);
         return;
       }
-      setMessages((res.data ?? []).map(mapApiMessage));
+      setMessages((res.data ?? []).map((row) => mapApiMessage(row, selfUserIdRef.current)));
     })();
     return () => {
       cancelled = true;
     };
   }, [conversationId]);
+
+  /** Когда профиль догрузился после истории — пересчитать сторону по senderUserId. */
+  useEffect(() => {
+    if (!selfUserId) return;
+    setMessages((prev) =>
+      prev.map((m) => {
+        if (!m.senderUserId) return m;
+        const sender: "me" | "other" = m.senderUserId === selfUserId ? "me" : "other";
+        return m.sender === sender ? m : { ...m, sender };
+      })
+    );
+  }, [selfUserId]);
 
   useEffect(() => {
     if (!conversationId) return;
@@ -169,11 +237,8 @@ export function ChatModal({
       try {
         const parsed = JSON.parse(event.data);
         if (parsed?.event === "message" && parsed?.message) {
-          const incoming = mapApiMessage(parsed.message);
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === incoming.id)) return prev;
-            return [...prev, incoming];
-          });
+          const incoming = mapApiMessage(parsed.message as MessageResponse, selfUserIdRef.current);
+          setMessages((prev) => upsertMessageById(prev, incoming));
         }
       } catch (err) {
         console.warn("WS parse error", err);
@@ -230,7 +295,7 @@ export function ChatModal({
     const res = await sendTextMessage(conversationId, text);
     setSending(false);
     if (res.error) alert(res.error);
-    else if (res.data) setMessages((prev) => [...prev, mapApiMessage(res.data)]);
+    else if (res.data) setMessages((prev) => upsertMessageById(prev, toUiMessage(res.data)));
   };
 
   const handleSend = async () => {
@@ -246,7 +311,7 @@ export function ChatModal({
       alert(res.error);
       return;
     }
-    if (res.data) setMessages((prev) => [...prev, mapApiMessage(res.data)]);
+    if (res.data) setMessages((prev) => upsertMessageById(prev, toUiMessage(res.data)));
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -275,7 +340,7 @@ export function ChatModal({
       alert(res.error);
       return;
     }
-    if (res.data) setMessages((prev) => [...prev, mapApiMessage(res.data)]);
+    if (res.data) setMessages((prev) => upsertMessageById(prev, toUiMessage(res.data)));
   };
 
   const cleanupRecording = () => {
@@ -335,7 +400,7 @@ export function ChatModal({
       setRecorderError(res.error);
       return;
     }
-    if (res.data) setMessages((prev) => [...prev, mapApiMessage(res.data)]);
+    if (res.data) setMessages((prev) => upsertMessageById(prev, toUiMessage(res.data)));
   };
 
   const startRecording = async (type: "voice" | "video") => {
@@ -471,7 +536,7 @@ export function ChatModal({
   }, [messages]);
 
   return (
-    <ModalShell onClose={onClose} ariaLabel={`Чат с ${userName}`} hideCloseButton variant="sheet">
+    <ModalShell onClose={onClose} ariaLabel={`Чат с ${userName}`} hideCloseButton>
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="bg-gradient-to-r from-red-600 to-amber-500 px-4 sm:px-5 py-3 flex items-center justify-between flex-shrink-0">
@@ -483,7 +548,7 @@ export function ChatModal({
             />
             <div className="min-w-0">
               <h2 className="font-bold text-white truncate">{userName}</h2>
-              <p className="text-xs text-white/80">онлайн</p>
+              <p className="text-xs text-white/80">{formatPeerPresenceLabel(peerLastSeenAt)}</p>
             </div>
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
@@ -826,7 +891,7 @@ export function ChatModal({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
             onClick={() => setShowGiftModal(false)}
           >
             <motion.div

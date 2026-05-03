@@ -20,8 +20,13 @@ export async function sendLike(userId: string): Promise<ApiResponse<LikeResponse
   });
 }
 
-export async function sendSuperLike(userId: string): Promise<ApiResponse<{ ok: boolean }>> {
-  return apiFetch<{ ok: boolean }>("/api/superlikes", {
+export interface SuperLikeResponse {
+  ok: boolean;
+  superLikesBalance?: number;
+}
+
+export async function sendSuperLike(userId: string): Promise<ApiResponse<SuperLikeResponse>> {
+  return apiFetch<SuperLikeResponse>("/api/superlikes", {
     method: "POST",
     body: JSON.stringify({ userId }),
   });

@@ -36,7 +36,7 @@ export function SuperLikeShopModal({ onClose, onPurchase, currentAmount }: Super
   ];
 
   return (
-    <ModalShell onClose={onClose} ariaLabel="Магазин суперлайков" variant="sheet">
+    <ModalShell onClose={onClose} ariaLabel="Магазин суперлайков">
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="relative bg-gradient-to-br from-orange-500 via-red-500 to-pink-500 px-5 sm:px-6 py-4 text-white overflow-hidden flex-shrink-0">

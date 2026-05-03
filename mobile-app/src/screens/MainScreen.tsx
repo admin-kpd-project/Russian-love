@@ -1,13 +1,14 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, Platform, StatusBar } from "react-native";
+import React, { useCallback, useEffect, useState, useRef } from "react";
+import { View, Text, StyleSheet, ActivityIndicator, Platform, StatusBar, Alert } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Heart, User as UserIcon, MessageCircle, Flame, QrCode, Bookmark } from "lucide-react-native";
+import { Heart, User as UserIcon, MessageCircle, Flame, QrCode, Bookmark, Bell } from "lucide-react-native";
 
 import { getFeed } from "../api/feedApi";
-import { createConversation } from "../api/conversationsApi";
+import { createConversation, listConversations } from "../api/conversationsApi";
+import { getNotifications } from "../api/notificationsApi";
 import { logoutApi } from "../api/authApi";
 import { getCurrentUser } from "../api/usersApi";
 import { getApiBaseUrl } from "../api/apiBase";
@@ -29,6 +30,7 @@ import { ActionButtons } from "../components/main/ActionButtons";
 import { MatchModal } from "../components/main/MatchModal";
 import { ChatsListModal } from "../components/main/ChatsListModal";
 import { LikesModal } from "../components/main/LikesModal";
+import { SuperLikeBurstLayer } from "../components/main/SuperLikeBurstLayer";
 import { FavoritesModal } from "../components/main/FavoritesModal";
 import { ProfileSettingsModal } from "../components/main/ProfileSettingsModal";
 import { SettingsModal } from "../components/main/SettingsModal";
@@ -48,6 +50,24 @@ import { brandGradients, tw } from "../theme/designTokens";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Main">;
 
+function profileIdStr(p: UserProfile): string {
+  return String(p.id);
+}
+
+type LikedEntry = { profile: UserProfile; isSuperLike: boolean };
+
+function mergeLikedEntry(prev: LikedEntry[], p: UserProfile, isSuper: boolean): LikedEntry[] {
+  const id = profileIdStr(p);
+  const idx = prev.findIndex((e) => profileIdStr(e.profile) === id);
+  if (idx === -1) return [...prev, { profile: p, isSuperLike: isSuper }];
+  const cur = prev[idx];
+  return [
+    ...prev.slice(0, idx),
+    { profile: cur.profile, isSuperLike: cur.isSuperLike || isSuper },
+    ...prev.slice(idx + 1),
+  ];
+}
+
 export function MainScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
@@ -58,8 +78,10 @@ export function MainScreen() {
   const [compatibility, setCompatibility] = useState<number[]>([]);
   const [self, setSelf] = useState<UserProfile>(mockSelf);
   const [loadingFeed, setLoadingFeed] = useState(true);
-  const [history, setHistory] = useState<{ profile: UserProfile; liked: boolean }[]>([]);
-  const [likedProfiles, setLikedProfiles] = useState<UserProfile[]>([]);
+  const [history, setHistory] = useState<{ profile: UserProfile; liked: boolean; superLike?: boolean }[]>([]);
+  const [likedEntries, setLikedEntries] = useState<LikedEntry[]>([]);
+  const [superLikeBurst, setSuperLikeBurst] = useState(false);
+  const superLikeInFlightRef = useRef(false);
   const [superLikesRemaining, setSuperLikesRemaining] = useState(5);
   const [isPremium, setIsPremium] = useState(false);
 
@@ -87,6 +109,14 @@ export function MainScreen() {
   const [analysisTarget, setAnalysisTarget] = useState<UserProfile | null>(null);
   const [hasUnlimitedAnalysis, setHasUnlimitedAnalysis] = useState(false);
   const [purchasedAnalyses, setPurchasedAnalyses] = useState<string[]>([]);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+  const [unreadChatsCount, setUnreadChatsCount] = useState(0);
+
+  const refreshBadgeCounts = useCallback(async () => {
+    const [n, c] = await Promise.all([getNotifications(), listConversations()]);
+    if (n.data) setUnreadNotifCount(n.data.filter((x) => !x.read).length);
+    if (c.data) setUnreadChatsCount(c.data.filter((x) => x.unread).length);
+  }, []);
 
   const reloadProfile = useCallback(async () => {
     const base = await getApiBaseUrl();
@@ -125,6 +155,18 @@ export function MainScreen() {
     };
   }, []);
 
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      void refreshBadgeCounts();
+      pollRef.current = setInterval(() => void refreshBadgeCounts(), 4000);
+      return () => {
+        if (pollRef.current) clearInterval(pollRef.current);
+        pollRef.current = null;
+      };
+    }, [refreshBadgeCounts])
+  );
+
   useEffect(() => {
     const scores = profiles.map((p) => calculateCompatibility(self, p));
     setCompatibility(scores);
@@ -133,10 +175,11 @@ export function MainScreen() {
   const handleSwipe = useCallback(
     (liked: boolean) => {
       if (currentIndex >= profiles.length) return;
+      if (superLikeBurst || superLikeInFlightRef.current) return;
       const cur = profiles[currentIndex];
       setHistory((h) => [...h, { profile: cur, liked }]);
       if (liked) {
-        setLikedProfiles((lp) => [...lp, cur]);
+        setLikedEntries((lp) => mergeLikedEntry(lp, cur, false));
         void (async () => {
           const res = await sendLike(String(cur.id));
           if (res.data?.matched) {
@@ -147,22 +190,55 @@ export function MainScreen() {
       }
       setCurrentIndex((i) => i + 1);
     },
-    [currentIndex, profiles]
+    [currentIndex, profiles, superLikeBurst]
   );
 
   const handleUndo = () => {
     if (history.length === 0) return;
+    if (superLikeBurst || superLikeInFlightRef.current) return;
+    const last = history[history.length - 1];
     setHistory((h) => h.slice(0, -1));
     setCurrentIndex((i) => Math.max(0, i - 1));
+    if (last.liked) {
+      const pid = profileIdStr(last.profile);
+      setLikedEntries((lp) => lp.filter((e) => profileIdStr(e.profile) !== pid));
+    }
   };
 
   const handleSuperLike = () => {
     if (currentIndex >= profiles.length) return;
+    if (superLikeBurst || superLikeInFlightRef.current) return;
+    if (!isPremium && superLikesRemaining <= 0) {
+      setShowShop(true);
+      return;
+    }
     const cur = profiles[currentIndex];
-    setLikedProfiles((lp) => [...lp, cur]);
-    void sendSuperLike(String(cur.id));
-    setCurrentIndex((i) => i + 1);
-    if (!isPremium && superLikesRemaining > 0) setSuperLikesRemaining((n) => n - 1);
+    superLikeInFlightRef.current = true;
+    setSuperLikeBurst(true);
+    const t0 = Date.now();
+    void (async () => {
+      const res = await sendSuperLike(String(cur.id));
+      const wait = Math.max(0, 720 - (Date.now() - t0));
+      await new Promise((r) => setTimeout(r, wait));
+      if (res.error) {
+        setSuperLikeBurst(false);
+        superLikeInFlightRef.current = false;
+        const msg = (res.error || "").toLowerCase();
+        if (msg.includes("нет суперлайков") || msg.includes("купите") || msg.includes("подписк")) {
+          setShowShop(true);
+        } else {
+          Alert.alert("Ошибка", res.error);
+        }
+        return;
+      }
+      const bal = res.data?.superLikesBalance;
+      if (typeof bal === "number") setSuperLikesRemaining(bal);
+      setLikedEntries((lp) => mergeLikedEntry(lp, cur, true));
+      setHistory((h) => [...h, { profile: cur, liked: true, superLike: true }]);
+      setCurrentIndex((i) => i + 1);
+      setSuperLikeBurst(false);
+      superLikeInFlightRef.current = false;
+    })();
   };
 
   const openChatWithProfile = async (p: UserProfile, prefilledMessage?: string) => {
@@ -177,6 +253,7 @@ export function MainScreen() {
       avatarUrl: p.photo,
       prefilledMessage,
       peerUserId: String(p.id),
+      peerLastSeenAt: undefined,
     });
   };
 
@@ -185,6 +262,7 @@ export function MainScreen() {
     userAvatar: string;
     conversationId?: string;
     peerUserId?: string;
+    peerLastSeenAt?: string | null;
   }) => {
     if (params.conversationId) {
       navigation.navigate("Chat", {
@@ -192,6 +270,7 @@ export function MainScreen() {
         title: params.userName,
         avatarUrl: params.userAvatar,
         peerUserId: params.peerUserId,
+        peerLastSeenAt: params.peerLastSeenAt,
       });
       return;
     }
@@ -203,6 +282,7 @@ export function MainScreen() {
         title: params.userName,
         avatarUrl: params.userAvatar,
         peerUserId: params.peerUserId,
+        peerLastSeenAt: params.peerLastSeenAt,
       });
     }
   };
@@ -214,6 +294,7 @@ export function MainScreen() {
       title: item.name,
       avatarUrl: item.avatar,
       peerUserId: item.peerUserId,
+      peerLastSeenAt: item.peerLastSeenAt,
     });
   };
 
@@ -261,8 +342,8 @@ export function MainScreen() {
               <UserIcon size={24} color={tw.gray600} />
             </ScalePressable>
             <ScalePressable onPress={() => setShowNotif(true)} style={styles.iconHit}>
-              <MessageCircle size={24} color={tw.gray600} />
-              <View style={styles.dot} />
+              <Bell size={24} color={tw.gray600} />
+              {unreadNotifCount > 0 ? <View style={styles.dot} /> : null}
             </ScalePressable>
           </View>
         </View>
@@ -290,7 +371,7 @@ export function MainScreen() {
                     profile={p}
                     compatibility={compat}
                     superLikesRemaining={superLikesRemaining}
-                    likesCount={likedProfiles.length}
+                    likesCount={likedEntries.length}
                     onOpenDetailedAnalysis={
                       off === 0 && currentProfile
                         ? () => {
@@ -302,7 +383,13 @@ export function MainScreen() {
                 );
                 if (off === 0) {
                   return (
-                    <SwipeableCard key={p.id} cardKey={p.id} onSwipeLeft={() => handleSwipe(false)} onSwipeRight={() => handleSwipe(true)}>
+                    <SwipeableCard
+                      key={p.id}
+                      cardKey={p.id}
+                      dragEnabled={!superLikeBurst}
+                      onSwipeLeft={() => handleSwipe(false)}
+                      onSwipeRight={() => handleSwipe(true)}
+                    >
                       {card}
                     </SwipeableCard>
                   );
@@ -324,6 +411,7 @@ export function MainScreen() {
                   </View>
                 );
               })}
+              <SuperLikeBurstLayer visible={superLikeBurst} />
             </View>
             <ActionButtons
               onReject={() => handleSwipe(false)}
@@ -333,6 +421,7 @@ export function MainScreen() {
               onFavorite={() => currentProfile && toggleFavorite(currentProfile)}
               hasUndo={history.length > 0}
               isFavorite={currentProfile ? isFavorite(currentProfile.id) : false}
+              disabled={superLikeBurst}
             />
           </>
         ) : (
@@ -344,6 +433,10 @@ export function MainScreen() {
             <Text style={styles.emptyT}>Попробуйте вернуться позже</Text>
             <ScalePressable
               onPress={() => {
+                setProfiles((prev) => {
+                  const likedIds = new Set(likedEntries.map((e) => profileIdStr(e.profile)));
+                  return prev.filter((p) => !likedIds.has(profileIdStr(p)));
+                });
                 setCurrentIndex(0);
                 setHistory([]);
               }}
@@ -383,7 +476,7 @@ export function MainScreen() {
         </ScalePressable>
         <ScalePressable style={styles.navHit} onPress={() => setShowChats(true)}>
           <MessageCircle size={30} color={tw.gray400} />
-          <View style={styles.dotSm} />
+          {unreadChatsCount > 0 ? <View style={styles.dotSm} /> : null}
         </ScalePressable>
         <ScalePressable style={styles.navHit} onPress={() => setShowProfile(true)}>
           <UserIcon size={30} color={tw.gray400} />
@@ -433,10 +526,17 @@ export function MainScreen() {
         }}
       />
 
-      <ChatsListModal visible={showChats} onClose={() => setShowChats(false)} onPick={openChatFromList} />
+      <ChatsListModal
+        visible={showChats}
+        onClose={() => {
+          setShowChats(false);
+          void refreshBadgeCounts();
+        }}
+        onPick={openChatFromList}
+      />
       <LikesModal
         visible={showLikes}
-        profiles={likedProfiles}
+        entries={likedEntries}
         onClose={() => setShowLikes(false)}
         onOpenProfile={(p) => {
           setShowLikes(false);
@@ -481,11 +581,12 @@ export function MainScreen() {
         visible={showNotif}
         onClose={() => setShowNotif(false)}
         onOpenChat={(p) => void openChatFromNotification(p)}
+        onMarkedAllRead={() => setUnreadNotifCount(0)}
       />
       <RecommendModal
         visible={showRecommend && recommendProfile != null}
         profileToRecommend={recommendProfile}
-        availableFriends={likedProfiles}
+        availableFriends={likedEntries.map((e) => e.profile)}
         onClose={() => {
           setShowRecommend(false);
           setRecommendProfile(null);

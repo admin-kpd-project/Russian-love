@@ -9,7 +9,7 @@ interface SubscriptionModalProps {
 
 export function SubscriptionModal({ onClose, remainingSuperLikes }: SubscriptionModalProps) {
   return (
-    <ModalShell onClose={onClose} ariaLabel="Премиум подписка" variant="sheet" className="bg-gradient-to-br from-amber-50 to-red-50">
+    <ModalShell onClose={onClose} ariaLabel="Премиум подписка" className="bg-gradient-to-br from-amber-50 to-red-50">
       <div className="flex flex-col h-full overflow-hidden">
         {/* Header */}
         <div className="relative flex-shrink-0 bg-gradient-to-r from-red-500 via-amber-500 to-yellow-500 text-white p-6 sm:p-7 text-center overflow-hidden">

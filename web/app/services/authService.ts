@@ -25,6 +25,8 @@ export interface ProfileResponse {
   };
   /** user | admin | moderator | support */
   role?: string;
+  /** ISO 8601 (UTC, Z) — последняя активность в приложении по API. */
+  lastSeenAt?: string | null;
 }
 
 export interface AuthResponse {

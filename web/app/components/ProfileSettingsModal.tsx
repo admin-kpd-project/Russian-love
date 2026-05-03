@@ -53,7 +53,6 @@ export function ProfileSettingsModal({
   const [interestTags, setInterestTags] = useState<string[]>(user?.interests || []);
   const [newInterest, setNewInterest] = useState("");
   const [avatarUrl, setAvatarUrl] = useState(user?.photo || "");
-  const [photos, setPhotos] = useState<string[]>(user?.photos || []);
 
   useEffect(() => {
     if (!user) return;
@@ -66,7 +65,6 @@ export function ProfileSettingsModal({
     });
     setInterestTags(user.interests || []);
     setAvatarUrl(user.photo || "");
-    setPhotos(user.photos || []);
   }, [user?.id]);
 
   const canSave = useMemo(
@@ -90,17 +88,6 @@ export function ProfileSettingsModal({
     setError(null);
   };
 
-  const handleUploadExtraPhoto = async (file?: File) => {
-    if (!file) return;
-    const res = await uploadFile(file);
-    if (!res.url) {
-      setError(res.error || "Не удалось загрузить фото");
-      return;
-    }
-    setPhotos((prev) => [...prev, res.url!]);
-    setError(null);
-  };
-
   const handleSave = async () => {
     if (!canSave) return;
     setSaving(true);
@@ -112,7 +99,7 @@ export function ProfileSettingsModal({
       location: form.location.trim(),
       bio: form.bio.trim(),
       avatarUrl,
-      photos,
+      photos: [],
       interests: interestTags,
     });
     setSaving(false);
@@ -137,7 +124,7 @@ export function ProfileSettingsModal({
   };
 
   return (
-    <ModalShell onClose={onClose} ariaLabel="Профиль" hideCloseButton variant="sheet">
+    <ModalShell onClose={onClose} ariaLabel="Профиль" hideCloseButton>
       <div className="flex flex-col h-full">
         <div className="relative h-24 sm:h-28 flex-shrink-0 bg-gradient-to-br from-red-600 to-amber-500">
           <button
@@ -348,18 +335,6 @@ export function ProfileSettingsModal({
             )}
           </div>
 
-          {editing && (
-            <div className="mb-6">
-              <label className="mb-2 block text-sm font-medium text-gray-700">Дополнительные фото</label>
-              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 p-3 text-gray-600 hover:bg-gray-50">
-                <Camera className="size-4" />
-                <span>Добавить фото</span>
-                <input type="file" accept="image/*" className="hidden" onChange={(e) => void handleUploadExtraPhoto(e.target.files?.[0])} />
-              </label>
-              <p className="mt-1 text-xs text-gray-500">Загружено: {photos.length}</p>
-            </div>
-          )}
-
           {!editing && (
             <div className="mb-6">
               <h3 className="mb-3 font-semibold text-gray-800">Контакты</h3>
@@ -397,7 +372,6 @@ export function ProfileSettingsModal({
                     });
                     setInterestTags(user.interests || []);
                     setAvatarUrl(user.photo || "");
-                    setPhotos(user.photos || []);
                   }
                 }}
                 className="flex items-center justify-center rounded-xl border-2 border-gray-200 px-6 py-3 font-medium text-gray-700 transition-colors hover:bg-gray-50"

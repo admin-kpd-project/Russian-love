@@ -30,6 +30,7 @@ class ProfileResponse(BaseModel):
     hasUnlimitedAnalysis: bool = False
     purchasedAnalysisUserIds: list[str] = []
     role: str = "user"
+    lastSeenAt: str | None = None
 
     model_config = {"populate_by_name": True}
 
@@ -52,6 +53,11 @@ def user_to_profile(u: User) -> ProfileResponse:
     raw = getattr(u, "purchased_analysis_user_ids", None)
     if isinstance(raw, list):
         pids = [str(x) for x in raw]
+    ls_raw = getattr(u, "last_seen_at", None)
+    last_seen_iso: str | None = None
+    if ls_raw is not None:
+        last_seen_iso = ls_raw.astimezone(UTC).isoformat().replace("+00:00", "Z")
+
     return ProfileResponse(
         id=str(u.id),
         name=u.display_name,
@@ -75,6 +81,7 @@ def user_to_profile(u: User) -> ProfileResponse:
         hasUnlimitedAnalysis=bool(getattr(u, "has_unlimited_analysis", False)),
         purchasedAnalysisUserIds=pids,
         role=str(getattr(u, "user_role", None) or "user"),
+        lastSeenAt=last_seen_iso,
     )
 
 
