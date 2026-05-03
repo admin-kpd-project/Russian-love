@@ -3,7 +3,7 @@
 ## Клиенты
 
 - **Web** (React + Vite): SPA в каталоге `web/`, собирается в `dist/`, в проде за reverse proxy.
-- **Android** (позже): тот же REST/OpenAPI, тот же base URL.
+- **Мобильное приложение** (React Native): каталог `mobile-app/`, тот же REST API и base URL (см. `mobile-app/README.md`).
 
 ## Сервер
 
@@ -15,7 +15,7 @@
 
 ## Контракт API
 
-- Источник правды: [mobile/backend/docs/dating-api-spec.yaml](mobile/backend/docs/dating-api-spec.yaml) (включая `GET /api/feed`).
+- Источник правды: схемы Pydantic + роутеры в `backend/app/`; машиночитаемая спека — `GET /openapi.json` у запущенного API (или `/docs`).
 - Ответы в обёртке `{ "data": ..., "error": null }` (или `data: null` при ошибке).
 
 ## Деплой (VPS)

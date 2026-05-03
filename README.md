@@ -85,7 +85,7 @@ npm run dev
 ## Документация
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — схема для инвесторов / онбординга.
-- OpenAPI: [mobile/backend/docs/dating-api-spec.yaml](mobile/backend/docs/dating-api-spec.yaml).
+- OpenAPI: при запущенном API — `GET /openapi.json` и интерактивно `GET /docs` (FastAPI, см. [AGENTS.md](AGENTS.md)); статический YAML в репозитории не ведётся.
 - Эволюция чата: [backend/docs/CHAT_EVOLUTION.md](backend/docs/CHAT_EVOLUTION.md).
 
 ## Персональные данные (MVP)
