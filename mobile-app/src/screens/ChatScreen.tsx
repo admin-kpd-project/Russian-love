@@ -32,7 +32,7 @@ import { getPaymentsStatus, initTbankPayment } from "../api/paymentsApi";
 import { submitUserReport } from "../api/reportsApi";
 import { getApiBaseUrl } from "../api/apiBase";
 import { publicDisplayMediaUrl, resolveMediaUrl, scrubInsecureMediaUrl } from "../utils/mediaUrl";
-import { brandGradients, tw } from "../theme/designTokens";
+import { brandGradients, pageBackgroundFlat, tw } from "../theme/designTokens";
 import type { RootStackParamList } from "../navigation/types";
 import { ScalePressable } from "../components/ui/Motion";
 import { MotionModal } from "../components/ui/MotionModal";
@@ -844,7 +844,7 @@ export function ChatScreen({ route, navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  shell: { flex: 1, backgroundColor: "#fffefb" },
+  shell: { flex: 1, backgroundColor: pageBackgroundFlat },
   flex: { flex: 1 },
   topBar: { paddingHorizontal: 16, paddingBottom: 14 },
   topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },

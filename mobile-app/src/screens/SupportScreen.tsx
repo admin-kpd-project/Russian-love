@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { ArrowLeft } from "lucide-react-native";
+import { ArrowLeft, Headphones } from "lucide-react-native";
 
 import type { RootStackParamList } from "../navigation/types";
 import { createSupportTicket, listMySupportTickets, type SupportTicket } from "../api/supportApi";
@@ -73,8 +73,11 @@ export function SupportScreen({ navigation }: Props) {
           <ScalePressable style={styles.back} onPress={() => navigation.goBack()}>
             <ArrowLeft size={20} color="#fff" />
           </ScalePressable>
-          <Text style={styles.title}>Поддержка</Text>
-          <Text style={styles.sub}>Опишите проблему — мы ответим через обращение.</Text>
+          <View style={styles.heroTitleRow}>
+            <Headphones size={36} color="#fff" />
+            <Text style={styles.title}>Поддержка</Text>
+          </View>
+          <Text style={styles.sub}>Опишите проблему — команда ответит в рамках обращения в админ-панели.</Text>
         </LinearGradient>
 
         <View style={[styles.card, cardShadow()]}>
@@ -145,7 +148,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  title: { fontSize: 24, fontWeight: "800", color: "#fff", marginBottom: 8 },
+  heroTitleRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 8, marginTop: 8 },
+  title: { fontSize: 24, fontWeight: "800", color: "#fff" },
   sub: { color: "rgba(255,255,255,0.92)", fontSize: 14, textAlign: "center" },
   card: {
     backgroundColor: colors.white,
@@ -161,7 +165,7 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1,
     borderColor: colors.stone200,
-    borderRadius: radius.md,
+    borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginBottom: 14,

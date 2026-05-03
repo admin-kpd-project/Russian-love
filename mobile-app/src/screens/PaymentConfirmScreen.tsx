@@ -45,7 +45,7 @@ export function PaymentConfirmScreen({ route, navigation }: Props) {
         <LoopingView kind="pulse" style={styles.ico}>
           <CheckCircle2 size={48} color="#16a34a" />
         </LoopingView>
-        <Text style={styles.h1}>Платёж создан</Text>
+        <Text style={styles.h1}>Платеж создан</Text>
         <Text style={styles.p}>
           Заказ передан в обработку. Статус обновится автоматически после ответа платёжного провайдера.
         </Text>

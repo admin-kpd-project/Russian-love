@@ -45,6 +45,19 @@ def _read_gate(user: User | None, *, need_mod: bool) -> JSONResponse | None:
     return None
 
 
+def _apk_manage_gate(user: User | None) -> JSONResponse | None:
+    """None = OK. In public admin mode allow APK management without JWT (dev only)."""
+    s = get_settings()
+    if s.admin_public_panel:
+        return None
+    if user is None:
+        return JSONResponse(status_code=401, content=Envelope.err("Требуется вход"))
+    role = getattr(user, "user_role", None) or "user"
+    if role != "admin":
+        return JSONResponse(status_code=403, content=Envelope.err("Недостаточно прав"))
+    return None
+
+
 class AdminPublicCreateUserBody(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
     email: EmailStr
@@ -60,9 +73,12 @@ class MobileApkSettingBody(BaseModel):
 
 @router.get("/mobile-apk")
 async def admin_get_mobile_apk(
-    _: User = Depends(_admin_only),
+    user: User | None = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
 ):
+    gate = _apk_manage_gate(user)
+    if gate is not None:
+        return gate
     row = (await db.execute(select(SiteSetting).where(SiteSetting.key == KEY_MOBILE_APK_URL))).scalar_one_or_none()
     url = (row.value or "").strip() if row and row.value else ""
     updated = None
@@ -74,9 +90,12 @@ async def admin_get_mobile_apk(
 @router.patch("/mobile-apk")
 async def admin_patch_mobile_apk(
     body: MobileApkSettingBody,
-    _: User = Depends(_admin_only),
+    user: User | None = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
 ):
+    gate = _apk_manage_gate(user)
+    if gate is not None:
+        return gate
     raw = body.download_url
     if raw is not None and not str(raw).strip():
         raw = None

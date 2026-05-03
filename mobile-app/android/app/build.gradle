@@ -85,7 +85,20 @@ def getApiBaseFromLocalProperties() {
     }
     return p.getProperty("API_BASE_URL", "")
 }
-def apiBaseForBuildConfig = getApiBaseFromLocalProperties().replace("\\", "\\\\").replace("\"", "\\\"")
+
+/** Старые стенды 81.26.*.* в local.properties → канонический staging (иначе BuildConfig тянет мёртвый IP в JS). */
+def remapLegacyApiBaseUrlForBuildConfig(String raw) {
+    def u = (raw ?: "").trim()
+    if (!u) return u
+    if (u.matches("(?i)https?://81\\.26\\.\\d{1,3}\\.\\d{1,3}(:\\d+)?(/.*)?")) {
+        return "https://dev.forruss.ru"
+    }
+    return u
+}
+
+def apiBaseForBuildConfig = remapLegacyApiBaseUrlForBuildConfig(getApiBaseFromLocalProperties())
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
 
 android {
     ndkVersion rootProject.ext.ndkVersion

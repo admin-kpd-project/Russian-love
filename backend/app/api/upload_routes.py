@@ -6,7 +6,7 @@ from botocore.client import Config
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
-from app.api.deps import get_current_user, require_roles
+from app.api.deps import get_current_user, get_current_user_optional, require_roles
 from app.config.settings import get_settings
 from app.core.envelope import Envelope
 from app.db.models import User
@@ -25,6 +25,7 @@ _LIMITS = {
     "image/webp": 10 * 1024 * 1024,
     "image/gif": 10 * 1024 * 1024,
     "video/mp4": 100 * 1024 * 1024,
+    "video/webm": 100 * 1024 * 1024,
     "audio/ogg": 20 * 1024 * 1024,
     "audio/webm": 20 * 1024 * 1024,
     "audio/mpeg": 20 * 1024 * 1024,
@@ -32,6 +33,19 @@ _LIMITS = {
     "audio/m4a": 20 * 1024 * 1024,
     "audio/aac": 20 * 1024 * 1024,
 }
+
+
+def _apk_upload_gate(user: User | None) -> JSONResponse | None:
+    """None = OK. In public admin mode allow APK upload without JWT (dev only)."""
+    s = get_settings()
+    if s.admin_public_panel:
+        return None
+    if user is None:
+        return JSONResponse(status_code=401, content=Envelope.err("Требуется вход"))
+    role = getattr(user, "user_role", None) or "user"
+    if role != "admin":
+        return JSONResponse(status_code=403, content=Envelope.err("Недостаточно прав"))
+    return None
 
 # Presign для регистрации: без JWT; только картинки, ключ без user id.
 _REG_UPLOAD_IMAGE_TYPES = frozenset(
@@ -277,9 +291,12 @@ async def presign_upload_registration(request: Request, body: UploadPresignBody)
 async def presign_mobile_apk(
     request: Request,
     body: UploadPresignBody,
-    _: User = Depends(_admin_only),
+    user: User | None = Depends(get_current_user_optional),
 ):
-    """Только admin: загрузка APK в S3 для ссылки на лендинге."""
+    """Admin JWT or public admin mode: загрузка APK в S3 для ссылки на лендинге."""
+    gate = _apk_upload_gate(user)
+    if gate is not None:
+        return gate
     ct = _normalize_upload_content_type(body.content_type)
     if ct not in _APK_CT:
         return JSONResponse(

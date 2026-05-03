@@ -6,14 +6,22 @@ import { API_URL_FALLBACK_JS, CANONICAL_STAGING_API_BASE } from "../config";
 const KEY = "@rl_api_base";
 /** Однократная миграция сохранённого base (legacy IP, хвост /api). */
 const MIGRATION_VERSION_KEY = "@rl_api_base_migration_v1";
-/** v2: добавлены другие старые стенды 81.26.x.x (раньше был только 81.26.181.58). */
-const MIGRATION_VER = "2";
+/** v3: любой публичный IPv4 вида 81.26.*.* (старые стенды) → канонический staging. */
+const MIGRATION_VER = "3";
 
 /**
  * Только миграция старых установок (AsyncStorage / старые BuildConfig).
  * Канонический адрес везде в коде и доках — `CANONICAL_STAGING_API_BASE` в config.ts.
  */
-const LEGACY_FORRUSS_STAGING_IPV4 = new Set(["81.26.181.58", "81.26.176.56"]);
+function isLegacyYandexForrussStagingIpv4(hostname: string): boolean {
+  if (!/^81\.26\.\d{1,3}\.\d{1,3}$/.test(hostname)) return false;
+  const parts = hostname.split(".");
+  if (parts.length !== 4) return false;
+  const third = Number(parts[2]);
+  const fourth = Number(parts[3]);
+  if (!Number.isFinite(third) || !Number.isFinite(fourth)) return false;
+  return third >= 0 && third <= 255 && fourth >= 0 && fourth <= 255;
+}
 
 function isLocalOrLanHost(host: string): boolean {
   const h = host.toLowerCase();
@@ -118,7 +126,7 @@ function remapLegacyStagingApiBase(base: string): string {
   if (!base) return base;
   try {
     const h = new URL(base).hostname;
-    if (LEGACY_FORRUSS_STAGING_IPV4.has(h)) {
+    if (isLegacyYandexForrussStagingIpv4(h)) {
       return normalizeApiBase(CANONICAL_STAGING_API_BASE);
     }
   } catch {
@@ -193,7 +201,8 @@ export async function isApiBaseConfigured(): Promise<boolean> {
  * Сохраняет URL. Очистка токенов — в вызывающем коде после set (избегаем циклического импорта с client).
  */
 export async function setApiBaseUrlInStorage(url: string): Promise<void> {
-  const n = normalizeApiBase(url);
+  let n = normalizeApiBase(url);
+  n = remapLegacyStagingApiBase(n);
   if (!n) {
     await AsyncStorage.removeItem(KEY);
     return;

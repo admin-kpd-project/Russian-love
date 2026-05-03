@@ -1,4 +1,4 @@
-import { apiFetch, ApiResponse } from "./api";
+import { apiFetch, ApiResponse, tokenStorage } from "./api";
 
 export type UploadFileOptions = {
   /** Регистрация / приглашение: presign без JWT. */
@@ -140,21 +140,39 @@ function guessApkContentType(file: File): string {
 
 export async function getPresignedMobileApkUploadUrl(
   contentType: string,
-  fileSizeBytes: number
+  fileSizeBytes: number,
+  asPublicAdmin = false
 ): Promise<ApiResponse<PresignUploadResponse>> {
-  return apiFetch<PresignUploadResponse>("/api/upload/mobile-apk", {
-    method: "POST",
-    body: JSON.stringify({
-      contentType,
-      fileSizeBytes,
-    }),
-  });
+  const call = (publicMode: boolean) =>
+    apiFetch<PresignUploadResponse>(
+      "/api/upload/mobile-apk",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          contentType,
+          fileSizeBytes,
+        }),
+      },
+      publicMode ? { public: true } : undefined
+    );
+
+  const res = await call(asPublicAdmin);
+  const authErr =
+    !!res.error &&
+    (res.error.includes("HTTP 401") ||
+      res.error.includes("HTTP 403") ||
+      res.error.includes("Требуется вход") ||
+      res.error.includes("Недостаточно прав"));
+  if (asPublicAdmin && authErr && tokenStorage.getAccessToken()) {
+    return call(false);
+  }
+  return res;
 }
 
-/** Только admin JWT: загрузка APK в S3, возвращает публичный fileUrl. */
-export async function uploadMobileApkFile(file: File): Promise<UploadResult> {
+/** Admin JWT или публичная админка (dev): загрузка APK в S3, возвращает публичный fileUrl. */
+export async function uploadMobileApkFile(file: File, asPublicAdmin = false): Promise<UploadResult> {
   const contentType = guessApkContentType(file);
-  const response = await getPresignedMobileApkUploadUrl(contentType, file.size);
+  const response = await getPresignedMobileApkUploadUrl(contentType, file.size, asPublicAdmin);
   if (!response.data) {
     return { url: null, error: response.error || "Не удалось получить ссылку для загрузки APK" };
   }

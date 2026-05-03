@@ -35,3 +35,5 @@ export const WEB_RN_PARITY: Record<string, string> = {
   "pages/AdminPage.tsx": "(web only — admin panel)",
   "routes.tsx /support + SettingsModal": "navigation/Support + SettingsModal → Support",
 };
+
+export { PARITY_SCREEN_CHECKLIST, PARITY_QA_NOTES } from "./parityChecklist";

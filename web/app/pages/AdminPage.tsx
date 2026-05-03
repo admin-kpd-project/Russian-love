@@ -121,8 +121,8 @@ export function AdminPage() {
               {TEMP_ADMIN_NO_AUTH ? (
                 <span className="block text-amber-700 font-medium mt-1">
                   Временно: страница без входа; чтение обзора и создание пользователей — через публичные
-                  эндпоинты API (см. DATING_ADMIN_PUBLIC_* в backend). Изменение тикетов/жалоб и APK — только со
-                  входом сотрудника (JWT).
+                  эндпоинты API (см. DATING_ADMIN_PUBLIC_* в backend). APK в dev-режиме тоже можно загрузить
+                  без JWT, если на backend включён DATING_ADMIN_PUBLIC_PANEL=true.
                 </span>
               ) : null}
             </p>
@@ -295,7 +295,7 @@ export function AdminPage() {
                   }
                   setApkBusy(true);
                   setApkErr(null);
-                  const up = await uploadMobileApkFile(f);
+                  const up = await uploadMobileApkFile(f, TEMP_ADMIN_NO_AUTH && !user);
                   if (!up.url) {
                     setApkErr(up.error || "Не удалось загрузить APK");
                     setApkBusy(false);

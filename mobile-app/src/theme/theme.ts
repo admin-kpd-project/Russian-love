@@ -1,6 +1,6 @@
 import { Platform, type TextStyle, type ViewStyle } from "react-native";
 
-import { pageBackgroundFlat, tw } from "./designTokens";
+import { pageBackgroundFlat, shadcnLight, tw } from "./designTokens";
 
 /** Цвета как на лендинге (Tailwind) — `pageBg` = плоский фон, согласован с `brandGradients.page` / веб */
 export const colors = {
@@ -22,6 +22,9 @@ export const colors = {
   stone100: "#f5f5f4",
   borderInput: "#fecaca",
   error: "#b91c1c",
+  destructive: shadcnLight.destructive,
+  mutedForeground: shadcnLight.mutedForeground,
+  inputBgShadcn: shadcnLight.inputBackground,
   link: "#c2410c",
   greenSend: "#16a34a",
 } as const;

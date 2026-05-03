@@ -1,4 +1,4 @@
-import { apiFetch, ApiResponse } from "./api";
+import { apiFetch, ApiResponse, tokenStorage } from "./api";
 
 /** Чтение админки без JWT (когда на API включён DATING_ADMIN_PUBLIC_PANEL). */
 const adminReadPublic = { public: true } as const;
@@ -88,13 +88,35 @@ export async function activateUser(userId: string): Promise<ApiResponse<{ ok: bo
 
 export type MobileApkSetting = { downloadUrl: string | null; updatedAt: string | null };
 
+function isAuthError(error: string | null): boolean {
+  if (!error) return false;
+  const e = error.toLowerCase();
+  return (
+    e.includes("http 401") ||
+    e.includes("http 403") ||
+    e.includes("требуется вход") ||
+    e.includes("not authenticated") ||
+    e.includes("недостаточно прав")
+  );
+}
+
+async function withPublicThenPrivateFallback<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
+  const publicResult = await apiFetch<T>(endpoint, options, adminReadPublic);
+  if (!isAuthError(publicResult.error)) return publicResult;
+  if (!tokenStorage.getAccessToken()) return publicResult;
+  return apiFetch<T>(endpoint, options);
+}
+
 export async function getAdminMobileApk(): Promise<ApiResponse<MobileApkSetting>> {
-  return apiFetch<MobileApkSetting>("/api/admin/mobile-apk");
+  return withPublicThenPrivateFallback<MobileApkSetting>("/api/admin/mobile-apk");
 }
 
 export async function patchAdminMobileApk(downloadUrl: string | null): Promise<ApiResponse<{ downloadUrl: string | null }>> {
-  return apiFetch<{ downloadUrl: string | null }>("/api/admin/mobile-apk", {
-    method: "PATCH",
-    body: JSON.stringify({ downloadUrl }),
-  });
+  return withPublicThenPrivateFallback<{ downloadUrl: string | null }>(
+    "/api/admin/mobile-apk",
+    {
+      method: "PATCH",
+      body: JSON.stringify({ downloadUrl }),
+    }
+  );
 }

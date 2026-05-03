@@ -56,6 +56,21 @@ export const tw = {
   // Радиусы
   rounded2xl: 16, // rounded-2xl
   rounded3xl: 24, // rounded-3xl
+  /** shadcn `--radius` 0.625rem — inputs / кнопки secondary на web */
+  roundedShadcn: 10,
+  gray900: "#111827", // bg-gray-900 footer web
+} as const;
+
+/** Светлая тема shadcn из `web/styles/theme.css` :root — для модалок/инпутов 1:1 с web. */
+export const shadcnLight = {
+  background: "#ffffff",
+  foreground: "#0a0a0a",
+  destructive: "#d4183d",
+  muted: "#ececf0",
+  mutedForeground: "#717182",
+  border: "rgba(0,0,0,0.1)",
+  inputBackground: "#f3f3f5",
+  ring: "#b5b5b5",
 } as const;
 
 export const brandGradients = {

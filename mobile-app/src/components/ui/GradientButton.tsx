@@ -22,6 +22,8 @@ type Props = {
   left?: React.ReactNode;
   right?: React.ReactNode;
   variant?: "primary" | "light" | "outline";
+  /** Соответствие веб `font-medium` / `font-semibold` (по умолчанию 700 как CTA). */
+  textFontWeight?: "400" | "500" | "600" | "700";
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
 };
@@ -34,15 +36,21 @@ export function GradientButton({
   left,
   right,
   variant = "primary",
+  textFontWeight = "700",
   style,
   textStyle,
 }: Props) {
   const isPrimary = variant === "primary";
   const Wrapper = isPrimary ? ScalePressable : Pressable;
+  const weightStyle: TextStyle = { fontWeight: textFontWeight };
   const content = (
     <>
       {left}
-      {loading ? <ActivityIndicator color={isPrimary ? "#fff" : tw.stone700} /> : <Text style={[styles.text, !isPrimary && styles.darkText, textStyle]}>{title}</Text>}
+      {loading ? (
+        <ActivityIndicator color={isPrimary ? "#fff" : tw.stone700} />
+      ) : (
+        <Text style={[styles.text, weightStyle, !isPrimary && styles.darkText, textStyle]}>{title}</Text>
+      )}
       {right}
     </>
   );
@@ -97,7 +105,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: tw.red200,
   },
-  text: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  text: { color: "#fff", fontSize: 16 },
   darkText: { color: tw.stone800 },
   disabled: { opacity: 0.62 },
 });
