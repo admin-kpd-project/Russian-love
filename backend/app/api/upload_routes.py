@@ -26,12 +26,14 @@ _LIMITS = {
     "image/gif": 10 * 1024 * 1024,
     "video/mp4": 100 * 1024 * 1024,
     "video/webm": 100 * 1024 * 1024,
+    "video/quicktime": 100 * 1024 * 1024,
     "audio/ogg": 20 * 1024 * 1024,
     "audio/webm": 20 * 1024 * 1024,
     "audio/mpeg": 20 * 1024 * 1024,
     "audio/mp4": 20 * 1024 * 1024,
     "audio/m4a": 20 * 1024 * 1024,
     "audio/aac": 20 * 1024 * 1024,
+    "audio/wav": 20 * 1024 * 1024,
 }
 
 
@@ -59,6 +61,10 @@ _CONTENT_TYPE_ALIASES: dict[str, str] = {
     "audio/mp3": "audio/mpeg",
     "audio/x-mpeg": "audio/mpeg",
     "audio/x-mp3": "audio/mpeg",
+    "audio/x-wav": "audio/wav",
+    "audio/wave": "audio/wav",
+    "audio/vnd.wave": "audio/wav",
+    "video/x-matroska": "video/webm",
 }
 
 

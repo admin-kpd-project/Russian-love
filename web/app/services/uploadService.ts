@@ -16,6 +16,10 @@ export function normalizeUploadContentType(raw: string): string {
     "audio/mp3": "audio/mpeg",
     "audio/x-mpeg": "audio/mpeg",
     "audio/x-mp3": "audio/mpeg",
+    "audio/x-wav": "audio/wav",
+    "audio/wave": "audio/wav",
+    "audio/vnd.wave": "audio/wav",
+    "video/x-matroska": "video/webm",
   };
   return aliases[base] ?? base;
 }
@@ -37,7 +41,12 @@ function guessMediaContentType(file: File): string {
   if (t) return t;
   const n = file.name.toLowerCase();
   if (n.endsWith(".mp4")) return "video/mp4";
+  if (n.endsWith(".mov")) return "video/quicktime";
   if (n.endsWith(".webm")) return "video/webm";
+  if (n.endsWith(".mkv")) return "video/webm";
+  if (n.endsWith(".wav")) return "audio/wav";
+  if (n.endsWith(".m4a")) return "audio/mp4";
+  if (n.endsWith(".aac")) return "audio/aac";
   if (n.endsWith(".ogg")) return "audio/ogg";
   if (n.endsWith(".mp3")) return "audio/mpeg";
   return guessImageContentType(file);

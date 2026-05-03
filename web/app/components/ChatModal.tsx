@@ -132,6 +132,8 @@ export function ChatModal({
   const [showGiftModal, setShowGiftModal] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [recorderError, setRecorderError] = useState<string | null>(null);
+  const [wsReady, setWsReady] = useState(false);
+  const [wsUnavailable, setWsUnavailable] = useState(false);
   const [paymentsEnabled, setPaymentsEnabled] = useState<boolean | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recordingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -139,6 +141,7 @@ export function ChatModal({
   const wsRef = useRef<WebSocket | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
+  const recordPreviewRef = useRef<HTMLVideoElement | null>(null);
   const recordChunksRef = useRef<Blob[]>([]);
   const recordKindRef = useRef<"voice" | "video" | null>(null);
   const durationSecRef = useRef(0);
@@ -186,12 +189,16 @@ export function ChatModal({
       setMessages([]);
       setMessagesLoading(false);
       setMessagesError("Нет идентификатора беседы");
+      setWsReady(false);
+      setWsUnavailable(false);
       return;
     }
     let cancelled = false;
     (async () => {
       setMessagesLoading(true);
       setMessagesError(null);
+      setWsReady(false);
+      setWsUnavailable(false);
       const res = await getMessages(conversationId);
       if (cancelled) return;
       setMessagesLoading(false);
@@ -201,6 +208,7 @@ export function ChatModal({
         return;
       }
       setMessages((res.data ?? []).map((row) => mapApiMessage(row, selfUserIdRef.current)));
+      setWsReady(true);
     })();
     return () => {
       cancelled = true;
@@ -230,10 +238,27 @@ export function ChatModal({
   }, [conversationId]);
 
   useEffect(() => {
-    if (!conversationId) return;
+    if (!conversationId || !wsReady) return;
     const ws = createChatWebSocket(conversationId);
     wsRef.current = ws;
-    if (!ws) return;
+    if (!ws) {
+      setWsUnavailable(true);
+      return;
+    }
+    let opened = false;
+    ws.onopen = () => {
+      opened = true;
+      setWsUnavailable(false);
+    };
+    ws.onerror = () => {
+      if (!opened) setWsUnavailable(true);
+    };
+    ws.onclose = (ev) => {
+      // 4401/4403 often means handshake with stale/invalid token or temporary auth mismatch.
+      if (!opened || ev.code === 4401 || ev.code === 4403) {
+        setWsUnavailable(true);
+      }
+    };
     ws.onmessage = (event) => {
       try {
         const parsed = JSON.parse(event.data);
@@ -249,7 +274,24 @@ export function ChatModal({
       ws.close();
       wsRef.current = null;
     };
-  }, [conversationId]);
+  }, [conversationId, wsReady]);
+
+  useEffect(() => {
+    if (!conversationId || !wsUnavailable) return;
+    let cancelled = false;
+    const sync = async () => {
+      const res = await getMessages(conversationId);
+      if (cancelled || res.error || !res.data) return;
+      setMessages(res.data.map((row) => mapApiMessage(row, selfUserIdRef.current)));
+    };
+    const id = window.setInterval(() => {
+      void sync();
+    }, 8000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [conversationId, wsUnavailable]);
 
   const gifts = [
     { id: 1, name: "Роза", emoji: "🌹", price: 50 },
@@ -353,11 +395,28 @@ export function ChatModal({
       mediaStreamRef.current.getTracks().forEach((t) => t.stop());
       mediaStreamRef.current = null;
     }
+    if (recordPreviewRef.current) {
+      recordPreviewRef.current.srcObject = null;
+    }
     mediaRecorderRef.current = null;
     recordChunksRef.current = [];
     recordKindRef.current = null;
     durationSecRef.current = 0;
   };
+
+  useEffect(() => {
+    if (!isRecordingVideo) {
+      if (recordPreviewRef.current) recordPreviewRef.current.srcObject = null;
+      return;
+    }
+    const el = recordPreviewRef.current;
+    const stream = mediaStreamRef.current;
+    if (!el || !stream) return;
+    el.srcObject = stream;
+    void el.play().catch(() => {
+      /* autoplay can be delayed by browser policies */
+    });
+  }, [isRecordingVideo]);
 
   const runUploadRecorded = async (opts: {
     kind: "voice" | "video";
@@ -423,6 +482,9 @@ export function ChatModal({
         type === "voice" ? { audio: true } : { audio: true, video: { facingMode: "user" } }
       );
       mediaStreamRef.current = stream;
+      if (type === "video" && recordPreviewRef.current) {
+        recordPreviewRef.current.srcObject = stream;
+      }
       const o: MediaRecorderOptions = {};
       if (type === "voice") {
         if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) o.mimeType = "audio/webm;codecs=opus";
@@ -464,6 +526,9 @@ export function ChatModal({
             if (mediaStreamRef.current) {
               mediaStreamRef.current.getTracks().forEach((t) => t.stop());
               mediaStreamRef.current = null;
+            }
+            if (recordPreviewRef.current) {
+              recordPreviewRef.current.srcObject = null;
             }
             recordKindRef.current = null;
             recordChunksRef.current = [];
@@ -665,7 +730,19 @@ export function ChatModal({
           <div className="px-4 py-3 bg-red-50 border-t border-red-100">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="size-3 bg-red-500 rounded-full animate-pulse" />
+                {isRecordingVideo ? (
+                  <div className="size-12 rounded-full overflow-hidden border-2 border-red-300 bg-black shadow-sm">
+                    <video
+                      ref={recordPreviewRef}
+                      autoPlay
+                      muted
+                      playsInline
+                      className="w-full h-full object-cover scale-x-[-1]"
+                    />
+                  </div>
+                ) : (
+                  <div className="size-3 bg-red-500 rounded-full animate-pulse" />
+                )}
                 <span className="text-sm text-gray-700">
                   {isRecordingVoice ? "Запись голоса" : "Запись видео"}
                 </span>
