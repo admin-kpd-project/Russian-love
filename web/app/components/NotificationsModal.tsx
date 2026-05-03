@@ -73,7 +73,7 @@ export function NotificationsModal({ onClose, onOpenChat }: NotificationsModalPr
   const unreadCount = items.filter(n => !n.read).length;
 
   return (
-    <ModalShell onClose={onClose} ariaLabel="Уведомления">
+    <ModalShell onClose={onClose} ariaLabel="Уведомления" variant="sheet">
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="flex-shrink-0 bg-gradient-to-r from-red-600 to-amber-500 px-5 sm:px-6 py-4 pr-14">

@@ -16,7 +16,7 @@ export function Favorites({ onClose }: FavoritesProps) {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   return (
-    <ModalShell onClose={onClose} ariaLabel="Избранное" className="bg-gradient-to-br from-white via-amber-50/30 to-white">
+    <ModalShell onClose={onClose} ariaLabel="Избранное" variant="sheet" className="bg-gradient-to-br from-white via-amber-50/30 to-white">
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="bg-gradient-to-r from-amber-500 to-amber-600 px-5 sm:px-6 py-4 sm:py-5 flex-shrink-0 pr-14">

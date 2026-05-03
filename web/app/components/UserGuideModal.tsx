@@ -406,7 +406,7 @@ export function UserGuideModal({ onClose }: UserGuideModalProps) {
     if (!section) return null;
 
     return (
-      <ModalShell onClose={() => setSelectedSection(null)} ariaLabel={section.title} size="wide">
+      <ModalShell onClose={() => setSelectedSection(null)} ariaLabel={section.title} size="wide" variant="sheet">
         <div className="flex flex-col h-full">
           {/* Header */}
           <div className="bg-gradient-to-r from-red-500 to-amber-500 px-5 sm:px-6 py-4 text-white flex-shrink-0 pr-14">
@@ -428,7 +428,7 @@ export function UserGuideModal({ onClose }: UserGuideModalProps) {
   }
 
   return (
-    <ModalShell onClose={onClose} ariaLabel="Руководство пользователя" size="wide">
+    <ModalShell onClose={onClose} ariaLabel="Руководство пользователя" size="wide" variant="sheet">
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="bg-gradient-to-r from-red-500 to-amber-500 px-5 sm:px-6 py-4 text-white flex-shrink-0 pr-14">

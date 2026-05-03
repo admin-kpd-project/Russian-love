@@ -145,7 +145,7 @@ export function ChatsList({ onClose, onOpenChat }: ChatsListProps) {
   };
 
   return (
-    <ModalShell onClose={onClose} ariaLabel="Личные чаты">
+    <ModalShell onClose={onClose} ariaLabel="Личные чаты" variant="sheet">
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="bg-gradient-to-r from-red-600 to-amber-500 px-5 sm:px-6 py-4 text-white flex-shrink-0 pr-14">

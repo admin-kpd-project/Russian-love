@@ -137,7 +137,7 @@ export function ProfileSettingsModal({
   };
 
   return (
-    <ModalShell onClose={onClose} ariaLabel="Профиль" hideCloseButton>
+    <ModalShell onClose={onClose} ariaLabel="Профиль" hideCloseButton variant="sheet">
       <div className="flex flex-col h-full">
         <div className="relative h-24 sm:h-28 flex-shrink-0 bg-gradient-to-br from-red-600 to-amber-500">
           <button

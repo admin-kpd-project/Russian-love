@@ -35,7 +35,7 @@ export function DetailedAnalysisModal({
   }, [profileName, profileAge, compatibility]);
 
   return (
-    <ModalShell onClose={onClose} ariaLabel="Детальный анализ" size="wide">
+    <ModalShell onClose={onClose} ariaLabel="Детальный анализ" size="wide" variant="sheet">
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="relative bg-gradient-to-br from-purple-500 via-pink-500 to-red-500 px-5 sm:px-6 py-4 sm:py-5 text-white flex-shrink-0 pr-14">

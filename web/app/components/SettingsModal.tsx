@@ -60,7 +60,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
   const cities = selectedRegion ? REGIONS_CITIES[selectedRegion as keyof typeof REGIONS_CITIES] : [];
 
   return (
-    <ModalShell onClose={onClose} ariaLabel="Настройки">
+    <ModalShell onClose={onClose} ariaLabel="Настройки" variant="sheet">
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="bg-gradient-to-r from-red-500 to-amber-500 px-5 sm:px-6 py-4 sm:py-5 text-white flex-shrink-0 pr-14">

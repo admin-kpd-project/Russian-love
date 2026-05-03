@@ -20,7 +20,7 @@ interface LikesModalProps {
 
 export function LikesModal({ onClose, likedProfiles, onOpenProfile }: LikesModalProps) {
   return (
-    <ModalShell onClose={onClose} ariaLabel="Мои лайки">
+    <ModalShell onClose={onClose} ariaLabel="Мои лайки" variant="sheet">
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="flex-shrink-0 bg-gradient-to-r from-red-500 to-amber-500 text-white px-5 sm:px-6 py-4 sm:py-5 flex items-center gap-3 pr-14">

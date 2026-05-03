@@ -259,6 +259,7 @@ export function AuthModal({
       ariaLabel={isReset ? "Восстановление пароля" : isLogin ? "Вход" : "Регистрация"}
       disableBackdropClose
       hideCloseButton
+      variant="sheet"
     >
       <div className="flex flex-col h-full">
         {/* Header */}

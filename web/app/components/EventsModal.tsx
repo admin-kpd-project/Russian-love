@@ -426,7 +426,7 @@ export function EventsModal({ onClose, profileName, profilePhoto, onSendEventInv
   const selectedDateEvents = selectedDate ? getEventsForDate(selectedDate) : [];
 
   return (
-    <ModalShell onClose={onClose} ariaLabel="Куда сходить вместе" size="wide">
+    <ModalShell onClose={onClose} ariaLabel="Куда сходить вместе" size="wide" variant="sheet">
       <div className="flex flex-col h-full">
         <div
           className="px-4 py-2 bg-amber-50 border-b border-amber-200 text-amber-900 text-[11px] sm:text-xs text-center flex-shrink-0"

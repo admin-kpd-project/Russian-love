@@ -79,7 +79,7 @@ export function ProfileModal({ onClose, onOpenQR, onOpenSettings, onLogout }: Pr
   };
 
   return (
-    <ModalShell onClose={onClose} ariaLabel="Профиль" hideCloseButton>
+    <ModalShell onClose={onClose} ariaLabel="Профиль" hideCloseButton variant="sheet">
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="relative h-24 sm:h-28 bg-gradient-to-br from-red-500 to-amber-500 flex-shrink-0">

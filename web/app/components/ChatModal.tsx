@@ -471,7 +471,7 @@ export function ChatModal({
   }, [messages]);
 
   return (
-    <ModalShell onClose={onClose} ariaLabel={`Чат с ${userName}`} hideCloseButton>
+    <ModalShell onClose={onClose} ariaLabel={`Чат с ${userName}`} hideCloseButton variant="sheet">
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="bg-gradient-to-r from-red-600 to-amber-500 px-4 sm:px-5 py-3 flex items-center justify-between flex-shrink-0">

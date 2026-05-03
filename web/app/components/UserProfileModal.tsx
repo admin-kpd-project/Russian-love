@@ -26,7 +26,7 @@ export function UserProfileModal({ profile, user, onClose }: UserProfileModalPro
   const hasNumerology = data.numerology;
 
   return (
-    <ModalShell onClose={onClose} ariaLabel={`Профиль ${userName}`}>
+    <ModalShell onClose={onClose} ariaLabel={`Профиль ${userName}`} variant="sheet">
       <div className="flex flex-col h-full">
         {/* Header with Photo */}
         <div className="relative h-24 sm:h-28 bg-gradient-to-br from-red-600 to-amber-500 flex-shrink-0">
