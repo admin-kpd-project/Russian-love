@@ -34,6 +34,7 @@ import { FadeInView, LoopingView, ScalePressable } from "../components/ui/Motion
 import { GradientButton } from "../components/ui/GradientButton";
 import { GradientText } from "../components/ui/GradientText";
 import { brandGradients, tw } from "../theme/designTokens";
+import { getApiBaseUrl } from "../api/apiBase";
 import { getPublicMobileApk } from "../api/publicApi";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Landing">;
@@ -81,14 +82,12 @@ const howStepsWeb = [
 export function LandingScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { width: winW } = useWindowDimensions();
-  const defaultApkUrl =
-    Platform.OS === "web"
-      ? "/mobile-app/android/app/build/outputs/apk/release/app-release.apk"
-      : "file:///C:/Users/sukuna/Downloads/Russian-love/mobile-app/android/app/build/outputs/apk/release/app-release.apk";
   const [apkUrl, setApkUrl] = useState("");
 
   useEffect(() => {
     void (async () => {
+      const base = await getApiBaseUrl();
+      const defaultApkUrl = `${base}/api/public/mobile-apk/file`;
       try {
         const r = await getPublicMobileApk();
         const u = (r.data?.downloadUrl ?? "").trim();
@@ -97,7 +96,7 @@ export function LandingScreen({ navigation }: Props) {
         setApkUrl(defaultApkUrl);
       }
     })();
-  }, [defaultApkUrl]);
+  }, []);
 
   const heroTitleW = Math.min(winW - 32, 340);
   const brandTitleW = Math.min(winW - 180, 200);

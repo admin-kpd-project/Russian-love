@@ -12,7 +12,7 @@ export function LandingPage() {
   const [showAuth, setShowAuth] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState<"login" | "register">("register");
   const envApkUrl = (import.meta.env.VITE_APP_DOWNLOAD_URL ?? "").trim();
-  const defaultApkUrl = "/mobile-app/android/app/build/outputs/apk/release/app-release.apk";
+  const defaultApkUrl = "/api/public/mobile-apk/file";
   const [mobileApkFromApi, setMobileApkFromApi] = useState("");
   useEffect(() => {
     void (async () => {
