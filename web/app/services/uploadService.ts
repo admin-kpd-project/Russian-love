@@ -5,6 +5,21 @@ export type UploadFileOptions = {
   forRegistration?: boolean;
 };
 
+/** Совпадает с backend upload_routes: параметры после `;` убираем (MediaRecorder даёт codecs=…). */
+export function normalizeUploadContentType(raw: string): string {
+  const s = (raw || "").trim().toLowerCase();
+  const base = s.includes(";") ? s.slice(0, s.indexOf(";")).trim() : s;
+  const aliases: Record<string, string> = {
+    "image/jpg": "image/jpeg",
+    "image/pjpeg": "image/jpeg",
+    "image/x-png": "image/png",
+    "audio/mp3": "audio/mpeg",
+    "audio/x-mpeg": "audio/mpeg",
+    "audio/x-mp3": "audio/mpeg",
+  };
+  return aliases[base] ?? base;
+}
+
 /** Браузеры на части Android не заполняют file.type — иначе бэкенд отклонит presign. */
 function guessImageContentType(file: File): string {
   const t = file.type?.trim();
@@ -94,7 +109,8 @@ export async function uploadFile(
   opts?: UploadFileOptions
 ): Promise<UploadResult> {
   const forReg = Boolean(opts?.forRegistration);
-  const contentType = forReg ? guessImageContentType(file) : guessMediaContentType(file);
+  const rawType = forReg ? guessImageContentType(file) : guessMediaContentType(file);
+  const contentType = normalizeUploadContentType(rawType);
   const response = await getPresignedUploadUrl(contentType, file.size, forReg);
   
   if (!response.data) {
@@ -102,8 +118,8 @@ export async function uploadFile(
     return { url: null, error: response.error || "Не удалось получить ссылку для загрузки файла" };
   }
   
-  // Upload to S3
-  const uploaded = await uploadFileToS3(response.data.uploadUrl, file);
+  // PUT Content-Type must match what was signed (same normalization as presign).
+  const uploaded = await uploadFileToS3(response.data.uploadUrl, file, contentType);
   
   if (uploaded.error) {
     console.error("Failed to upload file to S3");

@@ -42,11 +42,17 @@ _CONTENT_TYPE_ALIASES: dict[str, str] = {
     "image/jpg": "image/jpeg",
     "image/pjpeg": "image/jpeg",
     "image/x-png": "image/png",
+    "audio/mp3": "audio/mpeg",
+    "audio/x-mpeg": "audio/mpeg",
+    "audio/x-mp3": "audio/mpeg",
 }
 
 
 def _normalize_upload_content_type(raw: str) -> str:
+    """Lowercase, strip MIME parameters (e.g. audio/webm;codecs=opus), apply aliases."""
     c = (raw or "").strip().lower()
+    if ";" in c:
+        c = c.split(";", 1)[0].strip()
     return _CONTENT_TYPE_ALIASES.get(c, c)
 
 
@@ -85,6 +91,37 @@ def _maybe_upgrade_public_to_https(base: str, force: bool) -> str:
     if force and b.startswith("http://"):
         return f"https://{b[len('http://') :]}"
     return b
+
+
+def _request_client_used_tls(request: Request) -> bool:
+    """True if the client connection to this API is HTTPS (uvicorn --proxy-headers or TLS terminator)."""
+    if request.url.scheme == "https":
+        return True
+    xfp = (request.headers.get("x-forwarded-proto") or "").split(",")[-1].strip().lower()
+    return xfp == "https"
+
+
+def _coerce_http_asset_url_for_tls_request(request: Request, url: str | None) -> str | None:
+    """If the browser hit the API over TLS but presign/CDN base is http://public-host, use https:// for the same host.
+
+    Presigned PUT must be generated with the same scheme the browser will use (mixed content otherwise).
+    Skips localhost, minio, and other non-public hosts.
+    """
+    if not url or not url.startswith("http://"):
+        return url
+    if not _request_client_used_tls(request):
+        return url
+    host = (urlparse(url).hostname or "").lower()
+    if not host or host in ("localhost", "127.0.0.1", "minio") or host.endswith(".local"):
+        return url
+    return f"https://{url[len('http://') :]}"
+
+
+def _finalize_presign_cdn_bases(request: Request, presign: str | None, cdn: str) -> tuple[str | None, str]:
+    return (
+        _coerce_http_asset_url_for_tls_request(request, presign),
+        _coerce_http_asset_url_for_tls_request(request, cdn) or cdn,
+    )
 
 
 def _public_origin_from_nginx(request: Request) -> str | None:
@@ -131,7 +168,7 @@ def _presign_bases_for_request(request: Request) -> tuple[str | None, str]:
     explicit = (s.public_base_url or "").strip().rstrip("/")
     if explicit:
         pub = _maybe_upgrade_public_to_https(explicit, s.force_https_asset_urls)
-        return pub, f"{pub}/s3/{s.s3_bucket}"
+        return _finalize_presign_cdn_bases(request, pub, f"{pub}/s3/{s.s3_bucket}")
     origin = (request.headers.get("origin") or "").strip().rstrip("/")
     vite = (request.headers.get("x-vite-s3-proxy") or "").strip().lower() in ("1", "true", "yes")
     gateway_base = s.s3_nginx_dev_gateway_url.strip().rstrip("/")
@@ -140,12 +177,12 @@ def _presign_bases_for_request(request: Request) -> tuple[str | None, str]:
         if origin_host in {"localhost", "127.0.0.1"}:
             # Nginx+MinIO: presign host must match the gateway; GET stays under /s3/<bucket>/...
             gb = _maybe_upgrade_public_to_https(gateway_base, s.force_https_asset_urls)
-            return gb, f"{gb}/s3/{s.s3_bucket}"
+            return _finalize_presign_cdn_bases(request, gb, f"{gb}/s3/{s.s3_bucket}")
     public = _public_origin_from_nginx(request) or _client_visible_base_url(request)
     if public:
         pub = _maybe_upgrade_public_to_https(public, s.force_https_asset_urls)
-        return pub, f"{pub}/s3/{s.s3_bucket}"
-    return presign, cdn
+        return _finalize_presign_cdn_bases(request, pub, f"{pub}/s3/{s.s3_bucket}")
+    return _finalize_presign_cdn_bases(request, presign, cdn)
 
 
 @router.post("/upload")
