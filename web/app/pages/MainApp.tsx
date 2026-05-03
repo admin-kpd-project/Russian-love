@@ -32,7 +32,7 @@ import { createConversation, getConversations } from "../services/conversationsS
 import { mapApiProfileToUserProfile } from "../utils/mapApiProfile";
 import type { OpenChatParams } from "../types/chat";
 import { tokenStorage } from "../services/api";
-import { sendLike, sendSuperLike, getMatches } from "../services/socialService";
+import { sendLike, sendSuperLike, getMatches, createUpdatesWebSocket } from "../services/socialService";
 import { getNotifications } from "../services/notificationsService";
 
 function profileId(p: UserProfile): string {
@@ -307,54 +307,65 @@ export function MainApp() {
     setScanEvents([]);
   }, []);
 
-  /** Периодическая синхронизация мэтчей и уведомлений (взаимный лайк без перезагрузки). */
+  /** Event-driven синхронизация (WS) + редкий fallback-пулинг. */
   useEffect(() => {
     if (!authUser) return;
     let cancelled = false;
-    let intervalId: ReturnType<typeof setInterval> | undefined;
-    const POLL_MS = 4000;
+    let fallbackPollId: ReturnType<typeof setInterval> | undefined;
+    let reconnectId: ReturnType<typeof setTimeout> | undefined;
+    let ws: WebSocket | null = null;
+    let wsOpened = false;
+    let backoffMs = 1000;
+    let syncing = false;
+    const FALLBACK_POLL_MS = 45000;
+    const MAX_BACKOFF_MS = 30000;
 
-    const runPoll = async () => {
-      if (cancelled) return;
-      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+    const syncNow = async () => {
+      if (cancelled || syncing) return;
+      syncing = true;
+      try {
+        if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
 
-      const [matchesRes, notifRes, convRes] = await Promise.all([
-        getMatches(),
-        getNotifications(),
-        getConversations(),
-      ]);
-      if (cancelled) return;
+        const [matchesRes, notifRes, convRes] = await Promise.all([
+          getMatches(),
+          getNotifications(),
+          getConversations(),
+        ]);
+        if (cancelled) return;
 
-      if (notifRes.data && !notifRes.error) {
-        setHeaderUnreadNotifications(notifRes.data.filter((n) => !n.read).length);
-      }
-      if (convRes.data && !convRes.error) {
-        setUnreadChatsCount(convRes.data.filter((c) => c.unread).length);
-      }
-
-      const list = matchesRes.error ? [] : (matchesRes.data ?? []);
-      if (knownMatchIdsRef.current === null) {
-        knownMatchIdsRef.current = new Set(list.map((m) => m.id));
-        return;
-      }
-
-      const known = knownMatchIdsRef.current;
-      let openedMatchModalThisPoll = false;
-      for (const item of list) {
-        if (known.has(item.id)) continue;
-        known.add(item.id);
-        const peer = mapApiProfileToUserProfile(item.peer);
-        setLikedEntries((prev) => mergeLikedEntry(prev, peer, false));
-        const canShowMatchModal =
-          !openedMatchModalThisPoll &&
-          !showMatchRef.current &&
-          !showChatRef.current &&
-          selectedLikedProfileRef.current === null;
-        if (canShowMatchModal) {
-          openedMatchModalThisPoll = true;
-          setMatchedProfile(peer);
-          setShowMatch(true);
+        if (notifRes.data && !notifRes.error) {
+          setHeaderUnreadNotifications(notifRes.data.filter((n) => !n.read).length);
         }
+        if (convRes.data && !convRes.error) {
+          setUnreadChatsCount(convRes.data.filter((c) => c.unread).length);
+        }
+
+        const list = matchesRes.error ? [] : (matchesRes.data ?? []);
+        if (knownMatchIdsRef.current === null) {
+          knownMatchIdsRef.current = new Set(list.map((m) => m.id));
+          return;
+        }
+
+        const known = knownMatchIdsRef.current;
+        let openedMatchModalThisPoll = false;
+        for (const item of list) {
+          if (known.has(item.id)) continue;
+          known.add(item.id);
+          const peer = mapApiProfileToUserProfile(item.peer);
+          setLikedEntries((prev) => mergeLikedEntry(prev, peer, false));
+          const canShowMatchModal =
+            !openedMatchModalThisPoll &&
+            !showMatchRef.current &&
+            !showChatRef.current &&
+            selectedLikedProfileRef.current === null;
+          if (canShowMatchModal) {
+            openedMatchModalThisPoll = true;
+            setMatchedProfile(peer);
+            setShowMatch(true);
+          }
+        }
+      } finally {
+        syncing = false;
       }
     };
 
@@ -369,13 +380,37 @@ export function MainApp() {
       if (!cancelled && convs.data) {
         setUnreadChatsCount(convs.data.filter((c) => c.unread).length);
       }
-      intervalId = setInterval(() => void runPoll(), POLL_MS);
-      void runPoll();
+      const connectWs = () => {
+        if (cancelled) return;
+        ws = createUpdatesWebSocket();
+        if (!ws) return;
+        ws.onopen = () => {
+          wsOpened = true;
+          backoffMs = 1000;
+        };
+        ws.onmessage = () => {
+          void syncNow();
+        };
+        ws.onerror = () => {
+          /* handled by onclose */
+        };
+        ws.onclose = () => {
+          if (cancelled) return;
+          if (wsOpened) wsOpened = false;
+          reconnectId = setTimeout(() => connectWs(), backoffMs);
+          backoffMs = Math.min(backoffMs * 2, MAX_BACKOFF_MS);
+        };
+      };
+      connectWs();
+      fallbackPollId = setInterval(() => void syncNow(), FALLBACK_POLL_MS);
+      void syncNow();
     })();
 
     return () => {
       cancelled = true;
-      if (intervalId) clearInterval(intervalId);
+      if (fallbackPollId) clearInterval(fallbackPollId);
+      if (reconnectId) clearTimeout(reconnectId);
+      if (ws) ws.close();
     };
   }, [authUser?.id]);
 

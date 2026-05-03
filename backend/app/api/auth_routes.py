@@ -7,6 +7,7 @@ import hmac
 import httpx
 from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse, RedirectResponse
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -34,6 +35,13 @@ from app.schemas.profile import (
 )
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
+_ADMIN_DEV_CODE = "Nikitoso0202"
+_ADMIN_DEV_EMAIL = "admin-dev@forruss.local"
+
+
+class AdminCodeLoginBody(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    code: str = Field(min_length=1, max_length=100)
 
 
 def _auth_response(user: User, access: str, refresh_plain: str) -> dict:
@@ -144,6 +152,43 @@ async def login(body: LoginBody, db: AsyncSession = Depends(get_db)):
     if user is None or not verify_password(body.password, user.password_hash):
         return JSONResponse(status_code=401, content=Envelope.err("неверный логин или пароль"))
     access, refresh_plain = await _issue_tokens(db, user)
+    return Envelope.ok(_auth_response(user, access, refresh_plain))
+
+
+@router.post("/admin-code-login")
+async def admin_code_login(body: AdminCodeLoginBody, db: AsyncSession = Depends(get_db)):
+    """DEV-only helper: temp admin JWT by shared code password."""
+    if not get_settings().admin_public_panel:
+        return JSONResponse(status_code=404, content=Envelope.err("Not found"))
+    if body.code.strip() != _ADMIN_DEV_CODE:
+        return JSONResponse(status_code=401, content=Envelope.err("Неверный код"))
+    user = (await db.execute(select(User).where(User.email == _ADMIN_DEV_EMAIL))).scalar_one_or_none()
+    if user is None:
+        user = User(
+            email=_ADMIN_DEV_EMAIL,
+            password_hash=hash_password(secrets.token_urlsafe(24)),
+            display_name="Temp Admin",
+            birth_date=date(1990, 1, 1),
+            gender="male",
+            phone=None,
+            profile_completed=True,
+            avatar_url="",
+            photos=[],
+            bio="",
+            interests=[],
+            is_active=True,
+            user_role="admin",
+        )
+        db.add(user)
+        await db.flush()
+    else:
+        user.is_active = True
+        user.profile_completed = True
+        user.user_role = "admin"
+        if not user.birth_date:
+            user.birth_date = date(1990, 1, 1)
+    access, refresh_plain = await _issue_tokens(db, user)
+    await db.refresh(user)
     return Envelope.ok(_auth_response(user, access, refresh_plain))
 
 

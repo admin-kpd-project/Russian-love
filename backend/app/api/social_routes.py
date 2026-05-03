@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import and_, or_, select
@@ -10,6 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_completed_user
 from app.core.envelope import Envelope
 from app.core.redis_client import get_redis
+from app.core.security import decode_access_token
+from app.core.user_ws import user_ws_manager
 from app.db.models import InviteCode, Like, Match, Notification, ProfileRecommendation, User, UserFavorite
 from app.db.session import get_db
 from app.schemas.profile import user_to_profile
@@ -52,16 +54,33 @@ async def _create_notification(
     message: str,
     payload: dict | None = None,
 ) -> None:
-    db.add(
-        Notification(
-            user_id=user_id,
-            type=n_type,
-            title=title,
-            message=message,
-            payload=payload,
-        )
+    n = Notification(
+        user_id=user_id,
+        type=n_type,
+        title=title,
+        message=message,
+        payload=payload,
     )
+    db.add(n)
     await db.flush()
+    created = n.created_at.astimezone(UTC).isoformat().replace("+00:00", "Z") if n.created_at else None
+    await user_ws_manager.broadcast(
+        user_id,
+        {
+            "event": "notification.new",
+            "notification": {
+                "id": str(n.id),
+                "type": n_type,
+                "title": title,
+                "message": message,
+                "timestamp": created,
+                "read": False,
+                "peerUserId": (payload or {}).get("peerUserId"),
+                "conversationId": (payload or {}).get("conversationId"),
+                "superMessage": (payload or {}).get("superMessage"),
+            },
+        },
+    )
 
 
 @router.post("/likes")
@@ -415,7 +434,28 @@ async def mark_notifications_read(
     ).scalars().all()
     for n in rows:
         n.read_at = now
+    await user_ws_manager.broadcast(
+        user.id,
+        {
+            "event": "notifications.read",
+        },
+    )
     return Envelope.ok({"ok": True})
+
+
+@router.websocket("/ws/updates")
+async def updates_ws(websocket: WebSocket):
+    token = websocket.query_params.get("token") or ""
+    uid = decode_access_token(token)
+    if uid is None:
+        await websocket.close(code=4401)
+        return
+    await user_ws_manager.connect(uid, websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        await user_ws_manager.disconnect(uid, websocket)
 
 
 @router.post("/invites")

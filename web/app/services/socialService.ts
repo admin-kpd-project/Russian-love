@@ -54,3 +54,10 @@ export function createChatWebSocket(conversationId: string): WebSocket | null {
     : "";
   return new WebSocket(`${base}/api/ws/chats/${encodeURIComponent(conversationId)}?token=${encodeURIComponent(token)}`);
 }
+
+export function createUpdatesWebSocket(): WebSocket | null {
+  const token = tokenStorage.getAccessToken();
+  if (!token) return null;
+  const base = API_BASE_URL ? API_BASE_URL.replace(/^http/, "ws") : "";
+  return new WebSocket(`${base}/api/ws/updates?token=${encodeURIComponent(token)}`);
+}

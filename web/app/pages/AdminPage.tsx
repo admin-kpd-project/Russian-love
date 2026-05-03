@@ -16,6 +16,7 @@ import {
 } from "../services/adminService";
 import { uploadMobileApkFile } from "../services/uploadService";
 import { useAuth } from "../contexts/AuthContext";
+import { loginByAdminCode } from "../services/authService";
 
 const STAFF = ["admin", "moderator", "support"] as const;
 const MOD = ["admin", "moderator"] as const;
@@ -42,7 +43,7 @@ function isAuthDenied(error: string | null): boolean {
 type AdminTab = "overview" | "apk" | "tickets" | "reports" | "users";
 
 export function AdminPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, refreshUser } = useAuth();
   const navigate = useNavigate();
   const role = user?.role ?? "user";
   const isAdmin = TEMP_ADMIN_NO_AUTH || role === "admin";
@@ -65,6 +66,10 @@ export function AdminPage() {
   const [cuBusy, setCuBusy] = useState(false);
   const [cuMsg, setCuMsg] = useState<string | null>(null);
   const [cuErr, setCuErr] = useState<string | null>(null);
+  const [adminCode, setAdminCode] = useState("");
+  const [adminCodeBusy, setAdminCodeBusy] = useState(false);
+  const [adminCodeErr, setAdminCodeErr] = useState<string | null>(null);
+  const [adminCodeMsg, setAdminCodeMsg] = useState<string | null>(null);
 
   const allowed = TEMP_ADMIN_NO_AUTH || STAFF.includes(role as (typeof STAFF)[number]);
 
@@ -163,6 +168,53 @@ export function AdminPage() {
             </Link>
           </div>
         </div>
+        {TEMP_ADMIN_NO_AUTH && (!user || role !== "admin") ? (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5">
+            <p className="text-sm text-amber-900 font-medium mb-2">
+              Временный вход в админку по коду
+            </p>
+            <div className="flex flex-wrap gap-2 items-center">
+              <input
+                type="password"
+                placeholder="Код доступа"
+                className="border rounded-lg px-3 py-2 text-sm min-w-[220px]"
+                value={adminCode}
+                onChange={(e) => setAdminCode(e.target.value)}
+                autoComplete="off"
+              />
+              <button
+                type="button"
+                disabled={adminCodeBusy}
+                className="px-4 py-2 rounded-xl bg-stone-900 text-white text-sm font-medium disabled:opacity-50"
+                onClick={async () => {
+                  const code = adminCode.trim();
+                  setAdminCodeErr(null);
+                  setAdminCodeMsg(null);
+                  if (!code) {
+                    setAdminCodeErr("Введите код доступа.");
+                    return;
+                  }
+                  setAdminCodeBusy(true);
+                  const r = await loginByAdminCode({ code });
+                  if (r.error || !r.data) {
+                    setAdminCodeErr(r.error || "Не удалось авторизоваться.");
+                    setAdminCodeBusy(false);
+                    return;
+                  }
+                  await refreshUser();
+                  setAdminCodeBusy(false);
+                  setAdminCodeMsg("Вы вошли как admin. Можно обновить данные админки.");
+                  setAdminCode("");
+                  void refresh();
+                }}
+              >
+                {adminCodeBusy ? "Вход..." : "Войти как admin"}
+              </button>
+            </div>
+            {adminCodeErr ? <p className="text-xs text-red-600 mt-2">{adminCodeErr}</p> : null}
+            {adminCodeMsg ? <p className="text-xs text-green-700 mt-2">{adminCodeMsg}</p> : null}
+          </div>
+        ) : null}
 
         {err && <p className="mb-4 text-red-600 text-sm">{err}</p>}
 

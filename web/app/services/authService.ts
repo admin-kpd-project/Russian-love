@@ -73,6 +73,10 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface AdminCodeLoginRequest {
+  code: string;
+}
+
 export async function login(data: LoginRequest): Promise<ApiResponse<AuthResponse>> {
   const response = await apiFetch<AuthResponse>("/api/auth/login", {
     method: "POST",
@@ -83,6 +87,21 @@ export async function login(data: LoginRequest): Promise<ApiResponse<AuthRespons
     tokenStorage.setTokens(response.data.accessToken, response.data.refreshToken);
   }
   
+  return response;
+}
+
+export async function loginByAdminCode(data: AdminCodeLoginRequest): Promise<ApiResponse<AuthResponse>> {
+  const response = await apiFetch<AuthResponse>(
+    "/api/auth/admin-code-login",
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    { public: true }
+  );
+  if (response.data) {
+    tokenStorage.setTokens(response.data.accessToken, response.data.refreshToken);
+  }
   return response;
 }
 

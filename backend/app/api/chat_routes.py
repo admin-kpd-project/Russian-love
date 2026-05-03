@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload
 from app.api.deps import get_current_completed_user
 from app.core.chat_ws import chat_ws_manager
 from app.core.security import decode_access_token
+from app.core.user_ws import user_ws_manager
 from app.config.settings import get_settings
 from app.core.envelope import Envelope
 from app.db.models import Conversation, ConversationMember, Match, Message, Notification, User
@@ -400,17 +401,34 @@ async def post_message(
     for member in members:
         if member.user_id == user.id:
             continue
-        db.add(
-            Notification(
-                user_id=member.user_id,
-                type="message",
-                title="Новое сообщение",
-                message=f"{user.display_name}: {(msg.body or 'медиа')[:120]}",
-                payload={
-                    "conversationId": str(conversation_id),
+        notif = Notification(
+            user_id=member.user_id,
+            type="message",
+            title="Новое сообщение",
+            message=f"{user.display_name}: {(msg.body or 'медиа')[:120]}",
+            payload={
+                "conversationId": str(conversation_id),
+                "peerUserId": str(user.id),
+            },
+        )
+        db.add(notif)
+        await db.flush()
+        n_ts = notif.created_at.astimezone(UTC).isoformat().replace("+00:00", "Z") if notif.created_at else None
+        await user_ws_manager.broadcast(
+            member.user_id,
+            {
+                "event": "notification.new",
+                "notification": {
+                    "id": str(notif.id),
+                    "type": "message",
+                    "title": notif.title,
+                    "message": notif.message,
+                    "timestamp": n_ts,
+                    "read": False,
                     "peerUserId": str(user.id),
+                    "conversationId": str(conversation_id),
                 },
-            )
+            },
         )
     await chat_ws_manager.broadcast(
         conversation_id,
