@@ -38,3 +38,10 @@ jobs:
 
             # Перезапускаем изменившиеся контейнеры
             docker compose up -d
+
+            # Перезагружаем nginx
+            docker compose exec nginx nginx -s reload
+
+            # Очищаем старые образы
+            docker image prune -f
+            docker container prune -f
