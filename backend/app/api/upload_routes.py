@@ -18,6 +18,7 @@ _admin_only = require_roles("admin")
 
 _APK_CT = frozenset({"application/vnd.android.package-archive", "application/octet-stream"})
 _APK_MAX = 200 * 1024 * 1024
+_APK_RELEASES_PREFIX = "releases/mobile-apk"
 
 _LIMITS = {
     "image/jpeg": 10 * 1024 * 1024,
@@ -312,7 +313,7 @@ async def presign_mobile_apk(
     if body.file_size_bytes > _APK_MAX or body.file_size_bytes < 1:
         return JSONResponse(status_code=400, content=Envelope.err("Размер APK вне допустимого диапазона (макс. 200 МБ)"))
     s = get_settings()
-    key = f"releases/app/{uuid.uuid4()}.apk"
+    key = f"{_APK_RELEASES_PREFIX}/{uuid.uuid4()}.apk"
     presign_base, cdn_base = _presign_bases_for_request(request)
     client = _s3_base_client(presign_base)
     upload_url = client.generate_presigned_url(

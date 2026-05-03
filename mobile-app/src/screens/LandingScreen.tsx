@@ -79,6 +79,17 @@ const howStepsWeb = [
   },
 ];
 
+function toAbsoluteApkUrl(rawUrl: string, apiBase: string): string {
+  const value = rawUrl.trim();
+  if (!value) return "";
+  if (/^https?:\/\//i.test(value)) return value;
+  if (value.startsWith("/")) {
+    if (Platform.OS === "web") return value;
+    return apiBase ? `${apiBase}${value}` : "";
+  }
+  return value;
+}
+
 export function LandingScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { width: winW } = useWindowDimensions();
@@ -87,11 +98,12 @@ export function LandingScreen({ navigation }: Props) {
   useEffect(() => {
     void (async () => {
       const base = await getApiBaseUrl();
-      const defaultApkUrl = `${base}/api/public/mobile-apk/file`;
+      const defaultApkUrl = Platform.OS === "web" ? "/api/public/mobile-apk/file" : (base ? `${base}/api/public/mobile-apk/file` : "");
       try {
         const r = await getPublicMobileApk();
         const u = (r.data?.downloadUrl ?? "").trim();
-        setApkUrl(u || defaultApkUrl);
+        const resolved = toAbsoluteApkUrl(u, base);
+        setApkUrl(resolved || defaultApkUrl);
       } catch {
         setApkUrl(defaultApkUrl);
       }

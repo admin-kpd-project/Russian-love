@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,7 +27,7 @@ async def public_mobile_apk_file():
 
 
 @router.get("/mobile-apk")
-async def public_mobile_apk(request: Request, db: AsyncSession = Depends(get_db)):
+async def public_mobile_apk(db: AsyncSession = Depends(get_db)):
     url = await get_site_value(db, KEY_MOBILE_APK_URL)
-    fallback_url = str(request.url_for("public_mobile_apk_file"))
+    fallback_url = "/api/public/mobile-apk/file"
     return Envelope.ok({"downloadUrl": (url or fallback_url).strip()})

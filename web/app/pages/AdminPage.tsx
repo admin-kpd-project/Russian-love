@@ -58,6 +58,7 @@ export function AdminPage() {
   const [apkUpdatedAt, setApkUpdatedAt] = useState<string | null>(null);
   const [apkBusy, setApkBusy] = useState(false);
   const [apkErr, setApkErr] = useState<string | null>(null);
+  const [apkFileName, setApkFileName] = useState<string>("");
   const apkFileRef = useRef<HTMLInputElement>(null);
   const [cuEmail, setCuEmail] = useState("");
   const [cuPassword, setCuPassword] = useState("");
@@ -361,11 +362,34 @@ export function AdminPage() {
             <p className="text-sm text-stone-600 mb-4">
               Загрузите файл — он попадёт в хранилище, а публичная ссылка появится на лендинге (кнопка с иконкой телефона и блок «Приложение для Android»).
             </p>
+            <p className="text-xs text-stone-500 mb-3">
+              Файлы APK сохраняются в отдельной папке хранилища: <span className="font-mono">releases/mobile-apk</span>.
+            </p>
             {apkErr ? <p className="text-red-600 text-sm mb-3">{apkErr}</p> : null}
             <p className="text-xs text-stone-500 mb-1">Текущая ссылка</p>
             <p className="text-sm font-mono break-all text-stone-800 mb-1">{apkUrl || "— не задана —"}</p>
             {apkUpdatedAt ? <p className="text-xs text-stone-400 mb-4">Обновлено: {apkUpdatedAt}</p> : <div className="mb-4" />}
-            <input ref={apkFileRef} type="file" accept=".apk,application/vnd.android.package-archive" className="block w-full text-sm mb-4" />
+            <input
+              ref={apkFileRef}
+              type="file"
+              accept=".apk,application/vnd.android.package-archive"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                setApkFileName(f ? `${f.name} (${Math.max(1, Math.round(f.size / 1024 / 1024))} MB)` : "");
+                setApkErr(null);
+              }}
+            />
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-xl border border-stone-300 bg-white text-stone-800 text-sm font-medium"
+                onClick={() => apkFileRef.current?.click()}
+              >
+                Выбрать APK с устройства
+              </button>
+              <span className="text-xs text-stone-500">{apkFileName || "Файл не выбран"}</span>
+            </div>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
@@ -387,7 +411,11 @@ export function AdminPage() {
                   }
                   const p = await patchAdminMobileApk(up.url);
                   if (p.error) setApkErr(p.error);
-                  else await loadApk();
+                  else {
+                    await loadApk();
+                    setApkFileName("");
+                    if (apkFileRef.current) apkFileRef.current.value = "";
+                  }
                   setApkBusy(false);
                 }}
               >
