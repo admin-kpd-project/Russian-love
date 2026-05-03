@@ -27,6 +27,7 @@ export const WEB_RN_PARITY: Record<string, string> = {
   "components/EventsModal.tsx": "components/main/EventsPickerModal.tsx + data/eventTemplates.ts",
   "services/paymentsService.ts": "api/paymentsApi.ts",
   "services/usersService.ts": "api/usersApi.ts",
+  "services/uploadService.ts": "api/uploadApi.ts (+ utils/mediaUrl publicDisplayMediaUrl)",
   "components/InvitePage.tsx": "screens/InviteScreen.tsx",
   "pages/ScanProfile.tsx": "screens/ScanProfileScreen.tsx",
   "pages/PaymentConfirmPage.tsx": "screens/PaymentConfirmScreen.tsx",

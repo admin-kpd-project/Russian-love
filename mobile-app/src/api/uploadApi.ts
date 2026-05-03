@@ -3,21 +3,38 @@ import { apiFetch, type ApiResult, getAccessToken } from "./client";
 
 type Presign = { uploadUrl: string; fileUrl: string };
 
+/** Как web/uploadService: backend отбрасывает параметры MIME после `;` (напр. codecs). */
+export function normalizeUploadContentType(raw: string): string {
+  const s = (raw || "").trim().toLowerCase();
+  const base = s.includes(";") ? s.slice(0, s.indexOf(";")).trim() : s;
+  const aliases: Record<string, string> = {
+    "image/jpg": "image/jpeg",
+    "image/pjpeg": "image/jpeg",
+    "image/x-png": "image/png",
+    "audio/mp3": "audio/mpeg",
+    "audio/x-mpeg": "audio/mpeg",
+    "audio/x-mp3": "audio/mpeg",
+  };
+  return aliases[base] ?? base;
+}
+
 export async function presignRegistration(contentType: string, fileSizeBytes: number): Promise<ApiResult<Presign>> {
+  const ct = normalizeUploadContentType(contentType);
   return apiFetch<Presign>(
     "/api/upload/registration",
     {
       method: "POST",
-      body: JSON.stringify({ contentType, fileSizeBytes }),
+      body: JSON.stringify({ contentType: ct, fileSizeBytes }),
     },
     { public: true }
   );
 }
 
 export async function presignAuth(contentType: string, fileSizeBytes: number): Promise<ApiResult<Presign>> {
+  const ct = normalizeUploadContentType(contentType);
   return apiFetch<Presign>("/api/upload", {
     method: "POST",
-    body: JSON.stringify({ contentType, fileSizeBytes }),
+    body: JSON.stringify({ contentType: ct, fileSizeBytes }),
   });
 }
 
@@ -29,12 +46,13 @@ export async function putFileToPresignedUrl(
   fileUri: string,
   contentType: string
 ): Promise<{ ok: boolean; error?: string }> {
+  const ct = normalizeUploadContentType(contentType);
   try {
     const res = await fetch(fileUri);
     const blob = await res.blob();
     const put = await fetch(presignedUrl, {
       method: "PUT",
-      headers: { "Content-Type": contentType },
+      headers: { "Content-Type": ct },
       body: blob,
     });
     if (!put.ok) {

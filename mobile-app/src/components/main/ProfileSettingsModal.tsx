@@ -23,7 +23,7 @@ import { updateProfile } from "../../api/usersApi";
 import { presignAuth, putFileToPresignedUrl } from "../../api/uploadApi";
 import { getAdultMaxDate, ageFromBirthDate } from "../../utils/profileDates";
 import { getApiBaseUrl } from "../../api/apiBase";
-import { resolveMediaUrl } from "../../utils/mediaUrl";
+import { publicDisplayMediaUrl } from "../../utils/mediaUrl";
 import { brandGradients, profileStatsPlaceholder, tw } from "../../theme/designTokens";
 
 type Props = {
@@ -90,11 +90,14 @@ export function ProfileSettingsModal({
 
   const displayAvatarUri = useMemo(() => {
     if (!avatarUrl) return "";
-    if (avatarUrl.startsWith("file:") || /^https?:\/\//i.test(avatarUrl)) {
+    if (avatarUrl.startsWith("file:")) {
       return avatarUrl;
     }
+    if (/^https?:\/\//i.test(avatarUrl)) {
+      return apiBase ? publicDisplayMediaUrl(avatarUrl, apiBase) : avatarUrl;
+    }
     if (apiBase) {
-      return resolveMediaUrl(avatarUrl, apiBase) || avatarUrl;
+      return publicDisplayMediaUrl(avatarUrl, apiBase) || avatarUrl;
     }
     return avatarUrl;
   }, [avatarUrl, apiBase]);

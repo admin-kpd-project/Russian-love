@@ -1,5 +1,8 @@
 import { apiFetch, ApiResponse } from "./api";
 
+/** Чтение админки без JWT (когда на API включён DATING_ADMIN_PUBLIC_PANEL). */
+const adminReadPublic = { public: true } as const;
+
 export type AdminStats = { openTickets: number; openReports: number };
 
 export type AdminTicket = {
@@ -24,12 +27,27 @@ export type AdminReport = {
   resolvedById?: string | null;
 };
 
+export type CreatedUserPayload = { user: Record<string, unknown> };
+
+export async function createAdminPublicUser(body: {
+  email: string;
+  password: string;
+  name: string;
+  role: "user" | "admin" | "moderator" | "support";
+}): Promise<ApiResponse<CreatedUserPayload>> {
+  return apiFetch<CreatedUserPayload>(
+    "/api/admin/public/users",
+    { method: "POST", body: JSON.stringify(body) },
+    { public: true }
+  );
+}
+
 export async function getAdminStats(): Promise<ApiResponse<AdminStats>> {
-  return apiFetch<AdminStats>("/api/admin/stats");
+  return apiFetch<AdminStats>("/api/admin/stats", {}, adminReadPublic);
 }
 
 export async function listAdminTickets(): Promise<ApiResponse<AdminTicket[]>> {
-  return apiFetch<AdminTicket[]>("/api/admin/tickets");
+  return apiFetch<AdminTicket[]>("/api/admin/tickets", {}, adminReadPublic);
 }
 
 export async function patchAdminTicket(
@@ -43,7 +61,7 @@ export async function patchAdminTicket(
 }
 
 export async function listAdminReports(): Promise<ApiResponse<AdminReport[]>> {
-  return apiFetch<AdminReport[]>("/api/admin/reports");
+  return apiFetch<AdminReport[]>("/api/admin/reports", {}, adminReadPublic);
 }
 
 export async function patchAdminReport(

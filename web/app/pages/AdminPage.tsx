@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import {
   activateUser,
+  createAdminPublicUser,
   deactivateUser,
   getAdminMobileApk,
   getAdminStats,
@@ -19,14 +20,14 @@ import { useAuth } from "../contexts/AuthContext";
 const STAFF = ["admin", "moderator", "support"] as const;
 const MOD = ["admin", "moderator"] as const;
 
-/** ВРЕМЕННО: /admin без логина. Перед продом — `false` и верни `StaffRoute` в `routes.tsx`. */
+/** ВРЕМЕННО: /admin без редиректа на логин. Перед продом — `false` и верни проверку ролей. */
 const TEMP_ADMIN_NO_AUTH = true;
 
 function canSeeReports(role: string | undefined) {
   return role && MOD.includes(role as (typeof MOD)[number]);
 }
 
-type AdminTab = "overview" | "apk" | "tickets" | "reports";
+type AdminTab = "overview" | "apk" | "tickets" | "reports" | "users";
 
 export function AdminPage() {
   const { user, loading: authLoading } = useAuth();
@@ -45,6 +46,13 @@ export function AdminPage() {
   const [apkBusy, setApkBusy] = useState(false);
   const [apkErr, setApkErr] = useState<string | null>(null);
   const apkFileRef = useRef<HTMLInputElement>(null);
+  const [cuEmail, setCuEmail] = useState("");
+  const [cuPassword, setCuPassword] = useState("");
+  const [cuName, setCuName] = useState("");
+  const [cuRole, setCuRole] = useState<"user" | "admin" | "moderator" | "support">("user");
+  const [cuBusy, setCuBusy] = useState(false);
+  const [cuMsg, setCuMsg] = useState<string | null>(null);
+  const [cuErr, setCuErr] = useState<string | null>(null);
 
   const allowed = TEMP_ADMIN_NO_AUTH || STAFF.includes(role as (typeof STAFF)[number]);
 
@@ -112,7 +120,9 @@ export function AdminPage() {
               Роль: <span className="font-medium text-stone-700">{user?.role ?? "—"}</span>
               {TEMP_ADMIN_NO_AUTH ? (
                 <span className="block text-amber-700 font-medium mt-1">
-                  Временно: доступ без авторизации (API по-прежнему требует JWT сотрудника).
+                  Временно: страница без входа; чтение обзора и создание пользователей — через публичные
+                  эндпоинты API (см. DATING_ADMIN_PUBLIC_* в backend). Изменение тикетов/жалоб и APK — только со
+                  входом сотрудника (JWT).
                 </span>
               ) : null}
             </p>
@@ -157,6 +167,15 @@ export function AdminPage() {
               APK (лендинг)
             </button>
           ) : null}
+          <button
+            type="button"
+            onClick={() => setTab("users")}
+            className={`px-4 py-2 rounded-lg text-sm font-medium ${
+              tab === "users" ? "bg-red-600 text-white" : "bg-white text-stone-700 border border-stone-200"
+            }`}
+          >
+            Создать пользователя
+          </button>
           <button type="button" onClick={() => setTab("tickets")} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === "tickets" ? "bg-red-600 text-white" : "bg-white text-stone-700 border border-stone-200"}`}>
             Обращения
           </button>
@@ -177,6 +196,81 @@ export function AdminPage() {
 
         {loading ? (
           <p className="text-stone-600">Загрузка данных…</p>
+        ) : tab === "users" ? (
+          <div className="bg-white rounded-2xl p-6 shadow border border-stone-100 max-w-lg">
+            <h2 className="text-lg font-bold text-stone-900 mb-2">Новый пользователь</h2>
+            <p className="text-sm text-stone-600 mb-4">
+              Email и пароль для входа. Роль <span className="font-medium">admin / moderator / support</span> — для
+              доступа к защищённым действиям в этой панели после входа.
+            </p>
+            {cuErr ? <p className="text-red-600 text-sm mb-3">{cuErr}</p> : null}
+            {cuMsg ? <p className="text-green-700 text-sm mb-3">{cuMsg}</p> : null}
+            <label className="block text-sm font-medium text-stone-700 mb-1">Email</label>
+            <input
+              type="email"
+              className="w-full border rounded-lg px-3 py-2 text-sm mb-3"
+              value={cuEmail}
+              onChange={(e) => setCuEmail(e.target.value)}
+              autoComplete="off"
+            />
+            <label className="block text-sm font-medium text-stone-700 mb-1">Пароль (мин. 6 символов)</label>
+            <input
+              type="password"
+              className="w-full border rounded-lg px-3 py-2 text-sm mb-3"
+              value={cuPassword}
+              onChange={(e) => setCuPassword(e.target.value)}
+              autoComplete="new-password"
+            />
+            <label className="block text-sm font-medium text-stone-700 mb-1">Имя</label>
+            <input
+              type="text"
+              className="w-full border rounded-lg px-3 py-2 text-sm mb-3"
+              value={cuName}
+              onChange={(e) => setCuName(e.target.value)}
+            />
+            <label className="block text-sm font-medium text-stone-700 mb-1">Роль</label>
+            <select
+              className="w-full border rounded-lg px-3 py-2 text-sm mb-4"
+              value={cuRole}
+              onChange={(e) => setCuRole(e.target.value as typeof cuRole)}
+            >
+              <option value="user">user</option>
+              <option value="support">support</option>
+              <option value="moderator">moderator</option>
+              <option value="admin">admin</option>
+            </select>
+            <button
+              type="button"
+              disabled={cuBusy}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-red-500 to-amber-500 text-white text-sm font-medium disabled:opacity-50"
+              onClick={async () => {
+                setCuErr(null);
+                setCuMsg(null);
+                const email = cuEmail.trim();
+                const name = cuName.trim();
+                if (!email || !cuPassword || cuPassword.length < 6 || !name) {
+                  setCuErr("Заполните email, имя и пароль (не короче 6 символов).");
+                  return;
+                }
+                setCuBusy(true);
+                const r = await createAdminPublicUser({
+                  email,
+                  password: cuPassword,
+                  name,
+                  role: cuRole,
+                });
+                setCuBusy(false);
+                if (r.error) {
+                  setCuErr(r.error);
+                  return;
+                }
+                setCuMsg(`Создан: ${email}, роль ${cuRole}. Можно войти на сайте с этим email и паролем.`);
+                setCuPassword("");
+              }}
+            >
+              {cuBusy ? "Создание…" : "Создать"}
+            </button>
+          </div>
         ) : tab === "apk" && isAdmin ? (
           <div className="bg-white rounded-2xl p-6 shadow border border-stone-100 max-w-2xl">
             <h2 className="text-lg font-bold text-stone-900 mb-2">APK для главной страницы</h2>

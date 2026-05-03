@@ -31,7 +31,7 @@ import { presignAuth, putFileToPresignedUrl, createChatWebSocket } from "../api/
 import { getPaymentsStatus, initTbankPayment } from "../api/paymentsApi";
 import { submitUserReport } from "../api/reportsApi";
 import { getApiBaseUrl } from "../api/apiBase";
-import { resolveMediaUrl } from "../utils/mediaUrl";
+import { publicDisplayMediaUrl, resolveMediaUrl, scrubInsecureMediaUrl } from "../utils/mediaUrl";
 import { brandGradients, tw } from "../theme/designTokens";
 import type { RootStackParamList } from "../navigation/types";
 import { ScalePressable } from "../components/ui/Motion";
@@ -147,13 +147,16 @@ export function ChatScreen({ route, navigation }: Props) {
       return;
     }
     if (/^https?:\/\//i.test(avatarUrl)) {
-      setResolvedAvatar(avatarUrl);
+      void (async () => {
+        const b = await getApiBaseUrl();
+        setResolvedAvatar(b ? scrubInsecureMediaUrl(avatarUrl, b) : avatarUrl);
+      })();
       return;
     }
     void (async () => {
       const b = await getApiBaseUrl();
       if (b) {
-        setResolvedAvatar(resolveMediaUrl(avatarUrl, b) || avatarUrl);
+        setResolvedAvatar(publicDisplayMediaUrl(avatarUrl, b) || avatarUrl);
         return;
       }
       setResolvedAvatar(avatarUrl);
@@ -188,9 +191,9 @@ export function ChatScreen({ route, navigation }: Props) {
     (url?: string | null) => {
       if (!url) return "";
       const u = url.trim();
-      if (/^https?:\/\//i.test(u)) return u;
-      if (!apiBase) return u;
-      return resolveMediaUrl(u, apiBase) || u;
+      if (!apiBase) return /^https?:\/\//i.test(u) ? scrubInsecureMediaUrl(u, "") : u;
+      const resolved = /^https?:\/\//i.test(u) ? u : resolveMediaUrl(u, apiBase) || u;
+      return scrubInsecureMediaUrl(resolved, apiBase);
     },
     [apiBase],
   );

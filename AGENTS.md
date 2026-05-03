@@ -41,6 +41,9 @@ export DATING_S3_ADDRESSING_STYLE="path"
 export DATING_CORS_ORIGINS="http://localhost:5173,http://127.0.0.1:5173,http://localhost:8080"
 export DATING_TRUSTED_HOSTS="localhost,127.0.0.1"
 export DATING_CDN_PUBLIC_BASE_URL="http://localhost:9000/dating-media"
+# Админка /admin без JWT и публичное создание пользователей (только dev; в проде не задавать или false)
+export DATING_ADMIN_PUBLIC_PANEL="true"
+export DATING_ADMIN_PUBLIC_USER_CREATE="true"
 
 # Run migrations
 alembic upgrade head

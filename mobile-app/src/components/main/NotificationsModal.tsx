@@ -16,6 +16,8 @@ import LinearGradient from "react-native-linear-gradient";
 import { X, Heart, Star, MessageCircle, UserPlus, Gift, Send, Sparkles } from "lucide-react-native";
 
 import { getNotifications, markNotificationsRead, type NotificationItem } from "../../api/notificationsApi";
+import { getApiBaseUrl } from "../../api/apiBase";
+import { publicDisplayMediaUrl } from "../../utils/mediaUrl";
 import { brandGradients, tw } from "../../theme/designTokens";
 
 type Props = {
@@ -84,7 +86,16 @@ export function NotificationsModal({ visible, onClose, onOpenChat, onMarkedAllRe
         setItems([]);
         return;
       }
-      setItems(res.data ?? []);
+      const base = (await getApiBaseUrl()) ?? "";
+      const raw = res.data ?? [];
+      setItems(
+        base
+          ? raw.map((n) => ({
+              ...n,
+              avatar: n.avatar ? publicDisplayMediaUrl(n.avatar, base) : n.avatar,
+            }))
+          : raw,
+      );
     })();
     return () => {
       c = true;

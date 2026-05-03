@@ -21,6 +21,8 @@ import {
   deleteConversation,
   type ConversationListItem,
 } from "../../api/conversationsApi";
+import { getApiBaseUrl } from "../../api/apiBase";
+import { publicDisplayMediaUrl } from "../../utils/mediaUrl";
 import { tw, brandGradients } from "../../theme/designTokens";
 
 type Props = {
@@ -52,7 +54,13 @@ export function ChatsListModal({ visible, onClose, onPick }: Props) {
     const r = await listConversations();
     setLoading(false);
     if (r.error) setErr(r.error);
-    setRows(r.data ?? []);
+    const base = (await getApiBaseUrl()) ?? "";
+    const raw = r.data ?? [];
+    setRows(
+      base
+        ? raw.map((it) => ({ ...it, avatar: publicDisplayMediaUrl(it.avatar, base) }))
+        : raw,
+    );
   }, []);
 
   useEffect(() => {

@@ -121,6 +121,20 @@ class Settings(BaseSettings):
         default=None,
         description="If set, pydantic can load Docker secrets from this path",
     )
+    admin_public_panel: bool = Field(
+        default=False,
+        description=(
+            "If true, GET /api/admin/stats|tickets|reports work without JWT (только для dev). "
+            "В продакшене оставьте false."
+        ),
+    )
+    admin_public_user_create: bool = Field(
+        default=False,
+        description=(
+            "If true, POST /api/admin/public/users creates accounts without JWT (только для dev). "
+            "В продакшене оставьте false."
+        ),
+    )
 
 
 def _apply_yandex_object_storage(s: Settings) -> Settings:

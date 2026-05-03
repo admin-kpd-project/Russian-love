@@ -1,6 +1,6 @@
 import type { Profile } from "../api/authApi";
 import type { UserProfile } from "./compatibilityAI";
-import { resolveMediaUrl } from "./mediaUrl";
+import { publicDisplayMediaUrl } from "./mediaUrl";
 
 const defaultPersonality: UserProfile["personality"] = {
   extroversion: 50,
@@ -37,7 +37,7 @@ export function mapApiProfileToUserProfile(p: Profile, apiBase?: string): UserPr
 
   let photo = p.photo || (p.photos && p.photos[0]) || "";
   if (apiBase && photo) {
-    photo = resolveMediaUrl(photo, apiBase) || photo;
+    photo = publicDisplayMediaUrl(photo, apiBase) || photo;
   }
 
   return {
