@@ -94,11 +94,22 @@ def _maybe_upgrade_public_to_https(base: str, force: bool) -> str:
 
 
 def _request_client_used_tls(request: Request) -> bool:
-    """True if the client connection to this API is HTTPS (uvicorn --proxy-headers or TLS terminator)."""
+    """True if the browser used HTTPS for the app (even when the hop to this process is HTTP behind Nginx).
+
+    Some setups omit or mis-set X-Forwarded-Proto; fetch from https:// still sends Origin: https://…
+    """
     if request.url.scheme == "https":
         return True
     xfp = (request.headers.get("x-forwarded-proto") or "").split(",")[-1].strip().lower()
-    return xfp == "https"
+    if xfp == "https":
+        return True
+    o = (request.headers.get("origin") or "").strip().lower()
+    if o.startswith("https://"):
+        return True
+    r = (request.headers.get("referer") or "").strip().lower()
+    if r.startswith("https://"):
+        return True
+    return False
 
 
 def _coerce_http_asset_url_for_tls_request(request: Request, url: str | None) -> str | None:
@@ -137,6 +148,20 @@ def _public_origin_from_nginx(request: Request) -> str | None:
     if not xfp:
         xfp = "http"
     return f"{xfp}://{xfh}".rstrip("/")
+
+
+def _align_public_origin_with_browser_https(request: Request, public: str) -> str:
+    """If Nginx forwarded http://host but fetch Origin is https://same-host, use https for presign paths."""
+    if not public.startswith("http://"):
+        return public
+    vis = _client_visible_base_url(request)
+    if not vis or not vis.startswith("https://"):
+        return public
+    ph = (urlparse(public).hostname or "").lower()
+    vh = (urlparse(vis).hostname or "").lower()
+    if ph and vh and ph == vh:
+        return f"https://{public[len('http://') :]}"
+    return public
 
 
 def _client_visible_base_url(request: Request) -> str | None:
@@ -180,6 +205,7 @@ def _presign_bases_for_request(request: Request) -> tuple[str | None, str]:
             return _finalize_presign_cdn_bases(request, gb, f"{gb}/s3/{s.s3_bucket}")
     public = _public_origin_from_nginx(request) or _client_visible_base_url(request)
     if public:
+        public = _align_public_origin_with_browser_https(request, public)
         pub = _maybe_upgrade_public_to_https(public, s.force_https_asset_urls)
         return _finalize_presign_cdn_bases(request, pub, f"{pub}/s3/{s.s3_bucket}")
     return _finalize_presign_cdn_bases(request, presign, cdn)
