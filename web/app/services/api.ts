@@ -20,12 +20,25 @@ async function parseApiResponse<T>(response: Response): Promise<ApiResponse<T>> 
   }
 
   try {
-    const parsed = JSON.parse(raw) as Partial<ApiResponse<T>>;
+    const parsed = JSON.parse(raw) as Partial<ApiResponse<T>> & {
+      detail?: string | string[] | { msg?: string }[];
+    };
     if ("data" in parsed || "error" in parsed) {
       return {
         data: (parsed.data as T | null) ?? null,
         error: (parsed.error as string | null) ?? null,
       };
+    }
+    if (!response.ok && parsed.detail != null) {
+      const d = parsed.detail;
+      let err: string;
+      if (typeof d === "string") err = d;
+      else if (Array.isArray(d)) {
+        err = d
+          .map((x) => (typeof x === "string" ? x : (x && typeof x === "object" && "msg" in x && x.msg) || JSON.stringify(x)))
+          .join("; ");
+      } else err = JSON.stringify(d);
+      return { data: null, error: err || `HTTP ${response.status}` };
     }
     return {
       data: response.ok ? (parsed as T) : null,

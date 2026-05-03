@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Разрешает HTTP к указанным хостам (тестовый бэкенд и LAN). Локации не коммитить в прод без HTTPS. -->
+<!-- Явный base-config: HTTPS к публичным хостам через системное хранилище сертификатов. -->
+<!-- HTTP (cleartext) только к перечисленным LAN/тестовым хостам. -->
 <network-security-config>
+  <base-config cleartextTrafficPermitted="false">
+    <trust-anchors>
+      <certificates src="system" />
+    </trust-anchors>
+  </base-config>
   <domain-config cleartextTrafficPermitted="true">
     <domain includeSubdomains="true">81.26.181.58</domain>
     <domain includeSubdomains="true">10.0.2.2</domain>

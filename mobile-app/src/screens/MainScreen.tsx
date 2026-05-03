@@ -49,6 +49,7 @@ import { ScalePressable } from "../components/ui/Motion";
 import { GradientText } from "../components/ui/GradientText";
 import { brandGradients, tw } from "../theme/designTokens";
 import { guessWebAdminUrl } from "../utils/adminWebUrl";
+import { formatApiNetworkError } from "../utils/formatNetworkError";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Main">;
 
@@ -57,6 +58,22 @@ function profileIdStr(p: UserProfile): string {
 }
 
 type LikedEntry = { profile: UserProfile; isSuperLike: boolean; superMessage?: string };
+
+function raceTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const id = setTimeout(() => reject(new Error(`${label} (>${Math.round(ms / 1000)} с)`)), ms);
+    p.then(
+      (v) => {
+        clearTimeout(id);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(id);
+        reject(e instanceof Error ? e : new Error(String(e)));
+      }
+    );
+  });
+}
 
 function mergeLikedEntry(prev: LikedEntry[], p: UserProfile, isSuper: boolean, superMessage?: string): LikedEntry[] {
   const id = profileIdStr(p);
@@ -87,6 +104,7 @@ export function MainScreen() {
   const [compatibility, setCompatibility] = useState<number[]>([]);
   const [self, setSelf] = useState<UserProfile>(mockSelf);
   const [loadingFeed, setLoadingFeed] = useState(true);
+  const [feedLoadError, setFeedLoadError] = useState<string | null>(null);
   const [history, setHistory] = useState<{ profile: UserProfile; liked: boolean; superLike?: boolean }[]>([]);
   const [likedEntries, setLikedEntries] = useState<LikedEntry[]>([]);
   const [superLikeBurst, setSuperLikeBurst] = useState(false);
@@ -186,12 +204,20 @@ export function MainScreen() {
     }
   }, [applyEconomyFromProfile]);
 
-  useEffect(() => {
-    let c = false;
-    void (async () => {
+  const loadFeedAndMe = useCallback(async (signal: { cancelled: boolean }) => {
+    setFeedLoadError(null);
+    setLoadingFeed(true);
+    try {
       const base = await getApiBaseUrl();
-      const u = await getCurrentUser();
-      if (!c && u.data) {
+      if (signal.cancelled) return;
+      if (!base) {
+        setFeedLoadError("Не задан адрес API. Нажмите «Сервер» в шапке главного экрана.");
+        setProfiles([]);
+        return;
+      }
+      const [u, r] = await raceTimeout(Promise.all([getCurrentUser(), getFeed()]), 32000, "Сервер не отвечает");
+      if (signal.cancelled) return;
+      if (u.data) {
         setMe(u.data);
         applyEconomyFromProfile(u.data);
         try {
@@ -200,16 +226,37 @@ export function MainScreen() {
           /* keep mockSelf */
         }
       }
-      const r = await getFeed();
-      if (c) return;
-      setLoadingFeed(false);
+      if (r.error) {
+        const msg = r.error.trim();
+        const low = msg.toLowerCase();
+        if (low.includes("profile_incomplete")) {
+          setFeedLoadError("Заполните профиль в настройках — без этого лента недоступна.");
+        } else {
+          setFeedLoadError(msg || "Не удалось загрузить ленту");
+        }
+        setProfiles([]);
+        return;
+      }
       if (r.data?.length) setProfiles(r.data.map((p) => mapApiProfileToUserProfile(p, base)));
       else setProfiles([]);
-    })();
-    return () => {
-      c = true;
-    };
+    } catch (e) {
+      if (!signal.cancelled) {
+        const m = e instanceof Error ? e.message : String(e);
+        setFeedLoadError(formatApiNetworkError(m) || "Ошибка сети");
+        setProfiles([]);
+      }
+    } finally {
+      if (!signal.cancelled) setLoadingFeed(false);
+    }
   }, [applyEconomyFromProfile]);
+
+  useEffect(() => {
+    const signal = { cancelled: false };
+    void loadFeedAndMe(signal);
+    return () => {
+      signal.cancelled = true;
+    };
+  }, [loadFeedAndMe]);
 
   const POLL_MS = 4000;
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -468,6 +515,21 @@ export function MainScreen() {
       <View style={styles.body}>
         {loadingFeed ? (
           <ActivityIndicator size="large" color={tw.red500} style={{ marginTop: 40 }} />
+        ) : feedLoadError ? (
+          <View style={styles.empty}>
+            <Text style={styles.emptyH}>Лента не загрузилась</Text>
+            <Text style={styles.emptyT}>{feedLoadError}</Text>
+            <ScalePressable
+              onPress={() => {
+                const signal = { cancelled: false };
+                void loadFeedAndMe(signal);
+              }}
+            >
+              <LinearGradient colors={[...brandGradients.primary]} style={styles.restart}>
+                <Text style={styles.restartT}>Повторить</Text>
+              </LinearGradient>
+            </ScalePressable>
+          </View>
         ) : hasMore ? (
           <>
             <View style={styles.qrRow}>

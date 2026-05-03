@@ -18,7 +18,7 @@
    Значение попадает в `BuildConfig` и в JS как `NativeModules.RNNativeApiConfig.defaultApiBase` (см. `getApiBaseUrl` в `src/api/apiBase.ts`).
 
 3. **JS-fallback**  
-   В [`src/config.ts`](src/config.ts) константа **`API_URL_FALLBACK_JS`** (по умолчанию пустая). Можно временно прописать, например, `http://10.0.2.2:8080` **только для эмулятора** — на реальном устройстве укажите IP/HTTPS через экран или `local.properties`.
+   В [`src/config.ts`](src/config.ts): **`API_URL_FALLBACK_JS`** по умолчанию указывает на staging **`https://dev.forruss.ru`** (можно сменить на `""` или `http://10.0.2.2:8080` для чисто локального API). **`WEB_PUBLIC_BASE_URL`** — тот же dev для QR; на проде замените на `https://forruss.ru`.
 
 ## Подсказки по сети
 
@@ -60,7 +60,11 @@
 
 **Ошибка: «Dependency requires at least JVM version 11. This build uses a Java 8 JVM»** — `android/gradlew.bat` **по умолчанию подставляет JBR Android Studio** (и перекрывает `JAVA_HOME` с Java 8), если не задано `set ANDROID_USE_SYSTEM_JAVA=1`. Сборка: из каталога `android` вызывайте `.\gradlew.bat`, а не `gradlew.bat` с другой копией из `PATH` без этого скрипта.
 
-**Metro: `Error: ENOENT, watch '…node_modules\…\.cxx\…` —** Gradle удалил папку `.cxx` во время сборки, а **Metro** всё ещё пытается смотреть на неё. **Остановите** `npm start`, затем `gradlew` / `android:clean-native` / снова `npm start`.
+**Metro: `Error: ENOENT, watch '…node_modules\…\.cxx\…` или `…android\build\…`** — во время **assembleDebug** Gradle и Metro идут параллельно; каталоги **`.cxx`** и **`android/build`** в `node_modules` создаются и удаляются. В `metro.config.js` эти пути исключены из watch. Дополнительно **остановите** `npm start` на время `gradlew` / `android:clean-native`, затем снова `npm start`.
+
+**Kotlin: `this and base files have different roots: T:\node_modules\…` и `C:\…\android`** — после сборки через `subst T:` снимите диск: `subst T: /d`, откройте проект только с **реального** пути `C:\…`, выполните `cd android` → `.\gradlew.bat --stop`. В `gradle.properties` включено `kotlin.incremental=false`, чтобы Studio/Gradle не ломались на смешении `T:\` и `C:\`.
+
+**Gradle: `No matching variant` / `Basedir T:\node_modules\… does not exist` для всех `:react-native-*`** — в `android/.gradle` закэшированы пути с диска **T:** после `subst`. Снимите `subst T: /d`, затем **`npm run android:clean-native`** (удаляет в т.ч. `android/.gradle`) и снова **Sync Project / assembleDebug**. Скрипт `scripts\build-release-with-subst.cmd` после сборки сам снимает `T:` и чистит `android/.gradle`.
 
 **assembleRelease: `ninja: mkdir(…C_/…reanimated)…` / длина пути 250+** — CMake кладёт объекты Reanimated в очень длинные каталоги. **Самый быстрый вариант на Windows:** в **cmd** из `mobile-app` (буква **T:** не должна быть занята):
 

@@ -5,14 +5,41 @@ import { API_URL_FALLBACK_JS } from "../config";
 
 const KEY = "@rl_api_base";
 
+function isLocalOrLanHost(host: string): boolean {
+  const h = host.toLowerCase();
+  if (h === "localhost" || h === "127.0.0.1" || h === "10.0.2.2") return true;
+  if (h.endsWith(".local")) return true;
+  if (/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h)) return true;
+  return false;
+}
+
+/** Публичные forruss: всегда HTTPS (Android блокирует cleartext вне domain-config). */
+function preferHttpsForForrussStaging(url: string): string {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "http:") return url;
+    const h = u.hostname.toLowerCase();
+    if (h === "dev.forruss.ru" || h === "forruss.ru" || h === "www.forruss.ru") {
+      u.protocol = "https:";
+      return u.toString().replace(/\/+$/, "");
+    }
+  } catch {
+    /* keep */
+  }
+  return url;
+}
+
 export function normalizeApiBase(s: string): string {
   let t = s.trim();
   if (!t) return "";
   t = t.replace(/\/+$/, "");
   if (!/^https?:\/\//i.test(t)) {
-    t = `http://${t}`;
+    const hostPort = t.split("/")[0];
+    const host = hostPort.split(":")[0] ?? "";
+    const scheme = isLocalOrLanHost(host) ? "http" : "https";
+    t = `${scheme}://${t}`;
   }
-  return t;
+  return preferHttpsForForrussStaging(t);
 }
 
 export function isValidApiBase(s: string): boolean {
@@ -54,7 +81,17 @@ export async function getApiBaseUrl(): Promise<string> {
   const fromStorage = await AsyncStorage.getItem(KEY);
   if (fromStorage) {
     const n = normalizeApiBase(fromStorage);
-    if (n) return n;
+    if (n) {
+      const trimmed = fromStorage.trim();
+      if (n !== trimmed) {
+        try {
+          await AsyncStorage.setItem(KEY, n);
+        } catch {
+          /* ignore */
+        }
+      }
+      return n;
+    }
   }
   const fromNative = await getNativeBuildDefault();
   if (fromNative) {

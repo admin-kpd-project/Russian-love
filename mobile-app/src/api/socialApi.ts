@@ -38,3 +38,10 @@ export type MatchItem = {
 export function getMatches(): Promise<ApiResult<MatchItem[]>> {
   return apiFetch<MatchItem[]>("/api/matches");
 }
+
+export type InviteCreated = { code: string; url: string };
+
+/** Как на вебе ([web/app/services/socialService.ts](web/app/services/socialService.ts)). */
+export function createInvite(): Promise<ApiResult<InviteCreated>> {
+  return apiFetch<InviteCreated>("/api/invites", { method: "POST" });
+}

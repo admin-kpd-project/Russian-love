@@ -2,7 +2,12 @@ import type { LinkingOptions } from "@react-navigation/native";
 import type { RootStackParamList } from "./types";
 
 /** Префиксы как на веб-маршрутах + кастомная схема для тестов. */
-export const linkingPrefixes = ["forruss://", "https://forruss.ru", "https://www.forruss.ru"];
+export const linkingPrefixes = [
+  "forruss://",
+  "https://forruss.ru",
+  "https://www.forruss.ru",
+  "https://dev.forruss.ru",
+];
 
 export const rootLinking: LinkingOptions<RootStackParamList> = {
   prefixes: linkingPrefixes,

@@ -5,19 +5,10 @@ import LinearGradient from "react-native-linear-gradient";
 import QRCode from "react-native-qrcode-svg";
 import { X, Share2, Copy } from "lucide-react-native";
 
-import { getApiBaseUrl } from "../../api/apiBase";
+import { getPublicWebOrigin } from "../../api/publicWebOrigin";
 import { brandGradients } from "../../theme/designTokens";
 
 type Props = { visible: boolean; userId: string | undefined; onClose: () => void };
-
-function originFromApiBase(base: string): string {
-  try {
-    const u = new URL(base);
-    return u.origin;
-  } catch {
-    return base.replace(/\/$/, "");
-  }
-}
 
 export function QRShareModal({ visible, userId, onClose }: Props) {
   const insets = useSafeAreaInsets();
@@ -26,8 +17,7 @@ export function QRShareModal({ visible, userId, onClose }: Props) {
   useEffect(() => {
     if (!visible) return;
     void (async () => {
-      const base = await getApiBaseUrl();
-      const origin = base ? originFromApiBase(base) : "https://forruss.ru";
+      const origin = await getPublicWebOrigin();
       setQrUrl(userId ? `${origin}/scan/${userId}` : origin);
     })();
   }, [visible, userId]);

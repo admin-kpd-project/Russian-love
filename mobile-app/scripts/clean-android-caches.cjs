@@ -4,6 +4,8 @@ const path = require("path");
 
 const root = path.join(__dirname, "..");
 const dirs = [
+  // После сборки через subst T: здесь остаются пути T:\node_modules\… — Gradle даёт «No variants» / Basedir T:\… does not exist
+  path.join(root, "android", ".gradle"),
   path.join(root, "android", "build"),
   path.join(root, "android", ".cxx"),
   path.join(root, "android", "app", "build"),

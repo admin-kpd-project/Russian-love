@@ -45,6 +45,12 @@
             <category android:name="android.intent.category.BROWSABLE" />
             <data android:scheme="https" android:host="www.forruss.ru" />
         </intent-filter>
+        <intent-filter>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" android:host="dev.forruss.ru" />
+        </intent-filter>
       </activity>
     </application>
 </manifest>

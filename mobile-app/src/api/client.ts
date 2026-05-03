@@ -1,9 +1,40 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import { formatApiNetworkError } from "../utils/formatNetworkError";
 import { getApiBaseUrl } from "./apiBase";
 
 const ACCESS = "@rl_access";
 const REFRESH = "@rl_refresh";
+
+const DEFAULT_API_FETCH_TIMEOUT_MS = 45_000;
+
+function isLocalDevApiHost(hostname: string): boolean {
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "10.0.2.2";
+}
+
+function devStackHeadersForBase(base: string): Record<string, string> {
+  if (!__DEV__) return {};
+  try {
+    if (isLocalDevApiHost(new URL(base).hostname)) {
+      return { "X-Vite-S3-Proxy": "1" };
+    }
+  } catch {
+    if (/localhost|127\.0\.0\.1|10\.0\.2\.2/i.test(base)) {
+      return { "X-Vite-S3-Proxy": "1" };
+    }
+  }
+  return {};
+}
+
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(id);
+  }
+}
 
 export type ApiResult<T> = { data: T | null; error: string | null };
 
@@ -13,9 +44,24 @@ async function parseBody<T>(response: Response): Promise<ApiResult<T>> {
     return { data: null, error: response.ok ? null : `HTTP ${response.status}` };
   }
   try {
-    const parsed = JSON.parse(raw) as { data?: T; error?: string | null };
+    const parsed = JSON.parse(raw) as {
+      data?: T;
+      error?: string | null;
+      detail?: string | string[] | { msg?: string }[];
+    };
     if ("data" in parsed || "error" in parsed) {
       return { data: (parsed.data ?? null) as T | null, error: parsed.error ?? null };
+    }
+    if (!response.ok && parsed.detail != null) {
+      const d = parsed.detail;
+      let err: string;
+      if (typeof d === "string") err = d;
+      else if (Array.isArray(d)) {
+        err = d
+          .map((x) => (typeof x === "string" ? x : (x && typeof x === "object" && "msg" in x && x.msg) || JSON.stringify(x)))
+          .join("; ");
+      } else err = JSON.stringify(d);
+      return { data: null, error: err || `HTTP ${response.status}` };
     }
     return { data: response.ok ? (parsed as T) : null, error: null };
   } catch {
@@ -47,12 +93,30 @@ async function tryRefresh(): Promise<boolean> {
   if (!rt) return false;
   const base = await getApiBaseUrl();
   if (!base) return false;
-  const r = await fetch(`${base}/api/auth/refresh`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refreshToken: rt }),
-  });
-  const j = await parseBody<{ accessToken: string; refreshToken: string }>(r);
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...devStackHeadersForBase(base),
+  };
+  let r: Response;
+  try {
+    r = await fetchWithTimeout(
+      `${base}/api/auth/refresh`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ refreshToken: rt }),
+      },
+      DEFAULT_API_FETCH_TIMEOUT_MS
+    );
+  } catch {
+    return false;
+  }
+  let j: ApiResult<{ accessToken: string; refreshToken: string }>;
+  try {
+    j = await parseBody<{ accessToken: string; refreshToken: string }>(r);
+  } catch {
+    return false;
+  }
   if (j.data) {
     await setTokens(j.data.accessToken, j.data.refreshToken);
     return true;
@@ -61,38 +125,70 @@ async function tryRefresh(): Promise<boolean> {
   return false;
 }
 
-type FetchOpts = { public?: boolean };
+type FetchOpts = { public?: boolean; timeoutMs?: number };
 
 export async function apiFetch<T>(
   path: string,
   init: RequestInit = {},
   opts?: FetchOpts
 ): Promise<ApiResult<T>> {
-  const base = await getApiBaseUrl();
-  if (!base) {
-    return { data: null, error: "Не задан адрес API (экран «Сервер»)" };
-  }
-  const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
-  const headers: Record<string, string> = { ...(init.headers as Record<string, string> | undefined) };
-  const hasBody = init.body != null;
-  if (hasBody && !headers["Content-Type"] && !(init.body instanceof FormData)) {
-    headers["Content-Type"] = "application/json";
-  }
-  if (!opts?.public) {
-    const t = await getAccessToken();
-    if (t) headers.Authorization = `Bearer ${t}`;
-  }
-
-  let r = await fetch(url, { ...init, headers });
-
-  if (r.status === 401 && !opts?.public) {
-    const ok = await tryRefresh();
-    if (ok) {
-      const t2 = await getAccessToken();
-      if (t2) headers.Authorization = `Bearer ${t2}`;
-      r = await fetch(url, { ...init, headers });
+  try {
+    const base = await getApiBaseUrl();
+    if (!base) {
+      return { data: null, error: "Не задан адрес API (экран «Сервер»)" };
     }
-  }
+    const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
+    const headers: Record<string, string> = {
+      ...(init.headers as Record<string, string> | undefined),
+      ...devStackHeadersForBase(base),
+    };
+    if (!headers.Accept) headers.Accept = "application/json";
+    if (!headers["User-Agent"]) headers["User-Agent"] = "RussianLoveApp/1 (Android; React Native)";
+    const hasBody = init.body != null;
+    if (hasBody && !headers["Content-Type"] && !(init.body instanceof FormData)) {
+      headers["Content-Type"] = "application/json";
+    }
+    if (!opts?.public) {
+      const t = await getAccessToken();
+      if (t) headers.Authorization = `Bearer ${t}`;
+    }
 
-  return parseBody<T>(r);
+    const timeoutMs = opts?.timeoutMs ?? DEFAULT_API_FETCH_TIMEOUT_MS;
+
+    let r: Response;
+    try {
+      r = await fetchWithTimeout(url, { ...init, headers }, timeoutMs);
+    } catch (e) {
+      const aborted = e instanceof Error && e.name === "AbortError";
+      return {
+        data: null,
+        error: aborted
+          ? "Превышено время ожидания ответа сервера"
+          : formatApiNetworkError(e instanceof Error ? e.message : String(e)),
+      };
+    }
+
+    if (r.status === 401 && !opts?.public) {
+      const ok = await tryRefresh();
+      if (ok) {
+        const t2 = await getAccessToken();
+        if (t2) headers.Authorization = `Bearer ${t2}`;
+        try {
+          r = await fetchWithTimeout(url, { ...init, headers }, timeoutMs);
+        } catch (e) {
+          const aborted = e instanceof Error && e.name === "AbortError";
+          return {
+            data: null,
+            error: aborted
+              ? "Превышено время ожидания ответа сервера"
+              : formatApiNetworkError(e instanceof Error ? e.message : String(e)),
+          };
+        }
+      }
+    }
+
+    return await parseBody<T>(r);
+  } catch (e) {
+    return { data: null, error: formatApiNetworkError(e instanceof Error ? e.message : String(e)) };
+  }
 }
