@@ -1,6 +1,7 @@
-import { X, Star, Sparkles } from "lucide-react";
+import { Star, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
 import { useState, useEffect } from "react";
+import { ModalShell } from "./ui/modal-shell";
 
 interface DetailedAnalysisModalProps {
   onClose: () => void;
@@ -34,48 +35,28 @@ export function DetailedAnalysisModal({
   }, [profileName, profileAge, compatibility]);
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ y: "100%" }}
-        animate={{ y: 0 }}
-        exit={{ y: "100%" }}
-        transition={{ type: "spring", damping: 25 }}
-        onClick={(e) => e.stopPropagation()}
-        className="w-full sm:max-w-2xl bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[90vh] sm:max-h-[90vh]"
-      >
+    <ModalShell onClose={onClose} ariaLabel="Детальный анализ" size="wide">
+      <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="relative bg-gradient-to-br from-purple-500 via-pink-500 to-red-500 p-6 text-white">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 p-2 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-colors"
-          >
-            <X className="size-5" />
-          </button>
-          
+        <div className="relative bg-gradient-to-br from-purple-500 via-pink-500 to-red-500 px-5 sm:px-6 py-4 sm:py-5 text-white flex-shrink-0 pr-14">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-3 bg-white/20 backdrop-blur-sm rounded-full">
-              <Sparkles className="size-6" />
+            <div className="p-2 bg-white/20 backdrop-blur-sm rounded-full flex-shrink-0">
+              <Sparkles className="size-5" />
             </div>
-            <div>
-              <h2 className="text-2xl font-bold">Детальный анализ</h2>
-              <p className="text-sm text-white/90">Совместимость с {profileName}</p>
+            <div className="min-w-0">
+              <h2 className="text-lg sm:text-xl font-bold leading-tight">Детальный анализ</h2>
+              <p className="text-xs text-white/90 truncate">Совместимость с {profileName}</p>
             </div>
           </div>
-          
-          <div className="mt-4 flex items-center gap-2">
+
+          <div className="mt-3 flex items-center gap-2">
             <div className="flex-1 bg-white/20 rounded-full h-2">
-              <div 
+              <div
                 className="bg-white h-full rounded-full transition-all"
                 style={{ width: `${compatibility}%` }}
               />
             </div>
-            <span className="text-lg font-bold">{compatibility}%</span>
+            <span className="text-base font-bold">{compatibility}%</span>
           </div>
         </div>
 
@@ -157,14 +138,14 @@ export function DetailedAnalysisModal({
         </div>
 
         {/* Footer */}
-        <div className="p-4 bg-gray-50 border-t border-gray-200">
+        <div className="p-3 bg-gray-50 border-t border-gray-200 flex-shrink-0">
           <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
             <Sparkles className="size-4" />
             <span>Анализ создан с помощью ИИ</span>
           </div>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </ModalShell>
   );
 }
 

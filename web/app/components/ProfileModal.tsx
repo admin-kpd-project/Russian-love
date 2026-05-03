@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { motion } from "motion/react";
-import { X, MapPin, Cake, Mail, Heart, Sparkles, Edit, QrCode, LogOut, Camera } from "lucide-react";
+import { X, MapPin, Cake, Mail, Heart, Sparkles, QrCode, LogOut, Camera } from "lucide-react";
 import { currentUser } from "../utils/compatibilityAI";
 import { Badge } from "./ui/badge";
+import { ModalShell } from "./ui/modal-shell";
 
 interface ProfileModalProps {
   onClose: () => void;
@@ -79,40 +79,27 @@ export function ProfileModal({ onClose, onOpenQR, onOpenSettings, onLogout }: Pr
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        transition={{ type: "spring", duration: 0.5 }}
-        className="bg-white rounded-3xl max-w-md w-full max-h-[90vh] flex flex-col shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ModalShell onClose={onClose} ariaLabel="Профиль" hideCloseButton>
+      <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="relative h-32 bg-gradient-to-br from-red-500 to-amber-500 flex-shrink-0 rounded-t-3xl">
+        <div className="relative h-24 sm:h-28 bg-gradient-to-br from-red-500 to-amber-500 flex-shrink-0">
           <button
             onClick={onOpenQR}
-            className="absolute top-4 left-4 p-2 bg-white/20 backdrop-blur-sm rounded-lg hover:bg-white/30 transition-colors z-10"
+            className="absolute top-3 left-3 p-2 bg-white/20 backdrop-blur-sm rounded-lg hover:bg-white/30 transition-colors z-10"
           >
-            <QrCode className="size-6 text-white" />
+            <QrCode className="size-5 text-white" />
           </button>
-          
+
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-colors z-10"
+            className="absolute top-3 right-3 w-9 h-9 flex items-center justify-center bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-colors z-10"
           >
-            <X className="w-6 h-6 text-white" />
+            <X className="w-5 h-5 text-white" />
           </button>
-          
+
           {/* Profile Photo */}
-          <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 z-10">
-            <div className="relative size-32 rounded-full border-4 border-white shadow-xl overflow-hidden bg-white">
+          <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 z-10">
+            <div className="relative size-24 sm:size-28 rounded-full border-4 border-white shadow-xl overflow-hidden bg-white">
               <img
                 src={profilePhoto}
                 alt={currentUser.name}
@@ -140,7 +127,7 @@ export function ProfileModal({ onClose, onOpenQR, onOpenSettings, onLogout }: Pr
         </div>
 
         {/* Content - with overflow scroll */}
-        <div className="pt-20 px-6 pb-6 overflow-y-auto flex-1">
+        <div className="pt-14 sm:pt-16 px-5 sm:px-6 pb-5 sm:pb-6 overflow-y-auto modal-scroll flex-1 min-h-0">
           {/* Name and Age */}
           {isEditing ? (
             <div className="mb-6 space-y-3">
@@ -351,7 +338,7 @@ export function ProfileModal({ onClose, onOpenQR, onOpenSettings, onLogout }: Pr
             </>
           )}
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </ModalShell>
   );
 }

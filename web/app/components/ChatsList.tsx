@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "motion/react";
-import { X, MessageCircle, CheckCheck, Trash2, Check } from "lucide-react";
+import { MessageCircle, CheckCheck, Trash2, Check } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { ru } from "date-fns/locale";
@@ -10,6 +10,7 @@ import {
   markConversationsRead,
   deleteConversation,
 } from "../services/conversationsService";
+import { ModalShell } from "./ui/modal-shell";
 
 interface Chat {
   id: string;
@@ -144,46 +145,25 @@ export function ChatsList({ onClose, onOpenChat }: ChatsListProps) {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ y: "100%", opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: "100%", opacity: 0 }}
-        transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md max-h-[85vh] overflow-hidden shadow-2xl flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ModalShell onClose={onClose} ariaLabel="Личные чаты">
+      <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-600 to-amber-500 p-6 text-white relative flex-shrink-0">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center hover:bg-white/20 rounded-full transition-colors"
-          >
-            <X className="w-6 h-6" />
-          </button>
-          <div className="flex items-center justify-between gap-3 mb-4">
-            <div className="flex items-center gap-3">
-              <div className="bg-white/20 p-3 rounded-full">
-                <MessageCircle className="size-6" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold">
-                  {selectionMode ? `Выбрано: ${selectedChats.length}` : "Личные чаты"}
-                </h2>
-                <p className="text-white/80 text-sm">
-                  {selectionMode
-                    ? `из ${chats.length} чатов`
-                    : unreadCount === 0
-                      ? "Нет непрочитанных"
-                      : `${unreadCount} непрочитанных`}
-                </p>
-              </div>
+        <div className="bg-gradient-to-r from-red-600 to-amber-500 px-5 sm:px-6 py-4 text-white flex-shrink-0 pr-14">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="bg-white/20 p-2 rounded-full">
+              <MessageCircle className="size-5" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-lg sm:text-xl font-bold truncate">
+                {selectionMode ? `Выбрано: ${selectedChats.length}` : "Личные чаты"}
+              </h2>
+              <p className="text-white/80 text-xs">
+                {selectionMode
+                  ? `из ${chats.length} чатов`
+                  : unreadCount === 0
+                    ? "Нет непрочитанных"
+                    : `${unreadCount} непрочитанных`}
+              </p>
             </div>
           </div>
           
@@ -250,7 +230,7 @@ export function ChatsList({ onClose, onOpenChat }: ChatsListProps) {
         </div>
 
         {/* Chats List */}
-        <div className="overflow-y-auto flex-1">
+        <div className="flex-1 min-h-0 overflow-y-auto modal-scroll">
           {loading ? (
             <div className="p-12 text-center text-gray-500 text-sm">Загрузка…</div>
           ) : loadError ? (
@@ -333,7 +313,7 @@ export function ChatsList({ onClose, onOpenChat }: ChatsListProps) {
             </div>
           )}
         </div>
-      </motion.div>
+      </div>
 
       {/* Delete Confirmation Dialog */}
       <AnimatePresence>
@@ -430,6 +410,6 @@ export function ChatsList({ onClose, onOpenChat }: ChatsListProps) {
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </ModalShell>
   );
 }

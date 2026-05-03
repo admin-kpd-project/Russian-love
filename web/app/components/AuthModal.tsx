@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "motion/react";
-import { X, Mail, Lock, Heart, Shield, MessageCircle, ArrowLeft, CheckCircle, Eye, EyeOff, Camera, Phone } from "lucide-react";
+import { Mail, Lock, Heart, Shield, MessageCircle, ArrowLeft, CheckCircle, Eye, EyeOff, Camera, Phone } from "lucide-react";
 import "react-datepicker/dist/react-datepicker.css";
 import matreshkaLogoWhite from "../../imports/1775050275_(1)_4.png";
 import { login, register, redirectToYandexOAuth, redirectToMessengerOAuth } from "../services/authService";
 import { uploadFile } from "../services/uploadService";
 import { useAuth } from "../contexts/AuthContext";
 import { normalizeRuPhone } from "../utils/phone";
+import { ModalShell } from "./ui/modal-shell";
 
 function getAdultMaxDate(): string {
   const today = new Date();
@@ -253,23 +254,15 @@ export function AuthModal({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-      onClick={onClose}
+    <ModalShell
+      onClose={onClose}
+      ariaLabel={isReset ? "Восстановление пароля" : isLogin ? "Вход" : "Регистрация"}
+      disableBackdropClose
+      hideCloseButton
     >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        transition={{ type: "spring", duration: 0.5 }}
-        className="bg-white rounded-3xl max-w-md w-full max-h-[90vh] overflow-hidden shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="relative bg-gradient-to-br from-red-500 to-amber-500 px-6 py-8">
+        <div className="relative bg-gradient-to-br from-red-500 to-amber-500 px-5 sm:px-6 py-5 flex-shrink-0">
           {isReset && (
             <button
               onClick={() => {
@@ -277,36 +270,38 @@ export function AuthModal({
                 setResetEmail("");
                 setResetEmailSent(false);
               }}
-              className="absolute top-4 left-4 p-2 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-colors"
+              className="absolute top-3 left-3 p-2 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-colors"
+              aria-label="Назад"
             >
-              <ArrowLeft className="size-6 text-white" />
+              <ArrowLeft className="size-5 text-white" />
             </button>
           )}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-colors"
+            className="absolute top-3 right-3 p-2 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-colors"
+            aria-label="Закрыть"
           >
-            <X className="size-6 text-white" />
+            <span className="block size-5 leading-none text-white text-xl">×</span>
           </button>
-          
+
           <div className="text-center">
-            <div className="flex justify-center mb-4">
-              <div className="size-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
+            <div className="flex justify-center mb-2">
+              <div className="size-14 sm:size-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
                 <img
                   src={matreshkaLogoWhite}
                   alt="Matreshka Logo"
-                  className="size-14 object-contain"
+                  className="size-10 sm:size-12 object-contain"
                 />
               </div>
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">
+            <h2 className="text-lg sm:text-xl font-bold text-white mb-0.5">
               {isReset ? "Восстановление пароля" : isLogin ? "Добро пожаловать!" : "Регистрация"}
             </h2>
-            <p className="text-white/90 text-sm">
-              {isReset 
-                ? "Введите email для получения ссылки" 
-                : isLogin 
-                ? "Войдите, чтобы найти свою половинку" 
+            <p className="text-white/90 text-[11px] sm:text-xs">
+              {isReset
+                ? "Введите email для получения ссылки"
+                : isLogin
+                ? "Войдите, чтобы найти свою половинку"
                 : "Создайте аккаунт и начните знакомства"}
             </p>
           </div>
@@ -315,7 +310,7 @@ export function AuthModal({
         {/* Form */}
         <div
           ref={formScrollRef}
-          className="px-6 py-6 overflow-y-auto max-h-[calc(90vh-180px)]"
+          className="px-5 sm:px-6 py-5 overflow-y-auto modal-scroll flex-1 min-h-0"
         >
           {isReset ? (
             /* Password Reset Form */
@@ -873,7 +868,7 @@ export function AuthModal({
             </form>
           )}
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </ModalShell>
   );
 }

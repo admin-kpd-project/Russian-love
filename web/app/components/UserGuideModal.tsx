@@ -1,7 +1,7 @@
-import { motion, AnimatePresence } from "motion/react";
-import { X, ChevronRight, Heart, Star, MessageCircle, User, Settings, QrCode, Shield, Sparkles, RotateCcw } from "lucide-react";
+import { ChevronRight, Heart, Star, MessageCircle, User, Settings, QrCode, Shield, Sparkles, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { ModalShell } from "./ui/modal-shell";
 
 interface UserGuideModalProps {
   onClose: () => void;
@@ -406,123 +406,78 @@ export function UserGuideModal({ onClose }: UserGuideModalProps) {
     if (!section) return null;
 
     return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[70] flex items-center justify-center p-4"
-        onClick={() => setSelectedSection(null)}
-      >
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0, x: 50 }}
-          animate={{ scale: 1, opacity: 1, x: 0 }}
-          exit={{ scale: 0.9, opacity: 0, x: 50 }}
-          transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="bg-white rounded-3xl w-full max-w-2xl max-h-[85vh] overflow-hidden shadow-2xl"
-          onClick={(e) => e.stopPropagation()}
-        >
+      <ModalShell onClose={() => setSelectedSection(null)} ariaLabel={section.title} size="wide">
+        <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="bg-gradient-to-r from-red-500 to-amber-500 p-6 text-white relative">
-            <button
-              onClick={() => setSelectedSection(null)}
-              className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition-colors"
-            >
-              <X className="size-6" />
-            </button>
+          <div className="bg-gradient-to-r from-red-500 to-amber-500 px-5 sm:px-6 py-4 text-white flex-shrink-0 pr-14">
             <div className="flex items-center gap-3">
-              <div className="size-12 bg-white/20 rounded-xl flex items-center justify-center">
+              <div className="size-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
                 {section.icon}
               </div>
-              <h2 className="text-2xl font-bold">{section.title}</h2>
+              <h2 className="text-lg sm:text-xl font-bold truncate">{section.title}</h2>
             </div>
           </div>
 
           {/* Content */}
-          <div className="p-6 overflow-y-auto max-h-[calc(85vh-120px)]">
+          <div className="px-5 sm:px-6 py-4 sm:py-5 overflow-y-auto modal-scroll flex-1 min-h-0">
             {section.content}
           </div>
-        </motion.div>
-      </motion.div>
+        </div>
+      </ModalShell>
     );
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[70] flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0, y: 20 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="bg-white rounded-3xl w-full max-w-2xl max-h-[85vh] overflow-hidden shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ModalShell onClose={onClose} ariaLabel="Руководство пользователя" size="wide">
+      <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-500 to-amber-500 p-6 text-white relative">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition-colors"
-          >
-            <X className="size-6" />
-          </button>
-          <h2 className="text-2xl font-bold mb-1">Руководство пользователя</h2>
-          <p className="text-white/90 text-sm">Всё, что нужно знать о "Любить по-russки"</p>
+        <div className="bg-gradient-to-r from-red-500 to-amber-500 px-5 sm:px-6 py-4 text-white flex-shrink-0 pr-14">
+          <h2 className="text-lg sm:text-xl font-bold mb-0.5">Руководство пользователя</h2>
+          <p className="text-white/90 text-xs">Всё о «Любить по-russки»</p>
         </div>
 
         {/* Welcome Section */}
-        <div className="p-6 border-b border-gray-200">
-          <div className="bg-gradient-to-r from-red-50 to-amber-50 p-4 rounded-xl border border-red-200">
-            <h3 className="font-bold text-lg text-gray-800 mb-2">👋 Добро пожаловать!</h3>
-            <p className="text-sm text-gray-700">
-              <strong>"Любить по-russки"</strong> — это мобильное приложение знакомств с уникальным 
-              AI-алгоритмом расчёта совместимости. Мы поможем вам найти родственную душу на основе 
-              ваших интересов, ценностей и предпочтений.
+        <div className="px-5 sm:px-6 pt-4 pb-3 border-b border-gray-200 flex-shrink-0">
+          <div className="bg-gradient-to-r from-red-50 to-amber-50 p-3 rounded-xl border border-red-200">
+            <h3 className="font-bold text-sm sm:text-base text-gray-800 mb-1">👋 Добро пожаловать!</h3>
+            <p className="text-xs sm:text-sm text-gray-700">
+              <strong>«Любить по-russки»</strong> — приложение знакомств с AI-расчётом совместимости.
             </p>
           </div>
         </div>
 
         {/* Sections List */}
-        <div className="p-6 overflow-y-auto max-h-[calc(85vh-240px)]">
-          <h3 className="font-bold text-gray-800 mb-4">Выберите раздел:</h3>
-          <div className="space-y-3">
+        <div className="px-5 sm:px-6 py-4 overflow-y-auto modal-scroll flex-1 min-h-0">
+          <h3 className="font-bold text-gray-800 mb-3 text-sm">Выберите раздел:</h3>
+          <div className="space-y-2">
             {sections.map((section) => (
               <button
                 key={section.id}
                 onClick={() => setSelectedSection(section.id)}
-                className="w-full flex items-center justify-between px-4 py-4 bg-gray-50 hover:bg-gradient-to-r hover:from-red-50 hover:to-amber-50 rounded-xl transition-all group border border-gray-200 hover:border-red-300"
+                className="w-full flex items-center justify-between px-3 py-3 bg-gray-50 hover:bg-gradient-to-r hover:from-red-50 hover:to-amber-50 rounded-xl transition-all group border border-gray-200 hover:border-red-300"
               >
-                <div className="flex items-center gap-4">
-                  <div className="size-12 bg-white rounded-xl flex items-center justify-center text-red-600 group-hover:scale-110 transition-transform shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="size-9 bg-white rounded-xl flex items-center justify-center text-red-600 group-hover:scale-110 transition-transform shadow-sm flex-shrink-0">
                     {section.icon}
                   </div>
-                  <span className="text-gray-800 font-semibold text-left text-sm sm:text-base leading-snug">{section.title}</span>
+                  <span className="text-gray-800 font-semibold text-left text-xs sm:text-sm leading-snug">{section.title}</span>
                 </div>
-                <ChevronRight className="size-5 text-gray-400 group-hover:text-red-600 group-hover:translate-x-1 transition-all" />
+                <ChevronRight className="size-4 text-gray-400 group-hover:text-red-600 group-hover:translate-x-1 transition-all flex-shrink-0" />
               </button>
             ))}
           </div>
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-gray-200 bg-gray-50">
-          <div className="flex items-center justify-between text-sm">
-            <p className="text-gray-600">
-              <strong>Нужна помощь?</strong> Пишите в поддержку!
-            </p>
-            <button 
-              onClick={onClose}
-              className="px-6 py-2 bg-gradient-to-r from-red-500 to-amber-500 text-white rounded-xl font-medium hover:shadow-lg transition-shadow"
-            >
-              Закрыть
-            </button>
-          </div>
+        <div className="px-5 sm:px-6 py-3 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+          <button
+            onClick={onClose}
+            className="w-full px-4 py-2 bg-gradient-to-r from-red-500 to-amber-500 text-white rounded-xl font-medium hover:shadow-lg transition-shadow text-sm"
+          >
+            Закрыть
+          </button>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </ModalShell>
   );
 }

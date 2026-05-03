@@ -1,6 +1,7 @@
-import { X, Calendar, List, MapPin, Clock, Heart, ExternalLink, Users } from "lucide-react";
+import { Calendar, List, MapPin, Clock, Heart, ExternalLink, Users } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useState, useMemo, useEffect } from "react";
+import { ModalShell } from "./ui/modal-shell";
 
 interface EventsModalProps {
   onClose: () => void;
@@ -425,40 +426,18 @@ export function EventsModal({ onClose, profileName, profilePhoto, onSendEventInv
   const selectedDateEvents = selectedDate ? getEventsForDate(selectedDate) : [];
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[65] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0, y: 20 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        transition={{ type: "spring", duration: 0.5 }}
-        className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ModalShell onClose={onClose} ariaLabel="Куда сходить вместе" size="wide">
+      <div className="flex flex-col h-full">
         <div
-          className="px-4 py-2.5 bg-amber-50 border-b border-amber-200 text-amber-900 text-sm text-center"
+          className="px-4 py-2 bg-amber-50 border-b border-amber-200 text-amber-900 text-[11px] sm:text-xs text-center flex-shrink-0"
           role="status"
         >
-          Демо-данные: подборка событий сгенерирована для демонстрации. Ссылки и расписания не проверяются; полноценный
-          каталог появится позже.
+          Демо-данные. Подборка событий и ссылки — для демонстрации.
         </div>
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-600 to-amber-500 px-6 py-4 flex items-center justify-between flex-shrink-0">
-          <div>
-            <h2 className="text-xl font-bold text-white">Куда сходить вместе</h2>
-            <p className="text-sm text-white/90">Идеи для встреч с {profileName}</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-colors"
-          >
-            <X className="size-6 text-white" />
-          </button>
+        <div className="bg-gradient-to-r from-red-600 to-amber-500 px-5 sm:px-6 py-4 flex-shrink-0 pr-14">
+          <h2 className="text-lg sm:text-xl font-bold text-white">Куда сходить вместе</h2>
+          <p className="text-xs text-white/90 truncate">Идеи для встреч с {profileName}</p>
         </div>
 
         {/* View Mode Switcher */}
@@ -793,12 +772,13 @@ export function EventsModal({ onClose, profileName, profilePhoto, onSendEventInv
             <button
               onClick={() => setShowToast(false)}
               className="p-1 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-colors"
+              aria-label="Закрыть уведомление"
             >
-              <X className="size-4 text-white" />
+              <span className="text-white">×</span>
             </button>
           </motion.div>
         )}
-      </motion.div>
-    </motion.div>
+      </div>
+    </ModalShell>
   );
 }

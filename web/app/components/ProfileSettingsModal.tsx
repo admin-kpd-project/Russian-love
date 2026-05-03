@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { motion } from "motion/react";
 import { X, MapPin, Mail, Heart, Sparkles, Cake, QrCode, LogOut, Camera } from "lucide-react";
 
 import { useAuth } from "../contexts/AuthContext";
@@ -7,6 +6,7 @@ import { updateProfile } from "../services/usersService";
 import { uploadFile } from "../services/uploadService";
 import { profileStatsPlaceholder } from "../constants/profileDisplay";
 import { Badge } from "./ui/badge";
+import { ModalShell } from "./ui/modal-shell";
 
 interface ProfileSettingsModalProps {
   onClose: () => void;
@@ -137,40 +137,27 @@ export function ProfileSettingsModal({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[65] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        transition={{ type: "spring", duration: 0.5 }}
-        className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="relative h-32 flex-shrink-0 rounded-t-3xl bg-gradient-to-br from-red-600 to-amber-500">
+    <ModalShell onClose={onClose} ariaLabel="Профиль" hideCloseButton>
+      <div className="flex flex-col h-full">
+        <div className="relative h-24 sm:h-28 flex-shrink-0 bg-gradient-to-br from-red-600 to-amber-500">
           <button
             type="button"
             onClick={onOpenQR}
-            className="absolute left-4 top-4 z-10 rounded-lg bg-white/20 p-2 backdrop-blur-sm transition-colors hover:bg-white/30"
+            className="absolute left-3 top-3 z-10 rounded-lg bg-white/20 p-2 backdrop-blur-sm transition-colors hover:bg-white/30"
             aria-label="QR-код"
           >
-            <QrCode className="size-6 text-white" />
+            <QrCode className="size-5 text-white" />
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="absolute right-4 top-4 z-10 rounded-full bg-white/20 p-2 backdrop-blur-sm transition-colors hover:bg-white/30"
+            className="absolute right-3 top-3 z-10 rounded-full bg-white/20 p-2 backdrop-blur-sm transition-colors hover:bg-white/30"
             aria-label="Закрыть"
           >
-            <X className="size-6 text-white" />
+            <X className="size-5 text-white" />
           </button>
-          <div className="absolute -bottom-12 left-1/2 z-20 -translate-x-1/2">
-            <div className="relative size-32 overflow-hidden rounded-full border-4 border-white bg-white shadow-xl">
+          <div className="absolute -bottom-10 left-1/2 z-20 -translate-x-1/2">
+            <div className="relative size-24 sm:size-28 overflow-hidden rounded-full border-4 border-white bg-white shadow-xl">
               {avatarUrl ? (
                 <img
                   src={avatarUrl}
@@ -206,7 +193,7 @@ export function ProfileSettingsModal({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto pt-20 px-6 pb-6">
+        <div className="min-h-0 flex-1 overflow-y-auto modal-scroll pt-14 sm:pt-16 px-5 sm:px-6 pb-5 sm:pb-6">
           {editing ? (
             <div className="mb-6 space-y-3">
               <div>
@@ -455,7 +442,7 @@ export function ProfileSettingsModal({
             </>
           )}
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </ModalShell>
   );
 }

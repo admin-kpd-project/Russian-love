@@ -7,6 +7,7 @@ import { markConversationRead } from "../services/conversationsService";
 import { uploadFile } from "../services/uploadService";
 import { createChatWebSocket } from "../services/socialService";
 import { getPaymentsStatus, initTbankPayment } from "../services/paymentsService";
+import { ModalShell } from "./ui/modal-shell";
 
 interface ChatModalProps {
   onClose: () => void;
@@ -470,40 +471,28 @@ export function ChatModal({
   }, [messages]);
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0, y: 20 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        transition={{ type: "spring", duration: 0.5 }}
-        className="bg-white rounded-3xl max-w-md w-full h-[600px] overflow-hidden shadow-2xl flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ModalShell onClose={onClose} ariaLabel={`Чат с ${userName}`} hideCloseButton>
+      <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-600 to-amber-500 px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="bg-gradient-to-r from-red-600 to-amber-500 px-4 sm:px-5 py-3 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
             <img
               src={userAvatar}
               alt={userName}
-              className="size-10 rounded-full object-cover border-2 border-white"
+              className="size-10 rounded-full object-cover border-2 border-white flex-shrink-0"
             />
-            <div>
-              <h2 className="font-bold text-white">{userName}</h2>
+            <div className="min-w-0">
+              <h2 className="font-bold text-white truncate">{userName}</h2>
               <p className="text-xs text-white/80">онлайн</p>
             </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 flex-shrink-0">
             <button
               onClick={onClose}
-              className="w-10 h-10 flex items-center justify-center bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-colors"
+              aria-label="Закрыть"
+              className="w-9 h-9 flex items-center justify-center bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-colors"
             >
-              <X className="w-6 h-6 text-white" />
+              <X className="w-5 h-5 text-white" />
             </button>
           </div>
         </div>
@@ -828,7 +817,7 @@ export function ChatModal({
             </div>
           </div>
         )}
-      </motion.div>
+      </div>
 
       {/* Gift Modal */}
       <AnimatePresence>
@@ -889,6 +878,6 @@ export function ChatModal({
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </ModalShell>
   );
 }

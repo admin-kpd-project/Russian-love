@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { X, UsersRound, Send, Check } from "lucide-react";
+import { UsersRound, Send, Check } from "lucide-react";
 import { UserProfile } from "../utils/compatibilityAI";
+import { ModalShell } from "./ui/modal-shell";
 
 interface RecommendModalProps {
   onClose: () => void;
@@ -26,42 +26,23 @@ export function RecommendModal({ onClose, profileToRecommend, availableFriends }
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ModalShell onClose={onClose} ariaLabel="Рекомендовать профиль">
+      <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-600 to-amber-500 p-6 text-white relative">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition-colors"
-          >
-            <X className="size-6" />
-          </button>
+        <div className="bg-gradient-to-r from-red-600 to-amber-500 px-5 sm:px-6 py-4 sm:py-5 text-white flex-shrink-0 pr-14">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl">
-              <UsersRound className="size-6" />
+            <div className="p-2 bg-white/20 backdrop-blur-sm rounded-2xl flex-shrink-0">
+              <UsersRound className="size-5" />
             </div>
-            <div>
-              <h2 className="text-2xl font-bold">Рекомендовать профиль</h2>
-              <p className="text-white/80 text-sm">Познакомьте друзей</p>
+            <div className="min-w-0">
+              <h2 className="text-lg sm:text-xl font-bold leading-tight truncate">Рекомендовать</h2>
+              <p className="text-white/80 text-xs">Познакомьте друзей</p>
             </div>
           </div>
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="px-5 sm:px-6 py-4 sm:py-5 flex-1 min-h-0 overflow-y-auto modal-scroll">
           {/* Profile to Recommend */}
           <div className="mb-6">
             <p className="text-sm text-gray-600 mb-3">Вы рекомендуете:</p>
@@ -144,7 +125,7 @@ export function RecommendModal({ onClose, profileToRecommend, availableFriends }
             Ваш друг получит уведомление о рекомендации
           </p>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </ModalShell>
   );
 }
