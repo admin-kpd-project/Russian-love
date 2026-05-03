@@ -22,6 +22,9 @@ import { SupportScreen } from "./src/screens/SupportScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+/** Не держать splash при зависании AsyncStorage на старых устройствах. */
+const BOOTSTRAP_STORAGE_MS = 12_000;
+
 const navTheme: Theme = {
   ...DefaultTheme,
   colors: { ...DefaultTheme.colors, background: "#fff8f5", card: "#fff8f5", text: "#1c1917" },
@@ -32,18 +35,38 @@ function App(): React.JSX.Element {
   const [initial, setInitial] = useState<"Server" | "Landing" | "Main">("Server");
 
   useEffect(() => {
+    let cancelled = false;
     void (async () => {
-      const ok = await isApiBaseConfigured();
+      const ok = await Promise.race([
+        isApiBaseConfigured(),
+        new Promise<boolean | null>((resolve) => setTimeout(() => resolve(null), BOOTSTRAP_STORAGE_MS)),
+      ]);
+      if (cancelled) return;
+      if (ok === null) {
+        const t = await Promise.race([
+          getAccessToken(),
+          new Promise<string | null>((resolve) => setTimeout(() => resolve(null), 2_000)),
+        ]);
+        if (cancelled) return;
+        setInitial(t ? "Main" : "Landing");
+        setReady(true);
+        return;
+      }
       if (!ok) {
         await clearTokens();
+        if (cancelled) return;
         setInitial("Server");
         setReady(true);
         return;
       }
       const t = await getAccessToken();
+      if (cancelled) return;
       setInitial(t ? "Main" : "Landing");
       setReady(true);
     })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (!ready) {

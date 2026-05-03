@@ -12,6 +12,7 @@ import {
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 
 import { clearTokens } from "../api/client";
+import { CANONICAL_STAGING_API_BASE } from "../config";
 import { getApiBaseUrl, isValidApiBase, setApiBaseUrlInStorage, normalizeApiBase } from "../api/apiBase";
 import type { RootStackParamList } from "../navigation/types";
 
@@ -33,7 +34,7 @@ export function ServerConfigScreen({ navigation, route }: Props) {
   const onSave = async () => {
     setErr(null);
     if (!isValidApiBase(value)) {
-      setErr("Укажите полный URL, например http://192.168.0.10:8080 или https://api.example.com");
+      setErr(`Укажите полный URL, например ${CANONICAL_STAGING_API_BASE} или http://10.0.2.2:8000`);
       return;
     }
     setSaving(true);
@@ -51,18 +52,19 @@ export function ServerConfigScreen({ navigation, route }: Props) {
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <Text style={styles.h1}>Адрес бэкенда (API)</Text>
         <Text style={styles.hint}>
-          Без завершающего слэша. Эмулятор Android: {"\n"}http://10.0.2.2:PORT{"\n\n"}
+          Без завершающего слэша. Staging по умолчанию: {"\n"}
+          {CANONICAL_STAGING_API_BASE}
+          {"\n\n"}
+          Эмулятор Android, API на этом ПК: {"\n"}http://10.0.2.2:PORT{"\n\n"}
           Телефон в той же сети, API на ПК: {"\n"}http://ВАШ_LAN_IP:PORT{"\n\n"}
-          USB-отладка, API на ПК: {"\n"}adb reverse tcp:PORT tcp:PORT{"\n"}затем: {"\n"}
-          http://127.0.0.1:PORT{"\n\n"}
-          Прод: https://… (валидный сертификат)
+          USB: adb reverse tcp:PORT tcp:PORT, затем {"\n"}http://127.0.0.1:PORT
         </Text>
         {err ? <Text style={styles.err}>{err}</Text> : null}
         <TextInput
           style={styles.inp}
           value={value}
           onChangeText={setValue}
-          placeholder="http://10.0.2.2:8080"
+          placeholder={CANONICAL_STAGING_API_BASE}
           placeholderTextColor="#a8a29e"
           keyboardType="url"
           autoCapitalize="none"

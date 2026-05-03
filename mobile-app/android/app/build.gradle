@@ -76,7 +76,7 @@ def enableProguardInReleaseBuilds = false
  */
 def jscFlavor = 'org.webkit:android-jsc:+'
 
-/** android/local.properties: API_BASE_URL=http://10.0.2.2:8080 — дефолт в JS (NativeModules.RNNativeApiConfig) */
+/** android/local.properties: API_BASE_URL=https://dev.forruss.ru (staging) или http://10.0.2.2:8000 (локально) → BuildConfig */
 def getApiBaseFromLocalProperties() {
     def p = new Properties()
     def f = new File(rootProject.rootDir, "local.properties")

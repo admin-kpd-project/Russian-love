@@ -1,9 +1,19 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NativeModules, Platform } from "react-native";
 
-import { API_URL_FALLBACK_JS } from "../config";
+import { API_URL_FALLBACK_JS, CANONICAL_STAGING_API_BASE } from "../config";
 
 const KEY = "@rl_api_base";
+/** Однократная миграция сохранённого base (legacy IP, хвост /api). */
+const MIGRATION_VERSION_KEY = "@rl_api_base_migration_v1";
+/** v2: добавлены другие старые стенды 81.26.x.x (раньше был только 81.26.181.58). */
+const MIGRATION_VER = "2";
+
+/**
+ * Только миграция старых установок (AsyncStorage / старые BuildConfig).
+ * Канонический адрес везде в коде и доках — `CANONICAL_STAGING_API_BASE` в config.ts.
+ */
+const LEGACY_FORRUSS_STAGING_IPV4 = new Set(["81.26.181.58", "81.26.176.56"]);
 
 function isLocalOrLanHost(host: string): boolean {
   const h = host.toLowerCase();
@@ -11,6 +21,21 @@ function isLocalOrLanHost(host: string): boolean {
   if (h.endsWith(".local")) return true;
   if (/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h)) return true;
   return false;
+}
+
+/** Публичный IPv4 без схемы: чаще HTTP-стенд (:8000/:8080), не HTTPS (иначе TLS к IP без SAN — обрыв). */
+function isBarePublicIpv4(host: string): boolean {
+  return /^(?:\d{1,3}\.){3}\d{1,3}$/.test(host);
+}
+
+function inferSchemeForBareHostPort(host: string, hostPort: string): "http" | "https" {
+  if (isLocalOrLanHost(host)) return "http";
+  const idx = hostPort.indexOf(":");
+  const portStr = idx >= 0 ? hostPort.slice(idx + 1) : "";
+  const p = portStr ? Number(portStr) : NaN;
+  if (p === 443) return "https";
+  if (isBarePublicIpv4(host)) return "http";
+  return "https";
 }
 
 /** Публичные forruss: всегда HTTPS (Android блокирует cleartext вне domain-config). */
@@ -29,6 +54,20 @@ function preferHttpsForForrussStaging(url: string): string {
   return url;
 }
 
+/** База должна быть origin без `/api` — пути клиента уже вида `/api/...`. */
+function stripTrailingPublicApiPath(url: string): string {
+  try {
+    const u = new URL(url);
+    const p = u.pathname.replace(/\/+$/, "") || "/";
+    if (p === "/api") {
+      return u.origin;
+    }
+  } catch {
+    /* keep */
+  }
+  return url.replace(/\/+$/, "");
+}
+
 export function normalizeApiBase(s: string): string {
   let t = s.trim().replace(/[\u200B-\u200D\uFEFF]/g, "");
   if (!t) return "";
@@ -36,10 +75,10 @@ export function normalizeApiBase(s: string): string {
   if (!/^https?:\/\//i.test(t)) {
     const hostPort = t.split("/")[0];
     const host = hostPort.split(":")[0] ?? "";
-    const scheme = isLocalOrLanHost(host) ? "http" : "https";
+    const scheme = inferSchemeForBareHostPort(host, hostPort);
     t = `${scheme}://${t}`;
   }
-  return preferHttpsForForrussStaging(t);
+  return stripTrailingPublicApiPath(preferHttpsForForrussStaging(t));
 }
 
 export function isValidApiBase(s: string): boolean {
@@ -74,15 +113,58 @@ export function invalidateApiBaseCache(): void {
   cachedNativeDefault = null;
 }
 
+/** Соответствует миграции: любой выбор base из storage/native не остаётся на мёртвых IP-стендах. */
+function remapLegacyStagingApiBase(base: string): string {
+  if (!base) return base;
+  try {
+    const h = new URL(base).hostname;
+    if (LEGACY_FORRUSS_STAGING_IPV4.has(h)) {
+      return normalizeApiBase(CANONICAL_STAGING_API_BASE);
+    }
+  } catch {
+    /* keep */
+  }
+  return base;
+}
+
+let migrationPromise: Promise<void> | null = null;
+
+async function migrateStoredApiBaseOnce(): Promise<void> {
+  try {
+    const ver = await AsyncStorage.getItem(MIGRATION_VERSION_KEY);
+    if (ver === MIGRATION_VER) return;
+    const raw = await AsyncStorage.getItem(KEY);
+    if (raw) {
+      const next = remapLegacyStagingApiBase(normalizeApiBase(raw));
+      const trimmed = raw.trim();
+      if (next && next !== trimmed) {
+        await AsyncStorage.setItem(KEY, next);
+        invalidateApiBaseCache();
+      }
+    }
+    await AsyncStorage.setItem(MIGRATION_VERSION_KEY, MIGRATION_VER);
+  } catch {
+    /* ignore */
+  }
+}
+
+function ensureApiBaseMigrated(): Promise<void> {
+  if (!migrationPromise) {
+    migrationPromise = migrateStoredApiBaseOnce();
+  }
+  return migrationPromise;
+}
+
 /**
  * База API (без хвостового /). Порядок: AsyncStorage → BuildConfig (local.properties) → config.ts.
  */
 export async function getApiBaseUrl(): Promise<string> {
+  await ensureApiBaseMigrated();
   const fromStorage = await AsyncStorage.getItem(KEY);
   if (fromStorage) {
-    const n = normalizeApiBase(fromStorage);
+    const trimmed = fromStorage.trim();
+    const n = remapLegacyStagingApiBase(normalizeApiBase(fromStorage));
     if (n) {
-      const trimmed = fromStorage.trim();
       if (n !== trimmed) {
         try {
           await AsyncStorage.setItem(KEY, n);
@@ -95,10 +177,10 @@ export async function getApiBaseUrl(): Promise<string> {
   }
   const fromNative = await getNativeBuildDefault();
   if (fromNative) {
-    return normalizeApiBase(fromNative);
+    return remapLegacyStagingApiBase(normalizeApiBase(fromNative));
   }
   if (API_URL_FALLBACK_JS) {
-    return normalizeApiBase(API_URL_FALLBACK_JS);
+    return remapLegacyStagingApiBase(normalizeApiBase(API_URL_FALLBACK_JS));
   }
   return "";
 }

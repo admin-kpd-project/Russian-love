@@ -6,7 +6,7 @@ export function formatApiNetworkError(raw: string): string {
   if (low.includes("network request failed") || low === "failed to fetch") {
     return [
       "Не удалось установить соединение с сервером.",
-      "В «Сервер» укажите полный URL: для стенда — http://81.26.181.58:8080; для эмулятора с API на ПК — http://10.0.2.2:8000 (или :8080); для staging — https://dev.forruss.ru.",
+      "В «Сервер» укажите полный URL: по умолчанию — https://dev.forruss.ru; локально с API на этом ПК — http://10.0.2.2:8000 или :8080.",
       "Если включены AdGuard, антивирус или «фильтрация HTTPS» — отключите для приложения или добавьте исключение (debug-сборка доверяет пользовательским сертификатам).",
       "Проверьте в Chrome тот же URL; смените Wi‑Fi / мобильные данные.",
     ].join(" ");

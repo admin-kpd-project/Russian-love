@@ -50,6 +50,7 @@ import { GradientText } from "../components/ui/GradientText";
 import { brandGradients, tw } from "../theme/designTokens";
 import { guessWebAdminUrl } from "../utils/adminWebUrl";
 import { formatApiNetworkError } from "../utils/formatNetworkError";
+import { buildApiFailureMessage } from "../utils/apiNetworkDiagnostics";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Main">;
 
@@ -58,22 +59,6 @@ function profileIdStr(p: UserProfile): string {
 }
 
 type LikedEntry = { profile: UserProfile; isSuperLike: boolean; superMessage?: string };
-
-function raceTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const id = setTimeout(() => reject(new Error(`${label} (>${Math.round(ms / 1000)} с)`)), ms);
-    p.then(
-      (v) => {
-        clearTimeout(id);
-        resolve(v);
-      },
-      (e) => {
-        clearTimeout(id);
-        reject(e instanceof Error ? e : new Error(String(e)));
-      }
-    );
-  });
-}
 
 function mergeLikedEntry(prev: LikedEntry[], p: UserProfile, isSuper: boolean, superMessage?: string): LikedEntry[] {
   const id = profileIdStr(p);
@@ -144,6 +129,7 @@ export function MainScreen() {
   const knownMatchIdsRef = useRef<Set<string> | null>(null);
   const showMatchRef = useRef(false);
   const selectedLikedRef = useRef<UserProfile | null>(null);
+  const pollInFlightRef = useRef(false);
 
   useEffect(() => {
     showMatchRef.current = showMatch;
@@ -163,7 +149,10 @@ export function MainScreen() {
 
   /** Как на веб MainApp: мэтчи + бейджи уведомлений и чатов. */
   const pollMatchesAndBadges = useCallback(async () => {
+    if (pollInFlightRef.current) return;
+    pollInFlightRef.current = true;
     const base = await getApiBaseUrl();
+    try {
     const [matchesRes, n, c] = await Promise.all([getMatches(), getNotifications(), listConversations()]);
     if (n.data) setUnreadNotifCount(n.data.filter((x) => !x.read).length);
     if (c.data) setUnreadChatsCount(c.data.filter((x) => x.unread).length);
@@ -187,6 +176,9 @@ export function MainScreen() {
         setMatchedProfile(peer);
         setShowMatch(true);
       }
+    }
+    } finally {
+      pollInFlightRef.current = false;
     }
   }, []);
 
@@ -215,8 +207,13 @@ export function MainScreen() {
         setProfiles([]);
         return;
       }
-      const [u, r] = await raceTimeout(Promise.all([getCurrentUser(), getFeed()]), 32000, "Сервер не отвечает");
+      const [u, r] = await Promise.all([getCurrentUser(), getFeed()]);
       if (signal.cancelled) return;
+      if (u.error && !u.data) {
+        setFeedLoadError(u.error.trim() || "Не удалось загрузить профиль");
+        setProfiles([]);
+        return;
+      }
       if (u.data) {
         setMe(u.data);
         applyEconomyFromProfile(u.data);
@@ -241,8 +238,14 @@ export function MainScreen() {
       else setProfiles([]);
     } catch (e) {
       if (!signal.cancelled) {
-        const m = e instanceof Error ? e.message : String(e);
-        setFeedLoadError(formatApiNetworkError(m) || "Ошибка сети");
+        try {
+          const b = await getApiBaseUrl();
+          setFeedLoadError(
+            b ? buildApiFailureMessage(b, "/api/users/me|/api/feed", e) : formatApiNetworkError(String(e))
+          );
+        } catch {
+          setFeedLoadError(formatApiNetworkError(e instanceof Error ? e.message : String(e)));
+        }
         setProfiles([]);
       }
     } finally {

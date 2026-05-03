@@ -119,46 +119,47 @@ export function RegisterScreen({ navigation, route }: Props) {
     }
 
     setLoading(true);
-    const ps = await presignRegistration(avatarType, Math.max(sizeBytes, 1));
-    if (ps.error || !ps.data) {
-      setLoading(false);
-      setErr(ps.error || "Не удалось получить ссылку загрузки");
-      return;
-    }
-    const up = await putFileToPresignedUrl(ps.data.uploadUrl, avatarLocalUri, avatarType);
-    if (!up.ok) {
-      setLoading(false);
-      setErr(up.error || "Ошибка загрузки фото");
-      return;
-    }
+    try {
+      const ps = await presignRegistration(avatarType, Math.max(sizeBytes, 1));
+      if (ps.error || !ps.data) {
+        setErr(ps.error || "Не удалось получить ссылку загрузки");
+        return;
+      }
+      const up = await putFileToPresignedUrl(ps.data.uploadUrl, avatarLocalUri, avatarType);
+      if (!up.ok) {
+        setErr(up.error || "Ошибка загрузки фото");
+        return;
+      }
 
-    const interests = interestsRaw
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
+      const interests = interestsRaw
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
 
-    const r = await register({
-      authMethod,
-      email: authMethod === "email" ? email.trim() : undefined,
-      loginPhone: authMethod === "phone" ? loginPhone.trim() : undefined,
-      password,
-      agreeToPrivacy: agreePrivacy,
-      agreeToTerms: agreeTerms,
-      agreeToOffer: agreeOffer,
-      agreeToAge18: agreeAdult,
-      name: name.trim(),
-      birthDate,
-      gender,
-      avatarUrl: ps.data.fileUrl,
-      bio: bio.trim() || undefined,
-      interests: interests.length ? interests : undefined,
-    });
-    setLoading(false);
-    if (r.error || !r.data) {
-      setErr(r.error || "Регистрация не удалась");
-      return;
+      const r = await register({
+        authMethod,
+        email: authMethod === "email" ? email.trim() : undefined,
+        loginPhone: authMethod === "phone" ? loginPhone.trim() : undefined,
+        password,
+        agreeToPrivacy: agreePrivacy,
+        agreeToTerms: agreeTerms,
+        agreeToOffer: agreeOffer,
+        agreeToAge18: agreeAdult,
+        name: name.trim(),
+        birthDate,
+        gender,
+        avatarUrl: ps.data.fileUrl,
+        bio: bio.trim() || undefined,
+        interests: interests.length ? interests : undefined,
+      });
+      if (r.error || !r.data) {
+        setErr(r.error || "Регистрация не удалась");
+        return;
+      }
+      navigation.reset({ index: 0, routes: [{ name: "Main" }] });
+    } finally {
+      setLoading(false);
     }
-    navigation.reset({ index: 0, routes: [{ name: "Main" }] });
   };
 
   return (

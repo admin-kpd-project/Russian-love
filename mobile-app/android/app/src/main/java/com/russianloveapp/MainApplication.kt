@@ -23,7 +23,20 @@ class MainApplication : Application(), ReactApplication {
 
         override fun getJSMainModuleName(): String = "index"
 
-        override fun getUseDeveloperSupport(): Boolean = BuildConfig.DEBUG
+        /**
+         * При `react { debuggableVariants = [] }` JS кладётся в assets — Metro не используется.
+         * Иначе DevSupport бесконечно шлёт ws на 10.0.2.2:8081 и забивает Logcat.
+         * Если уберёте бандл из debug и снова будете грузить с Metro — верните `BuildConfig.DEBUG`.
+         */
+        override fun getUseDeveloperSupport(): Boolean {
+          if (!BuildConfig.DEBUG) return false
+          return try {
+            assets.open("index.android.bundle").close()
+            false
+          } catch (_: Exception) {
+            true
+          }
+        }
 
         override val isNewArchEnabled: Boolean = BuildConfig.IS_NEW_ARCHITECTURE_ENABLED
         override val isHermesEnabled: Boolean = BuildConfig.IS_HERMES_ENABLED

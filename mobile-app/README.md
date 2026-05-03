@@ -1,6 +1,6 @@
 # RussianLoveApp (React Native CLI)
 
-Клиент к тому же бэкенду, что и веб. **Базовый URL API не зашит:** его можно ввести в приложении, задать через `android/local.properties` или (опционально) оставить пустой fallback в `src/config.ts`.
+Клиент к тому же бэкенду, что и веб. **Канонический staging API:** `https://dev.forruss.ru` (см. `src/config.ts` → `CANONICAL_STAGING_API_BASE` / `API_URL_FALLBACK_JS`). Другой URL можно ввести в приложении или задать в `android/local.properties` для локальной разработки.
 
 ## Как задать адрес API
 
@@ -11,30 +11,32 @@
    В каталоге `android` создайте или отредактируйте **`local.properties`** (файл обычно в `.gitignore`):
 
    ```properties
-   # uvicorn на ПК — чаще 8000; если фронт через nginx — 8080
-   API_BASE_URL=http://10.0.2.2:8000
+   # Staging (как в src/config.ts):
+   API_BASE_URL=https://dev.forruss.ru
+   # Локально — uvicorn на ПК (часто 8000) или nginx 8080:
+   # API_BASE_URL=http://10.0.2.2:8000
    ```
 
    Скопируйте шаблон из [`android/local.properties.example`](android/local.properties.example).  
    Значение попадает в `BuildConfig` и в JS как `NativeModules.RNNativeApiConfig.defaultApiBase` (см. `getApiBaseUrl` в `src/api/apiBase.ts`).
 
 3. **JS-fallback**  
-   В [`src/config.ts`](src/config.ts): **`API_URL_FALLBACK_JS`** по умолчанию — **`http://81.26.181.58:8080`** (статический стенд, удобно с эмулятора). Для только локального API: `http://10.0.2.2:8000` или `:8080`. Staging: `https://dev.forruss.ru`. **`WEB_PUBLIC_BASE_URL`** по умолчанию пустой — для QR берётся origin от базы API; для прод-ссылок задайте `https://forruss.ru`.
+   В [`src/config.ts`](src/config.ts): **`API_URL_FALLBACK_JS`** = **`https://dev.forruss.ru`**. Локально: `http://10.0.2.2:8000` или `:8080` (через «Сервер» или `API_BASE_URL`). **`WEB_PUBLIC_BASE_URL`** по умолчанию пустой — для QR берётся origin от базы API (тот же staging).
 
 ## Подсказки по сети
 
 | Сценарий | Пример base URL |
 |----------|-----------------|
+| Staging (дефолт в приложении и в `config.ts`) | `https://dev.forruss.ru` |
 | Эмулятор, API на `localhost` на ПК (uvicorn) | `http://10.0.2.2:8000` |
-| Эмулятор, только nginx на ПК `:8080` | `http://10.0.2.2:8080` |
-| Эмулятор / телефон, статический стенд | `http://81.26.181.58:8080` (дефолт в `config.ts`) |
+| Эмулятор, nginx на ПК `:8080` | `http://10.0.2.2:8080` |
 | Телефон в Wi‑Fi, API на ПК | `http://<LAN-IP_ПК>:8080` |
 | USB, `adb reverse tcp:8080 tcp:8080` | `http://127.0.0.1:8080` |
-| Прод | `https://api.ваш-домен` (валидный TLS) |
+| Свой прод-сервер | `https://api.ваш-домен` (валидный TLS) |
 
 - Если после смены дефолта в `config.ts` всё ещё не тот сервер — в приложении уже мог быть сохранён старый URL (**«Сервер»** → вставьте нужный base, или **очистка данных** приложения / переустановка сбросит AsyncStorage).
 
-- **Debug-сборка** (`src/debug/AndroidManifest.xml`): разрешён **cleartext HTTP** — удобно для LAN. **Release** собирается без `src/debug/`, cleartext по умолчанию **выключен** — для проды нужен **HTTPS** (или своя `networkSecurityConfig`).
+- **Cleartext HTTP**: в `res/xml/network_security_config.xml` разрешён для любого хоста (удобно для `http://192.168…`). Для публичного API предпочитайте **HTTPS**. **Debug** дополнительно доверяет пользовательским CA в `src/debug/res/xml/network_security_config.xml`.
 
 - Ссылки **presigned S3/MinIO** в чате зависят от настроек **бэкенда** (`DATING_S3_*`, публичная доступность URL). Если с телефона не грузятся фото/аудио, проверьте env API и Nginx, не только base URL.
 
@@ -88,6 +90,10 @@ npm start
 # другое окно
 npm run android
 ```
+
+### В Logcat: «failed to connect to /10.0.2.2 (port 8081)» / WebSocket packager
+
+При вшитом бандле (`react { debuggableVariants = [] }`) в `MainApplication` отключается DevSupport, если в APK есть `index.android.bundle` — эти сообщения не должны повторяться. Если всё же видите — пересоберите приложение.
 
 ### Красный экран «Unable to load script»
 

@@ -40,13 +40,16 @@ export function LoginScreen({ navigation }: Props) {
     const raw = email.trim();
     const loginId = raw.includes("@") ? raw : normalizeRuPhone(raw) || raw;
     setLoading(true);
-    const r = await login(loginId, password);
-    setLoading(false);
-    if (r.error || !r.data) {
-      setErr(r.error || "Вход не удался");
-      return;
+    try {
+      const r = await login(loginId, password);
+      if (r.error || !r.data) {
+        setErr(r.error || "Вход не удался");
+        return;
+      }
+      navigation.reset({ index: 0, routes: [{ name: "Main" }] });
+    } finally {
+      setLoading(false);
     }
-    navigation.reset({ index: 0, routes: [{ name: "Main" }] });
   };
 
   return (

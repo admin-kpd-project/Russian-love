@@ -1,4 +1,4 @@
-import { WEB_PUBLIC_BASE_URL } from "../config";
+import { CANONICAL_STAGING_API_BASE, WEB_PUBLIC_BASE_URL } from "../config";
 import { getApiBaseUrl, normalizeApiBase } from "./apiBase";
 
 function originFromBase(base: string): string {
@@ -20,5 +20,5 @@ export async function getPublicWebOrigin(): Promise<string> {
   }
   const api = await getApiBaseUrl();
   if (api) return originFromBase(api);
-  return "https://forruss.ru";
+  return originFromBase(CANONICAL_STAGING_API_BASE);
 }

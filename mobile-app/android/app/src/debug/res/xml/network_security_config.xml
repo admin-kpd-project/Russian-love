@@ -1,16 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Debug: доверяем пользовательским CA (AdGuard, Charles, корпоративный MITM). Release использует main/res без user. -->
+<!-- Debug: cleartext + доверие пользовательским CA (Charles, AdGuard, корпоративный прокси). -->
 <network-security-config>
-  <base-config cleartextTrafficPermitted="false">
+  <base-config cleartextTrafficPermitted="true">
     <trust-anchors>
       <certificates src="system" />
       <certificates src="user" />
     </trust-anchors>
   </base-config>
-  <domain-config cleartextTrafficPermitted="true">
-    <domain includeSubdomains="true">81.26.181.58</domain>
-    <domain includeSubdomains="true">10.0.2.2</domain>
-    <domain includeSubdomains="true">localhost</domain>
-    <domain includeSubdomains="true">127.0.0.1</domain>
-  </domain-config>
 </network-security-config>
