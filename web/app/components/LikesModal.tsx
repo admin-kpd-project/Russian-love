@@ -17,6 +17,8 @@ export interface LikedListEntry {
   profile: Profile;
   /** Суперлайк — особый интерес, иначе обычный лайк */
   isSuperLike: boolean;
+  /** Одно сообщение к суперлайку (не чат). */
+  superMessage?: string;
 }
 
 interface LikesModalProps {
@@ -38,6 +40,7 @@ export function LikesModal({ onClose, likedEntries, onOpenProfile }: LikesModalP
       byId.set(k, {
         profile: row.profile,
         isSuperLike: prev.isSuperLike || row.isSuperLike,
+        superMessage: row.superMessage ?? prev.superMessage,
       });
     }
     return [...byId.values()];
@@ -68,7 +71,7 @@ export function LikesModal({ onClose, likedEntries, onOpenProfile }: LikesModalP
             </div>
           ) : (
             <div className="p-4 space-y-3">
-              {rows.map(({ profile, isSuperLike }) => (
+              {rows.map(({ profile, isSuperLike, superMessage }) => (
                 <motion.div
                   key={profile.id}
                   initial={{ opacity: 0, y: 20 }}
@@ -112,6 +115,11 @@ export function LikesModal({ onClose, likedEntries, onOpenProfile }: LikesModalP
                     </p>
                     {isSuperLike ? (
                       <p className="mt-1 text-xs font-medium text-sky-700">Вы показали особый интерес</p>
+                    ) : null}
+                    {isSuperLike && superMessage ? (
+                      <p className="mt-2 rounded-xl border border-sky-100 bg-white/80 px-3 py-2 text-xs leading-snug text-gray-800">
+                        {superMessage}
+                      </p>
                     ) : null}
                   </div>
                   {isSuperLike ? (

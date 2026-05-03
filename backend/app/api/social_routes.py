@@ -22,6 +22,12 @@ class LikeBody(BaseModel):
     user_id: UUID = Field(alias="userId")
 
 
+class SuperLikeBody(LikeBody):
+    """Одно короткое сообщение вместе с суперлайком (не чат)."""
+
+    message: str | None = Field(default=None, max_length=500)
+
+
 class InviteCreateBody(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
     code: str | None = None
@@ -136,7 +142,7 @@ def _is_premium_effective(u: User) -> bool:
 
 @router.post("/superlikes")
 async def superlike_user(
-    body: LikeBody,
+    body: SuperLikeBody,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_completed_user),
 ):
@@ -147,27 +153,59 @@ async def superlike_user(
         return JSONResponse(status_code=404, content=Envelope.err("Пользователь не найден"))
     prem = _is_premium_effective(user)
     bal = int(getattr(user, "super_likes_balance", 0) or 0)
-    if not prem and bal <= 0:
-        return JSONResponse(status_code=402, content=Envelope.err("Нет суперлайков. Купите пакет или оформите подписку."))
-    if not prem and bal > 0:
-        user.super_likes_balance = bal - 1
+    note = (body.message or "").strip() or None
     existing = (
         await db.execute(
             select(Like).where(Like.from_user_id == user.id, Like.to_user_id == body.user_id)
         )
     ).scalar_one_or_none()
+
+    already_super = bool(existing and existing.is_super)
+    if already_super and existing.super_message and note:
+        return JSONResponse(
+            status_code=409,
+            content=Envelope.err("Сообщение к суперлайку уже отправлено"),
+        )
+
+    first_super = not already_super
+    add_note_only = bool(already_super and note and not existing.super_message)
+
+    if first_super:
+        if not prem and bal <= 0:
+            return JSONResponse(
+                status_code=402,
+                content=Envelope.err("Нет суперлайков. Купите пакет или оформите подписку."),
+            )
+        if not prem and bal > 0:
+            user.super_likes_balance = bal - 1
+
     if existing:
         existing.is_super = True
+        if note and not existing.super_message:
+            existing.super_message = note
     else:
-        db.add(Like(from_user_id=user.id, to_user_id=body.user_id, is_super=True))
-    await _create_notification(
-        db,
-        user_id=body.user_id,
-        n_type="superlike",
-        title="Суперлайк",
-        message=f"{user.display_name} отправил(а) вам суперлайк",
-        payload={"peerUserId": str(user.id)},
-    )
+        db.add(
+            Like(
+                from_user_id=user.id,
+                to_user_id=body.user_id,
+                is_super=True,
+                super_message=note,
+            )
+        )
+
+    if first_super or add_note_only:
+        msg_line = f"{user.display_name} отправил(а) вам суперлайк"
+        payload: dict[str, str] = {"peerUserId": str(user.id)}
+        if note:
+            payload["superMessage"] = note
+        await _create_notification(
+            db,
+            user_id=body.user_id,
+            n_type="superlike",
+            title="Суперлайк",
+            message=msg_line,
+            payload=payload,
+        )
     r = await get_redis()
     await r.delete(f"profile:{user.id}")
     return Envelope.ok(
@@ -356,6 +394,7 @@ async def list_notifications(
                 "userName": peer_name,
                 "peerUserId": payload.get("peerUserId"),
                 "conversationId": payload.get("conversationId"),
+                "superMessage": payload.get("superMessage"),
             }
         )
     return Envelope.ok(out)

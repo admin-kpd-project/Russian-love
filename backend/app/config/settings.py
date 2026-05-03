@@ -17,7 +17,8 @@ class Settings(BaseSettings):
     debug: bool = False
 
     database_url: PostgresDsn = Field(
-        default="postgresql+asyncpg://dating:dating@localhost:5432/dating"
+        # Local dev default; production values are expected via DATING_DATABASE_URL.
+        default="postgresql+asyncpg://dating:dating@127.0.0.1:5432/dating"
     )
     redis_url: RedisDsn = Field(default="redis://localhost:6379/0")
 

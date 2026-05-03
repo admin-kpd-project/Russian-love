@@ -9,6 +9,7 @@ import { brandGradients, tw } from "../../theme/designTokens";
 export type LikedListEntry = {
   profile: UserProfile;
   isSuperLike: boolean;
+  superMessage?: string;
 };
 
 type Props = {
@@ -31,7 +32,11 @@ export function LikesModal({ visible, entries, onClose, onOpenProfile }: Props) 
         byId.set(k, row);
         continue;
       }
-      byId.set(k, { profile: row.profile, isSuperLike: prev.isSuperLike || row.isSuperLike });
+      byId.set(k, {
+        profile: row.profile,
+        isSuperLike: prev.isSuperLike || row.isSuperLike,
+        superMessage: row.superMessage ?? prev.superMessage,
+      });
     }
     return [...byId.values()];
   }, [entries]);
@@ -69,7 +74,7 @@ export function LikesModal({ visible, entries, onClose, onOpenProfile }: Props) 
                 </View>
               }
               renderItem={({ item }) => {
-                const { profile, isSuperLike } = item;
+                const { profile, isSuperLike, superMessage } = item;
                 return (
                   <Pressable
                     style={({ pressed }) => [
@@ -110,6 +115,11 @@ export function LikesModal({ visible, entries, onClose, onOpenProfile }: Props) 
                         </Text>
                       ) : null}
                       {isSuperLike ? <Text style={styles.superHint}>Вы показали особый интерес</Text> : null}
+                      {isSuperLike && superMessage ? (
+                        <Text style={styles.superMsg} numberOfLines={4}>
+                          {superMessage}
+                        </Text>
+                      ) : null}
                     </View>
                     {isSuperLike ? (
                       <Star size={26} color="#0284c7" fill="#38bdf8" style={styles.heartR} />
@@ -206,6 +216,18 @@ const styles = StyleSheet.create({
   loc: { fontSize: 14, color: tw.gray600, marginTop: 2 },
   bio: { fontSize: 14, color: tw.gray600, marginTop: 4 },
   superHint: { fontSize: 12, fontWeight: "600", color: "#0369a1", marginTop: 6 },
+  superMsg: {
+    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#bae6fd",
+    backgroundColor: "#fff",
+    fontSize: 13,
+    color: tw.gray800,
+    lineHeight: 18,
+  },
   heartR: { flexShrink: 0 },
   emptyBox: { paddingVertical: 32, paddingHorizontal: 12, alignItems: "center" },
   emptyCircle: {

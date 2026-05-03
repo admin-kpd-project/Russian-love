@@ -6,13 +6,18 @@ from botocore.client import Config
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, require_roles
 from app.config.settings import get_settings
 from app.core.envelope import Envelope
 from app.db.models import User
 from app.schemas.profile import UploadPresignBody
 
 router = APIRouter(prefix="/api", tags=["Storage"])
+
+_admin_only = require_roles("admin")
+
+_APK_CT = frozenset({"application/vnd.android.package-archive", "application/octet-stream"})
+_APK_MAX = 200 * 1024 * 1024
 
 _LIMITS = {
     "image/jpeg": 10 * 1024 * 1024,
@@ -176,6 +181,39 @@ async def presign_upload_registration(request: Request, body: UploadPresignBody)
     s = get_settings()
     ext = ct.split("/")[-1].replace("jpeg", "jpg")
     key = f"media/register/{uuid.uuid4()}.{ext}"
+    presign_base, cdn_base = _presign_bases_for_request(request)
+    client = _s3_base_client(presign_base)
+    upload_url = client.generate_presigned_url(
+        ClientMethod="put_object",
+        Params={
+            "Bucket": s.s3_bucket,
+            "Key": key,
+            "ContentType": ct,
+        },
+        ExpiresIn=900,
+        HttpMethod="PUT",
+    )
+    file_url = f"{cdn_base}/{key}"
+    return Envelope.ok({"uploadUrl": upload_url, "fileUrl": file_url})
+
+
+@router.post("/upload/mobile-apk")
+async def presign_mobile_apk(
+    request: Request,
+    body: UploadPresignBody,
+    _: User = Depends(_admin_only),
+):
+    """Только admin: загрузка APK в S3 для ссылки на лендинге."""
+    ct = _normalize_upload_content_type(body.content_type)
+    if ct not in _APK_CT:
+        return JSONResponse(
+            status_code=400,
+            content=Envelope.err("Допустимы только APK (application/vnd.android.package-archive или application/octet-stream)"),
+        )
+    if body.file_size_bytes > _APK_MAX or body.file_size_bytes < 1:
+        return JSONResponse(status_code=400, content=Envelope.err("Размер APK вне допустимого диапазона (макс. 200 МБ)"))
+    s = get_settings()
+    key = f"releases/app/{uuid.uuid4()}.apk"
     presign_base, cdn_base = _presign_bases_for_request(request)
     client = _s3_base_client(presign_base)
     upload_url = client.generate_presigned_url(

@@ -29,10 +29,27 @@ def _register(client: TestClient, prefix: str) -> tuple[str, str]:
     return body["accessToken"], body["user"]["id"]
 
 
+def _make_match(client: TestClient, token_a: str, user_a_id: str, token_b: str, user_b_id: str) -> None:
+    r1 = client.post(
+        "/api/likes",
+        json={"userId": user_b_id},
+        headers={"Authorization": f"Bearer {token_a}"},
+    )
+    assert r1.status_code == 200, r1.text
+    r2 = client.post(
+        "/api/likes",
+        json={"userId": user_a_id},
+        headers={"Authorization": f"Bearer {token_b}"},
+    )
+    assert r2.status_code == 200, r2.text
+    assert r2.json()["data"]["matched"] is True
+
+
 @requires_postgres
 def test_conversation_create_and_messages_roundtrip(client: TestClient):
-    _, user_b_id = _register(client, "b")
-    token_a, _ = _register(client, "a")
+    token_b, user_b_id = _register(client, "b")
+    token_a, user_a_id = _register(client, "a")
+    _make_match(client, token_a, user_a_id, token_b, user_b_id)
 
     rc = client.post(
         "/api/conversations",
@@ -64,7 +81,8 @@ def test_conversation_create_and_messages_roundtrip(client: TestClient):
 @requires_postgres
 def test_conversation_unread_and_mark_read(client: TestClient):
     token_b, user_b_id = _register(client, "unr_b")
-    token_a, _ = _register(client, "unr_a")
+    token_a, user_a_id = _register(client, "unr_a")
+    _make_match(client, token_a, user_a_id, token_b, user_b_id)
 
     rc2 = client.post(
         "/api/conversations",
@@ -117,3 +135,15 @@ def test_conversation_unread_and_mark_read(client: TestClient):
         headers={"Authorization": f"Bearer {token_b}"},
     )
     assert delr2.status_code == 404, delr2.text
+
+
+@requires_postgres
+def test_cannot_create_conversation_without_match(client: TestClient):
+    _, user_b_id = _register(client, "nom_b")
+    token_a, _ = _register(client, "nom_a")
+    rc = client.post(
+        "/api/conversations",
+        json={"user_id": user_b_id},
+        headers={"Authorization": f"Bearer {token_a}"},
+    )
+    assert rc.status_code == 403, rc.text

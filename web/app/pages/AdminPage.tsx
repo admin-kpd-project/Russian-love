@@ -1,37 +1,52 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import {
   activateUser,
   deactivateUser,
+  getAdminMobileApk,
   getAdminStats,
   listAdminReports,
   listAdminTickets,
+  patchAdminMobileApk,
   patchAdminReport,
   patchAdminTicket,
   type AdminReport,
   type AdminTicket,
 } from "../services/adminService";
+import { uploadMobileApkFile } from "../services/uploadService";
 import { useAuth } from "../contexts/AuthContext";
 
 const STAFF = ["admin", "moderator", "support"] as const;
 const MOD = ["admin", "moderator"] as const;
 
+/** ВРЕМЕННО: /admin без логина. Перед продом — `false` и верни `StaffRoute` в `routes.tsx`. */
+const TEMP_ADMIN_NO_AUTH = true;
+
 function canSeeReports(role: string | undefined) {
   return role && MOD.includes(role as (typeof MOD)[number]);
 }
+
+type AdminTab = "overview" | "apk" | "tickets" | "reports";
 
 export function AdminPage() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const role = user?.role ?? "user";
+  const isAdmin = TEMP_ADMIN_NO_AUTH || role === "admin";
+  const canReportsTab = TEMP_ADMIN_NO_AUTH || canSeeReports(role);
   const [stats, setStats] = useState<{ openTickets: number; openReports: number } | null>(null);
   const [tickets, setTickets] = useState<AdminTicket[]>([]);
   const [reports, setReports] = useState<AdminReport[]>([]);
-  const [tab, setTab] = useState<"overview" | "tickets" | "reports">("overview");
+  const [tab, setTab] = useState<AdminTab>("overview");
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [apkUrl, setApkUrl] = useState<string | null>(null);
+  const [apkUpdatedAt, setApkUpdatedAt] = useState<string | null>(null);
+  const [apkBusy, setApkBusy] = useState(false);
+  const [apkErr, setApkErr] = useState<string | null>(null);
+  const apkFileRef = useRef<HTMLInputElement>(null);
 
-  const allowed = STAFF.includes(role as (typeof STAFF)[number]);
+  const allowed = TEMP_ADMIN_NO_AUTH || STAFF.includes(role as (typeof STAFF)[number]);
 
   const refresh = useCallback(async () => {
     if (!allowed) return;
@@ -42,16 +57,35 @@ export function AdminPage() {
     if (s.error) setErr(s.error);
     else if (s.data) setStats(s.data);
     if (tk.data) setTickets(tk.data);
-    if (canSeeReports(role)) {
+    if (canReportsTab) {
       const rp = await listAdminReports();
       if (rp.data) setReports(rp.data);
     } else {
       setReports([]);
     }
     setLoading(false);
-  }, [allowed, role]);
+  }, [allowed, role, canReportsTab]);
+
+  const loadApk = useCallback(async () => {
+    const r = await getAdminMobileApk();
+    if (r.error) {
+      setApkErr(r.error);
+      return;
+    }
+    setApkErr(null);
+    setApkUrl(r.data?.downloadUrl ?? null);
+    setApkUpdatedAt(r.data?.updatedAt ?? null);
+  }, []);
 
   useEffect(() => {
+    if (tab === "apk" && isAdmin) void loadApk();
+  }, [tab, isAdmin, loadApk]);
+
+  useEffect(() => {
+    if (TEMP_ADMIN_NO_AUTH) {
+      void refresh();
+      return;
+    }
     if (authLoading) return;
     if (!user || !allowed) {
       navigate("/", { replace: true });
@@ -60,7 +94,7 @@ export function AdminPage() {
     void refresh();
   }, [user, authLoading, allowed, navigate, refresh]);
 
-  if (authLoading || !user || !allowed) {
+  if (!TEMP_ADMIN_NO_AUTH && (authLoading || !user || !allowed)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-stone-100">
         <p className="text-stone-600">Загрузка…</p>
@@ -75,7 +109,12 @@ export function AdminPage() {
           <div>
             <h1 className="text-2xl font-bold text-stone-900">Админ-панель</h1>
             <p className="text-sm text-stone-500">
-              Роль: <span className="font-medium text-stone-700">{role}</span>
+              Роль: <span className="font-medium text-stone-700">{user?.role ?? "—"}</span>
+              {TEMP_ADMIN_NO_AUTH ? (
+                <span className="block text-amber-700 font-medium mt-1">
+                  Временно: доступ без авторизации (API по-прежнему требует JWT сотрудника).
+                </span>
+              ) : null}
             </p>
           </div>
           <div className="flex gap-2">
@@ -97,34 +136,110 @@ export function AdminPage() {
 
         {err && <p className="mb-4 text-red-600 text-sm">{err}</p>}
 
-        <div className="flex gap-2 mb-6 border-b border-stone-200 pb-2">
-          {(["overview", "tickets", "reports"] as const).map((t) => (
+        <div className="flex flex-wrap gap-2 mb-6 border-b border-stone-200 pb-2">
+          <button
+            type="button"
+            onClick={() => setTab("overview")}
+            className={`px-4 py-2 rounded-lg text-sm font-medium ${
+              tab === "overview" ? "bg-red-600 text-white" : "bg-white text-stone-700 border border-stone-200"
+            }`}
+          >
+            Обзор
+          </button>
+          {isAdmin ? (
             <button
-              key={t}
               type="button"
-              onClick={() => {
-                if (t === "reports" && !canSeeReports(role)) return;
-                setTab(t);
-              }}
-              disabled={t === "reports" && !canSeeReports(role)}
+              onClick={() => setTab("apk")}
               className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                tab === t ? "bg-red-600 text-white" : "bg-white text-stone-700 border border-stone-200"
-              } disabled:opacity-40`}
+                tab === "apk" ? "bg-red-600 text-white" : "bg-white text-stone-700 border border-stone-200"
+              }`}
             >
-              {t === "overview" ? "Обзор" : t === "tickets" ? "Обращения" : "Жалобы"}
+              APK (лендинг)
             </button>
-          ))}
+          ) : null}
+          <button type="button" onClick={() => setTab("tickets")} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === "tickets" ? "bg-red-600 text-white" : "bg-white text-stone-700 border border-stone-200"}`}>
+            Обращения
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (!canReportsTab) return;
+              setTab("reports");
+            }}
+            disabled={!canReportsTab}
+            className={`px-4 py-2 rounded-lg text-sm font-medium ${
+              tab === "reports" ? "bg-red-600 text-white" : "bg-white text-stone-700 border border-stone-200"
+            } disabled:opacity-40`}
+          >
+            Жалобы
+          </button>
         </div>
 
         {loading ? (
           <p className="text-stone-600">Загрузка данных…</p>
+        ) : tab === "apk" && isAdmin ? (
+          <div className="bg-white rounded-2xl p-6 shadow border border-stone-100 max-w-2xl">
+            <h2 className="text-lg font-bold text-stone-900 mb-2">APK для главной страницы</h2>
+            <p className="text-sm text-stone-600 mb-4">
+              Загрузите файл — он попадёт в хранилище, а публичная ссылка появится на лендинге (кнопка с иконкой телефона и блок «Приложение для Android»).
+            </p>
+            {apkErr ? <p className="text-red-600 text-sm mb-3">{apkErr}</p> : null}
+            <p className="text-xs text-stone-500 mb-1">Текущая ссылка</p>
+            <p className="text-sm font-mono break-all text-stone-800 mb-1">{apkUrl || "— не задана —"}</p>
+            {apkUpdatedAt ? <p className="text-xs text-stone-400 mb-4">Обновлено: {apkUpdatedAt}</p> : <div className="mb-4" />}
+            <input ref={apkFileRef} type="file" accept=".apk,application/vnd.android.package-archive" className="block w-full text-sm mb-4" />
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={apkBusy}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-red-500 to-amber-500 text-white text-sm font-medium disabled:opacity-50"
+                onClick={async () => {
+                  const f = apkFileRef.current?.files?.[0];
+                  if (!f) {
+                    setApkErr("Выберите файл .apk");
+                    return;
+                  }
+                  setApkBusy(true);
+                  setApkErr(null);
+                  const up = await uploadMobileApkFile(f);
+                  if (!up.url) {
+                    setApkErr(up.error || "Не удалось загрузить APK");
+                    setApkBusy(false);
+                    return;
+                  }
+                  const p = await patchAdminMobileApk(up.url);
+                  if (p.error) setApkErr(p.error);
+                  else await loadApk();
+                  setApkBusy(false);
+                }}
+              >
+                {apkBusy ? "Загрузка…" : "Загрузить и опубликовать"}
+              </button>
+              <button
+                type="button"
+                disabled={apkBusy}
+                className="px-4 py-2 rounded-xl border border-stone-300 text-stone-800 text-sm font-medium disabled:opacity-50"
+                onClick={async () => {
+                  if (!confirm("Убрать ссылку на APK с лендинга?")) return;
+                  setApkBusy(true);
+                  setApkErr(null);
+                  const p = await patchAdminMobileApk(null);
+                  if (p.error) setApkErr(p.error);
+                  else await loadApk();
+                  setApkBusy(false);
+                }}
+              >
+                Сбросить ссылку
+              </button>
+            </div>
+          </div>
         ) : tab === "overview" ? (
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="bg-white rounded-2xl p-6 shadow border border-stone-100">
               <p className="text-sm text-stone-500">Открытые обращения</p>
               <p className="text-3xl font-bold text-stone-900">{stats?.openTickets ?? 0}</p>
             </div>
-            {canSeeReports(role) ? (
+            {canReportsTab ? (
               <div className="bg-white rounded-2xl p-6 shadow border border-stone-100">
                 <p className="text-sm text-stone-500">Открытые жалобы</p>
                 <p className="text-3xl font-bold text-stone-900">{stats?.openReports ?? 0}</p>
@@ -182,7 +297,7 @@ export function AdminPage() {
             ))}
           </ul>
         ) : (
-          canSeeReports(role) && (
+          canReportsTab && (
             <ul className="space-y-4">
               {reports.map((r) => (
                 <li key={r.id} className="bg-white rounded-2xl p-4 shadow border border-stone-100">
@@ -205,7 +320,7 @@ export function AdminPage() {
                       <option value="resolved">resolved</option>
                       <option value="dismissed">dismissed</option>
                     </select>
-                    {canSeeReports(role) && role !== "support" && (
+                    {canReportsTab && user?.role !== "support" && (
                       <>
                         <button
                           type="button"

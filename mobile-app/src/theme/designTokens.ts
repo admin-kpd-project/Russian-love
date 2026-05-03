@@ -16,6 +16,7 @@ export const tw = {
   amber500: "#f59e0b",
   amber600: "#d97706",
   stone200: "#e7e5e4",
+  stone400: "#a8a29e",
   stone500: "#78716c",
   stone600: "#57534e",
   stone700: "#44403c",
@@ -66,6 +67,8 @@ export const brandGradients = {
   featureCard: ["#fef2f2", "#fffbeb"] as const,
   /** Веб: `from-blue-400 to-blue-600` — совпадает с tw.blue400 / tw.blue600 */
   superLike: ["#60a5fa", "#2563eb"] as const,
+  /** Веб: шапка SuperLikeComposeModal `from-sky-500 to-indigo-600` */
+  superLikeComposeHeader: ["#0ea5e9", "#4f46e5"] as const,
   /** Кнопка «Детально» на карточке (веб: purple-500 → purple-600) */
   detailCta: ["#a855f7", "#9333ea"] as const,
   /** Интересы: from-red-100 to-amber-100 */

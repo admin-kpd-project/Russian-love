@@ -16,6 +16,13 @@ export type Profile = {
   astrology?: Record<string, unknown>;
   numerology?: Record<string, unknown>;
   lastSeenAt?: string | null;
+  /** Как в web `ProfileResponse` / `/api/users/me` */
+  isPremium?: boolean;
+  premiumUntil?: string | null;
+  superLikesBalance?: number;
+  hasUnlimitedAnalysis?: boolean;
+  purchasedAnalysisUserIds?: string[];
+  role?: string;
 };
 
 export type AuthData = {

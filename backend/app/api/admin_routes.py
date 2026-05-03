@@ -5,12 +5,14 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_roles
 from app.core.envelope import Envelope
-from app.db.models import SupportTicket, User, UserReport
+from app.core.site_settings import KEY_MOBILE_APK_URL, get_site_value, set_site_value
+from app.db.models import SiteSetting, SupportTicket, User, UserReport
 from app.db.session import get_db
 from app.schemas.support import AdminPatchReportBody, AdminPatchTicketBody, report_to_out, ticket_to_out
 
@@ -19,6 +21,40 @@ router = APIRouter(prefix="/api/admin", tags=["Admin"])
 _staff = require_roles("admin", "moderator", "support")
 _mod = require_roles("admin", "moderator")
 _admin_only = require_roles("admin")
+
+
+class MobileApkSettingBody(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    download_url: str | None = Field(default=None, alias="downloadUrl", max_length=4000)
+
+
+@router.get("/mobile-apk")
+async def admin_get_mobile_apk(
+    _: User = Depends(_admin_only),
+    db: AsyncSession = Depends(get_db),
+):
+    row = (await db.execute(select(SiteSetting).where(SiteSetting.key == KEY_MOBILE_APK_URL))).scalar_one_or_none()
+    url = (row.value or "").strip() if row and row.value else ""
+    updated = None
+    if row and row.updated_at is not None:
+        updated = row.updated_at.astimezone(UTC).isoformat().replace("+00:00", "Z")
+    return Envelope.ok({"downloadUrl": url or None, "updatedAt": updated})
+
+
+@router.patch("/mobile-apk")
+async def admin_patch_mobile_apk(
+    body: MobileApkSettingBody,
+    _: User = Depends(_admin_only),
+    db: AsyncSession = Depends(get_db),
+):
+    raw = body.download_url
+    if raw is not None and not str(raw).strip():
+        raw = None
+    elif raw is not None:
+        raw = str(raw).strip()
+    await set_site_value(db, KEY_MOBILE_APK_URL, raw)
+    url = await get_site_value(db, KEY_MOBILE_APK_URL)
+    return Envelope.ok({"downloadUrl": url or None})
 
 
 @router.get("/stats")

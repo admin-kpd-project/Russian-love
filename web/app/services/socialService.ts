@@ -25,10 +25,16 @@ export interface SuperLikeResponse {
   superLikesBalance?: number;
 }
 
-export async function sendSuperLike(userId: string): Promise<ApiResponse<SuperLikeResponse>> {
+export async function sendSuperLike(
+  userId: string,
+  opts?: { message?: string }
+): Promise<ApiResponse<SuperLikeResponse>> {
+  const body: { userId: string; message?: string } = { userId };
+  const m = (opts?.message ?? "").trim();
+  if (m) body.message = m;
   return apiFetch<SuperLikeResponse>("/api/superlikes", {
     method: "POST",
-    body: JSON.stringify({ userId }),
+    body: JSON.stringify(body),
   });
 }
 

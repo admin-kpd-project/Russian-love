@@ -11,6 +11,8 @@ export interface NotificationItem {
   userName?: string;
   conversationId?: string;
   peerUserId?: string;
+  /** Текст, приложенный к суперлайку (не сообщение в чате). */
+  superMessage?: string;
 }
 
 export async function getNotifications(): Promise<ApiResponse<NotificationItem[]>> {

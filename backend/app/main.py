@@ -7,6 +7,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import SQLAlchemyError
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api import (
@@ -15,6 +16,7 @@ from app.api import (
     chat_routes,
     feed_routes,
     payments_routes,
+    public_routes,
     reports_routes,
     social_routes,
     upload_routes,
@@ -94,6 +96,15 @@ async def validation_exc_handler(_: Request, exc: RequestValidationError):
     )
 
 
+@app.exception_handler(SQLAlchemyError)
+async def db_exc_handler(_: Request, exc: SQLAlchemyError):
+    logger.exception("database error", exc_info=exc)
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content=Envelope.err("База данных временно недоступна"),
+    )
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}
@@ -121,6 +132,7 @@ async def ready():
     return {"ready": True}
 
 
+app.include_router(public_routes.router)
 app.include_router(auth_routes.router)
 app.include_router(users_routes.router)
 app.include_router(chat_routes.router)

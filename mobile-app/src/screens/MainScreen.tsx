@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useState, useRef } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, Platform, StatusBar, Alert } from "react-native";
+import { View, Text, StyleSheet, ActivityIndicator, Platform, StatusBar, Alert, Linking } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Heart, User as UserIcon, MessageCircle, Flame, QrCode, Bookmark, Bell } from "lucide-react-native";
+import { Heart, User as UserIcon, MessageCircle, Flame, QrCode, Bookmark, Bell, Shield } from "lucide-react-native";
 
 import { getFeed } from "../api/feedApi";
 import { createConversation, listConversations } from "../api/conversationsApi";
@@ -12,7 +12,7 @@ import { getNotifications } from "../api/notificationsApi";
 import { logoutApi } from "../api/authApi";
 import { getCurrentUser } from "../api/usersApi";
 import { getApiBaseUrl } from "../api/apiBase";
-import { sendLike, sendSuperLike } from "../api/socialApi";
+import { sendLike, sendSuperLike, getMatches } from "../api/socialApi";
 import type { Profile } from "../api/authApi";
 import type { RootStackParamList } from "../navigation/types";
 import {
@@ -31,6 +31,7 @@ import { MatchModal } from "../components/main/MatchModal";
 import { ChatsListModal } from "../components/main/ChatsListModal";
 import { LikesModal } from "../components/main/LikesModal";
 import { SuperLikeBurstLayer } from "../components/main/SuperLikeBurstLayer";
+import { SuperLikeComposeModal } from "../components/main/SuperLikeComposeModal";
 import { FavoritesModal } from "../components/main/FavoritesModal";
 import { ProfileSettingsModal } from "../components/main/ProfileSettingsModal";
 import { SettingsModal } from "../components/main/SettingsModal";
@@ -47,6 +48,7 @@ import type { ConversationListItem } from "../api/conversationsApi";
 import { ScalePressable } from "../components/ui/Motion";
 import { GradientText } from "../components/ui/GradientText";
 import { brandGradients, tw } from "../theme/designTokens";
+import { guessWebAdminUrl } from "../utils/adminWebUrl";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Main">;
 
@@ -54,16 +56,23 @@ function profileIdStr(p: UserProfile): string {
   return String(p.id);
 }
 
-type LikedEntry = { profile: UserProfile; isSuperLike: boolean };
+type LikedEntry = { profile: UserProfile; isSuperLike: boolean; superMessage?: string };
 
-function mergeLikedEntry(prev: LikedEntry[], p: UserProfile, isSuper: boolean): LikedEntry[] {
+function mergeLikedEntry(prev: LikedEntry[], p: UserProfile, isSuper: boolean, superMessage?: string): LikedEntry[] {
   const id = profileIdStr(p);
   const idx = prev.findIndex((e) => profileIdStr(e.profile) === id);
-  if (idx === -1) return [...prev, { profile: p, isSuperLike: isSuper }];
+  const msg = (superMessage || "").trim() || undefined;
+  if (idx === -1) {
+    return [...prev, { profile: p, isSuperLike: isSuper, superMessage: isSuper ? msg : undefined }];
+  }
   const cur = prev[idx];
   return [
     ...prev.slice(0, idx),
-    { profile: cur.profile, isSuperLike: cur.isSuperLike || isSuper },
+    {
+      profile: cur.profile,
+      isSuperLike: cur.isSuperLike || isSuper,
+      superMessage: isSuper ? msg ?? cur.superMessage : cur.superMessage,
+    },
     ...prev.slice(idx + 1),
   ];
 }
@@ -82,6 +91,8 @@ export function MainScreen() {
   const [likedEntries, setLikedEntries] = useState<LikedEntry[]>([]);
   const [superLikeBurst, setSuperLikeBurst] = useState(false);
   const superLikeInFlightRef = useRef(false);
+  const [superLikeComposeOpen, setSuperLikeComposeOpen] = useState(false);
+  const [superLikeComposeProfile, setSuperLikeComposeProfile] = useState<UserProfile | null>(null);
   const [superLikesRemaining, setSuperLikesRemaining] = useState(5);
   const [isPremium, setIsPremium] = useState(false);
 
@@ -112,10 +123,53 @@ export function MainScreen() {
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [unreadChatsCount, setUnreadChatsCount] = useState(0);
 
-  const refreshBadgeCounts = useCallback(async () => {
-    const [n, c] = await Promise.all([getNotifications(), listConversations()]);
+  const knownMatchIdsRef = useRef<Set<string> | null>(null);
+  const showMatchRef = useRef(false);
+  const selectedLikedRef = useRef<UserProfile | null>(null);
+
+  useEffect(() => {
+    showMatchRef.current = showMatch;
+  }, [showMatch]);
+  useEffect(() => {
+    selectedLikedRef.current = selectedLiked;
+  }, [selectedLiked]);
+
+  const applyEconomyFromProfile = useCallback((u: Profile) => {
+    if (typeof u.superLikesBalance === "number") setSuperLikesRemaining(u.superLikesBalance);
+    if (typeof u.isPremium === "boolean") setIsPremium(u.isPremium);
+    if (u.hasUnlimitedAnalysis) setHasUnlimitedAnalysis(true);
+    if (Array.isArray(u.purchasedAnalysisUserIds) && u.purchasedAnalysisUserIds.length > 0) {
+      setPurchasedAnalyses((prev) => [...new Set([...prev, ...u.purchasedAnalysisUserIds!.map(String)])]);
+    }
+  }, []);
+
+  /** Как на веб MainApp: мэтчи + бейджи уведомлений и чатов. */
+  const pollMatchesAndBadges = useCallback(async () => {
+    const base = await getApiBaseUrl();
+    const [matchesRes, n, c] = await Promise.all([getMatches(), getNotifications(), listConversations()]);
     if (n.data) setUnreadNotifCount(n.data.filter((x) => !x.read).length);
     if (c.data) setUnreadChatsCount(c.data.filter((x) => x.unread).length);
+
+    const list = matchesRes.data && !matchesRes.error ? matchesRes.data : [];
+    if (knownMatchIdsRef.current === null) {
+      knownMatchIdsRef.current = new Set(list.map((m) => m.id));
+      return;
+    }
+    const known = knownMatchIdsRef.current;
+    let openedMatchModalThisPoll = false;
+    for (const item of list) {
+      if (known.has(item.id)) continue;
+      known.add(item.id);
+      const peer = mapApiProfileToUserProfile(item.peer, base);
+      setLikedEntries((prev) => mergeLikedEntry(prev, peer, false));
+      const canShowMatchModal =
+        !openedMatchModalThisPoll && !showMatchRef.current && !selectedLikedRef.current;
+      if (canShowMatchModal) {
+        openedMatchModalThisPoll = true;
+        setMatchedProfile(peer);
+        setShowMatch(true);
+      }
+    }
   }, []);
 
   const reloadProfile = useCallback(async () => {
@@ -123,13 +177,14 @@ export function MainScreen() {
     const u = await getCurrentUser();
     if (u.data) {
       setMe(u.data);
+      applyEconomyFromProfile(u.data);
       try {
         setSelf(mapApiProfileToUserProfile(u.data, base));
       } catch {
         /* keep self */
       }
     }
-  }, []);
+  }, [applyEconomyFromProfile]);
 
   useEffect(() => {
     let c = false;
@@ -138,6 +193,7 @@ export function MainScreen() {
       const u = await getCurrentUser();
       if (!c && u.data) {
         setMe(u.data);
+        applyEconomyFromProfile(u.data);
         try {
           setSelf(mapApiProfileToUserProfile(u.data, base));
         } catch {
@@ -153,18 +209,27 @@ export function MainScreen() {
     return () => {
       c = true;
     };
-  }, []);
+  }, [applyEconomyFromProfile]);
 
+  const POLL_MS = 4000;
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   useFocusEffect(
     useCallback(() => {
-      void refreshBadgeCounts();
-      pollRef.current = setInterval(() => void refreshBadgeCounts(), 4000);
+      let cancelled = false;
+      void (async () => {
+        const seed = await getMatches();
+        if (cancelled) return;
+        knownMatchIdsRef.current = new Set((seed.data ?? []).map((m) => m.id));
+        await pollMatchesAndBadges();
+        if (cancelled) return;
+        pollRef.current = setInterval(() => void pollMatchesAndBadges(), POLL_MS);
+      })();
       return () => {
+        cancelled = true;
         if (pollRef.current) clearInterval(pollRef.current);
         pollRef.current = null;
       };
-    }, [refreshBadgeCounts])
+    }, [pollMatchesAndBadges])
   );
 
   useEffect(() => {
@@ -182,7 +247,15 @@ export function MainScreen() {
         setLikedEntries((lp) => mergeLikedEntry(lp, cur, false));
         void (async () => {
           const res = await sendLike(String(cur.id));
+          if (res.error) {
+            console.warn("Like failed:", res.error);
+            return;
+          }
           if (res.data?.matched) {
+            if (res.data.matchId) {
+              if (!knownMatchIdsRef.current) knownMatchIdsRef.current = new Set();
+              knownMatchIdsRef.current.add(res.data.matchId);
+            }
             setMatchedProfile(cur);
             setShowMatch(true);
           }
@@ -212,12 +285,23 @@ export function MainScreen() {
       setShowShop(true);
       return;
     }
-    const cur = profiles[currentIndex];
+    setSuperLikeComposeProfile(profiles[currentIndex]);
+    setSuperLikeComposeOpen(true);
+  };
+
+  const confirmSuperLikeWithMessage = (note?: string) => {
+    const cur = superLikeComposeProfile;
+    setSuperLikeComposeOpen(false);
+    setSuperLikeComposeProfile(null);
+    if (!cur) return;
+    if (currentIndex >= profiles.length) return;
+    if (superLikeBurst || superLikeInFlightRef.current) return;
+
     superLikeInFlightRef.current = true;
     setSuperLikeBurst(true);
     const t0 = Date.now();
     void (async () => {
-      const res = await sendSuperLike(String(cur.id));
+      const res = await sendSuperLike(String(cur.id), { message: note });
       const wait = Math.max(0, 720 - (Date.now() - t0));
       await new Promise((r) => setTimeout(r, wait));
       if (res.error) {
@@ -233,7 +317,7 @@ export function MainScreen() {
       }
       const bal = res.data?.superLikesBalance;
       if (typeof bal === "number") setSuperLikesRemaining(bal);
-      setLikedEntries((lp) => mergeLikedEntry(lp, cur, true));
+      setLikedEntries((lp) => mergeLikedEntry(lp, cur, true, note));
       setHistory((h) => [...h, { profile: cur, liked: true, superLike: true }]);
       setCurrentIndex((i) => i + 1);
       setSuperLikeBurst(false);
@@ -246,7 +330,10 @@ export function MainScreen() {
     setMatchedProfile(null);
     setSelectedLiked(null);
     const r = await createConversation(String(p.id));
-    if (r.error || !r.data) return;
+    if (r.error || !r.data) {
+      Alert.alert("Чат недоступен", r.error || "Писать можно только после взаимного мэтча");
+      return;
+    }
     navigation.navigate("Chat", {
       conversationId: r.data.id,
       title: p.name,
@@ -276,7 +363,10 @@ export function MainScreen() {
     }
     if (params.peerUserId) {
       const r = await createConversation(params.peerUserId);
-      if (r.error || !r.data) return;
+      if (r.error || !r.data) {
+        Alert.alert("Чат недоступен", r.error || "Писать можно только после взаимного мэтча");
+        return;
+      }
       navigation.navigate("Chat", {
         conversationId: r.data.id,
         title: params.userName,
@@ -323,6 +413,27 @@ export function MainScreen() {
     }
   };
 
+  const openAdminWeb = useCallback(async () => {
+    const base = await getApiBaseUrl();
+    const url = guessWebAdminUrl(base);
+    if (!url) {
+      Alert.alert(
+        "Админ-панель",
+        "Не удалось определить URL веб-приложения (часто API :8000 → веб :5173). Откройте /admin в браузере вручную."
+      );
+      return;
+    }
+    try {
+      if (!(await Linking.canOpenURL(url))) {
+        Alert.alert("Админ-панель", url);
+        return;
+      }
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert("Админ-панель", "Не удалось открыть ссылку.");
+    }
+  }, []);
+
   const currentProfile = profiles[currentIndex];
   const hasMore = currentIndex < profiles.length;
 
@@ -338,6 +449,11 @@ export function MainScreen() {
             <GradientText text="Любить по-russки" width={172} height={28} fontSize={20} />
           </View>
           <View style={styles.headerActions}>
+            {me && ["admin", "moderator", "support"].includes(String(me.role || "user")) ? (
+              <ScalePressable onPress={() => void openAdminWeb()} style={styles.iconHit} accessibilityLabel="Админ-панель">
+                <Shield size={24} color="#b45309" />
+              </ScalePressable>
+            ) : null}
             <ScalePressable onPress={() => setShowProfile(true)} style={styles.iconHit}>
               <UserIcon size={24} color={tw.gray600} />
             </ScalePressable>
@@ -450,21 +566,16 @@ export function MainScreen() {
       </View>
 
       <View style={[styles.bottom, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-        <ScalePressable
-          style={styles.navHit}
-          onPress={() => setShowShop(true)}
-          onLongPress={() => setShowSub(true)}
-          delayLongPress={450}
-        >
-          <Flame size={30} color="#ef4444" />
+        <ScalePressable style={styles.navHit} onPress={() => setShowShop(true)} accessibilityLabel="Магазин суперлайков">
+          <Flame size={34} color="#ef4444" />
           {!isPremium ? (
-            <LinearGradient colors={[...brandGradients.primary]} style={styles.badgeFlame}>
+            <LinearGradient colors={["#f97316", "#ef4444"]} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={styles.badgeFlame}>
               <Text style={styles.badgeTxt}>{superLikesRemaining}</Text>
             </LinearGradient>
           ) : null}
         </ScalePressable>
         <ScalePressable style={styles.navHit} onPress={() => setShowFavorites(true)}>
-          <Bookmark size={30} color={tw.gray400} />
+          <Bookmark size={34} color={tw.gray400} />
           {favorites.length > 0 ? (
             <LinearGradient colors={[...brandGradients.favorite]} style={styles.badgeAm}>
               <Text style={styles.badgeTxt}>{favorites.length}</Text>
@@ -472,14 +583,14 @@ export function MainScreen() {
           ) : null}
         </ScalePressable>
         <ScalePressable style={styles.navHit} onPress={() => setShowLikes(true)}>
-          <Heart size={30} color={tw.gray400} />
+          <Heart size={34} color={tw.gray400} />
         </ScalePressable>
         <ScalePressable style={styles.navHit} onPress={() => setShowChats(true)}>
-          <MessageCircle size={30} color={tw.gray400} />
+          <MessageCircle size={34} color={tw.gray400} />
           {unreadChatsCount > 0 ? <View style={styles.dotSm} /> : null}
         </ScalePressable>
         <ScalePressable style={styles.navHit} onPress={() => setShowProfile(true)}>
-          <UserIcon size={30} color={tw.gray400} />
+          <UserIcon size={34} color={tw.gray400} />
         </ScalePressable>
       </View>
 
@@ -530,7 +641,7 @@ export function MainScreen() {
         visible={showChats}
         onClose={() => {
           setShowChats(false);
-          void refreshBadgeCounts();
+          void pollMatchesAndBadges();
         }}
         onPick={openChatFromList}
       />
@@ -542,6 +653,15 @@ export function MainScreen() {
           setShowLikes(false);
           setSelectedLiked(p);
         }}
+      />
+      <SuperLikeComposeModal
+        visible={superLikeComposeOpen}
+        profile={superLikeComposeProfile}
+        onClose={() => {
+          setSuperLikeComposeOpen(false);
+          setSuperLikeComposeProfile(null);
+        }}
+        onSend={confirmSuperLikeWithMessage}
       />
       <FavoritesModal visible={showFavorites} onClose={() => setShowFavorites(false)} />
       <ProfileSettingsModal
@@ -562,6 +682,10 @@ export function MainScreen() {
           navigation.reset({ index: 0, routes: [{ name: "Landing" }] });
         }}
         onProfileSaved={reloadProfile}
+        onOpenSubscription={() => {
+          setShowProfile(false);
+          setShowSub(true);
+        }}
       />
       <SettingsModal visible={showSettings} onClose={() => setShowSettings(false)} />
       <QRShareModal visible={showQR} userId={me?.id != null ? String(me.id) : undefined} onClose={() => setShowQR(false)} />
@@ -575,7 +699,10 @@ export function MainScreen() {
         visible={showSub}
         remainingSuperLikes={superLikesRemaining}
         onClose={() => setShowSub(false)}
-        onSubscribed={() => setIsPremium(true)}
+        onSubscribed={() => {
+          setIsPremium(true);
+          void reloadProfile();
+        }}
       />
       <NotificationsModal
         visible={showNotif}

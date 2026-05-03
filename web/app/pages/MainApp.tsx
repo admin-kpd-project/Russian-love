@@ -13,6 +13,7 @@ import { QRShareModal } from "../components/QRShareModal";
 import { ActionButtons } from "../components/ActionButtons";
 import { LikesModal } from "../components/LikesModal";
 import { SuperLikeBurstOverlay } from "../components/SuperLikeBurstOverlay";
+import { SuperLikeComposeModal } from "../components/SuperLikeComposeModal";
 import { Favorites } from "../components/Favorites";
 import { SubscriptionModal } from "../components/SubscriptionModal";
 import { SettingsModal } from "../components/SettingsModal";
@@ -38,17 +39,26 @@ function profileId(p: UserProfile): string {
   return String(p.id);
 }
 
-type LikedEntry = { profile: UserProfile; isSuperLike: boolean };
+type LikedEntry = { profile: UserProfile; isSuperLike: boolean; superMessage?: string };
 
 /** Один профиль в списке лайков; суперлайк помечает особый интерес и не дублирует строку. */
-function mergeLikedEntry(prev: LikedEntry[], p: UserProfile, isSuper: boolean): LikedEntry[] {
+function mergeLikedEntry(
+  prev: LikedEntry[],
+  p: UserProfile,
+  isSuper: boolean,
+  superMessage?: string
+): LikedEntry[] {
   const id = profileId(p);
   const idx = prev.findIndex((e) => profileId(e.profile) === id);
-  if (idx === -1) return [...prev, { profile: p, isSuperLike: isSuper }];
+  const msg = (superMessage || "").trim() || undefined;
+  if (idx === -1) {
+    return [...prev, { profile: p, isSuperLike: isSuper, superMessage: isSuper ? msg : undefined }];
+  }
   const cur = prev[idx];
   const next: LikedEntry = {
     profile: cur.profile,
     isSuperLike: cur.isSuperLike || isSuper,
+    superMessage: isSuper ? msg ?? cur.superMessage : cur.superMessage,
   };
   return [...prev.slice(0, idx), next, ...prev.slice(idx + 1)];
 }
@@ -76,6 +86,8 @@ export function MainApp() {
   const [likedEntries, setLikedEntries] = useState<LikedEntry[]>([]);
   const [superLikeBurst, setSuperLikeBurst] = useState(false);
   const superLikeInFlightRef = useRef(false);
+  const [superLikeComposeOpen, setSuperLikeComposeOpen] = useState(false);
+  const [superLikeComposeProfile, setSuperLikeComposeProfile] = useState<UserProfile | null>(null);
   const [superLikesRemaining, setSuperLikesRemaining] = useState(5);
   const [showSubscription, setShowSubscription] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
@@ -193,14 +205,24 @@ export function MainApp() {
       setShowSuperLikeShop(true);
       return;
     }
+    setSuperLikeComposeProfile(profiles[currentIndex]);
+    setSuperLikeComposeOpen(true);
+  };
 
-    const currentProfile = profiles[currentIndex];
+  const confirmSuperLikeWithMessage = (note?: string) => {
+    const currentProfile = superLikeComposeProfile;
+    setSuperLikeComposeOpen(false);
+    setSuperLikeComposeProfile(null);
+    if (!currentProfile) return;
+    if (currentIndex >= profiles.length) return;
+    if (superLikeBurst || superLikeInFlightRef.current) return;
+
     superLikeInFlightRef.current = true;
     setSuperLikeBurst(true);
 
     const t0 = Date.now();
     void (async () => {
-      const res = await sendSuperLike(String(currentProfile.id));
+      const res = await sendSuperLike(String(currentProfile.id), { message: note });
       const wait = Math.max(0, 720 - (Date.now() - t0));
       await new Promise((r) => setTimeout(r, wait));
 
@@ -219,7 +241,7 @@ export function MainApp() {
       const bal = res.data?.superLikesBalance;
       if (typeof bal === "number") setSuperLikesRemaining(bal);
 
-      setLikedEntries((prev) => mergeLikedEntry(prev, currentProfile, true));
+      setLikedEntries((prev) => mergeLikedEntry(prev, currentProfile, true, note));
       setHistory((h) => [...h, { profile: currentProfile, liked: true, superLike: true }]);
       setCurrentIndex((i) => i + 1);
       setSuperLikeBurst(false);
@@ -659,6 +681,20 @@ export function MainApp() {
             }}
           />
         )}
+
+        {superLikeComposeOpen && superLikeComposeProfile ? (
+          <SuperLikeComposeModal
+            key="superlike-compose"
+            open
+            peerName={superLikeComposeProfile.name}
+            peerPhoto={superLikeComposeProfile.photo}
+            onClose={() => {
+              setSuperLikeComposeOpen(false);
+              setSuperLikeComposeProfile(null);
+            }}
+            onSend={confirmSuperLikeWithMessage}
+          />
+        ) : null}
         
         {showSuperLikeShop && (
           <SuperLikeShopModal 

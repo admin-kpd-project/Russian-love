@@ -164,8 +164,15 @@ export function NotificationsModal({ visible, onClose, onOpenChat, onMarkedAllRe
                       {!n.read ? <View style={styles.dot} /> : null}
                     </View>
                     <Text style={styles.msg}>{n.message}</Text>
+                    {n.type === "superlike" && n.superMessage ? (
+                      <View style={styles.superMsgBox}>
+                        <Text style={styles.superMsgLabel}>Сообщение к суперлайку</Text>
+                        <Text style={styles.superMsgText}>{n.superMessage}</Text>
+                        <Text style={styles.superMsgHint}>Чат откроется после взаимного мэтча.</Text>
+                      </View>
+                    ) : null}
                     <Text style={styles.time}>{n.timestamp}</Text>
-                    {n.avatar && n.userName ? (
+                    {n.avatar && n.userName && (n.type === "message" || Boolean(n.conversationId)) ? (
                       <Pressable
                         onPress={() => {
                           onClose();
@@ -271,6 +278,23 @@ const styles = StyleSheet.create({
   superBadgeT: { fontSize: 10, fontWeight: "800", color: "#fff", letterSpacing: 0.3 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: tw.red500, marginTop: 4 },
   msg: { fontSize: 13, color: "#57534e", marginBottom: 4 },
+  superMsgBox: {
+    marginBottom: 8,
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#bae6fd",
+    backgroundColor: "#f0f9ff",
+  },
+  superMsgLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#0369a1",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  superMsgText: { marginTop: 4, fontSize: 14, color: "#292524", lineHeight: 20 },
+  superMsgHint: { marginTop: 6, fontSize: 11, color: "#0369a1", opacity: 0.85 },
   time: { fontSize: 11, color: "#a8a29e" },
   writeWrap: { marginTop: 10, alignSelf: "flex-start" },
   writeBtn: {

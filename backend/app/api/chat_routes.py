@@ -12,7 +12,7 @@ from app.core.chat_ws import chat_ws_manager
 from app.core.security import decode_access_token
 from app.config.settings import get_settings
 from app.core.envelope import Envelope
-from app.db.models import Conversation, ConversationMember, Message, Notification, User
+from app.db.models import Conversation, ConversationMember, Match, Message, Notification, User
 from app.db.session import get_db
 from app.schemas.profile import CreateConversationBody, MarkConversationsReadBody, SendMessageBody
 
@@ -79,6 +79,20 @@ async def _find_direct_conversation(db: AsyncSession, a: UUID, b: UUID) -> Conve
         if ids == {a, b} and len(conv.members) == 2:
             return conv
     return None
+
+
+def _pair_ids(a: UUID, b: UUID) -> tuple[UUID, UUID]:
+    return (a, b) if str(a) < str(b) else (b, a)
+
+
+async def _has_mutual_match(db: AsyncSession, a: UUID, b: UUID) -> bool:
+    x, y = _pair_ids(a, b)
+    row = (
+        await db.execute(
+            select(Match.id).where(Match.user_a_id == x, Match.user_b_id == y).limit(1)
+        )
+    ).scalar_one_or_none()
+    return row is not None
 
 
 @router.get("/conversations")
@@ -149,6 +163,11 @@ async def create_conversation(
     other = (await db.execute(select(User).where(User.id == body.user_id))).scalar_one_or_none()
     if other is None:
         return JSONResponse(status_code=400, content=Envelope.err("Пользователь не найден"))
+    if not await _has_mutual_match(db, user.id, body.user_id):
+        return JSONResponse(
+            status_code=403,
+            content=Envelope.err("Чат доступен только после взаимного мэтча"),
+        )
     existing = await _find_direct_conversation(db, user.id, body.user_id)
     if existing:
         return Envelope.ok({"id": str(existing.id)})
@@ -314,6 +333,21 @@ async def post_message(
     ).scalar_one_or_none()
     if mem is None:
         return JSONResponse(status_code=403, content=Envelope.err("Нет доступа к беседе"))
+    peer_id = (
+        await db.execute(
+            select(ConversationMember.user_id).where(
+                ConversationMember.conversation_id == conversation_id,
+                ConversationMember.user_id != user.id,
+            )
+        )
+    ).scalar_one_or_none()
+    if peer_id is None:
+        return JSONResponse(status_code=400, content=Envelope.err("Некорректная беседа"))
+    if not await _has_mutual_match(db, user.id, peer_id):
+        return JSONResponse(
+            status_code=403,
+            content=Envelope.err("Писать можно только после взаимного мэтча"),
+        )
     text = (body.text or "").strip() or None
     media = body.media_url
     if not text and not media:

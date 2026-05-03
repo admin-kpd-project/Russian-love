@@ -62,14 +62,16 @@ export async function getPresignedUploadUrl(
 // Upload file to S3 using presigned URL
 export async function uploadFileToS3(
   presignedUrl: string,
-  file: File
+  file: File,
+  contentTypeOverride?: string
 ): Promise<UploadResult> {
   try {
+    const ct = (contentTypeOverride || file.type || "application/octet-stream").trim() || "application/octet-stream";
     const response = await fetch(presignedUrl, {
       method: "PUT",
       body: file,
       headers: {
-        "Content-Type": file.type,
+        "Content-Type": ct,
       },
     });
 
@@ -109,5 +111,40 @@ export async function uploadFile(
   }
   
   // Return CDN URL
+  return { url: response.data.fileUrl, error: null };
+}
+
+function guessApkContentType(file: File): string {
+  const t = file.type?.trim();
+  if (t === "application/vnd.android.package-archive" || t === "application/octet-stream") return t;
+  const n = file.name.toLowerCase();
+  if (n.endsWith(".apk")) return "application/vnd.android.package-archive";
+  return "application/octet-stream";
+}
+
+export async function getPresignedMobileApkUploadUrl(
+  contentType: string,
+  fileSizeBytes: number
+): Promise<ApiResponse<PresignUploadResponse>> {
+  return apiFetch<PresignUploadResponse>("/api/upload/mobile-apk", {
+    method: "POST",
+    body: JSON.stringify({
+      contentType,
+      fileSizeBytes,
+    }),
+  });
+}
+
+/** Только admin JWT: загрузка APK в S3, возвращает публичный fileUrl. */
+export async function uploadMobileApkFile(file: File): Promise<UploadResult> {
+  const contentType = guessApkContentType(file);
+  const response = await getPresignedMobileApkUploadUrl(contentType, file.size);
+  if (!response.data) {
+    return { url: null, error: response.error || "Не удалось получить ссылку для загрузки APK" };
+  }
+  const uploaded = await uploadFileToS3(response.data.uploadUrl, file, contentType);
+  if (uploaded.error) {
+    return { url: null, error: uploaded.error };
+  }
   return { url: response.data.fileUrl, error: null };
 }

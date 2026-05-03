@@ -16,7 +16,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import LinearGradient from "react-native-linear-gradient";
 import { launchImageLibrary } from "react-native-image-picker";
-import { X, QrCode, LogOut, Camera, MapPin, Mail, Heart, Sparkles, Cake, Server } from "lucide-react-native";
+import { X, QrCode, LogOut, Camera, MapPin, Mail, Heart, Sparkles, Cake, Server, Crown } from "lucide-react-native";
 
 import type { Profile } from "../../api/authApi";
 import { updateProfile } from "../../api/usersApi";
@@ -35,6 +35,8 @@ type Props = {
   onServer: () => void;
   onLogout: () => void;
   onProfileSaved?: () => void;
+  /** Как на веб: подписка не на long-press огня, а из профиля */
+  onOpenSubscription?: () => void;
 };
 
 export function ProfileSettingsModal({
@@ -46,6 +48,7 @@ export function ProfileSettingsModal({
   onServer,
   onLogout,
   onProfileSaved,
+  onOpenSubscription,
 }: Props) {
   const insets = useSafeAreaInsets();
   const { height: winH } = useWindowDimensions();
@@ -362,6 +365,18 @@ export function ProfileSettingsModal({
                     <Text style={styles.qrFullT}>Поделиться QR-кодом</Text>
                   </LinearGradient>
                 </Pressable>
+                {onOpenSubscription ? (
+                  <Pressable
+                    style={styles.subRow}
+                    onPress={() => {
+                      onClose();
+                      onOpenSubscription();
+                    }}
+                  >
+                    <Crown size={20} color="#9333ea" />
+                    <Text style={styles.subRowT}>Подписка и суперлайки</Text>
+                  </Pressable>
+                ) : null}
                 <Pressable style={styles.srv} onPress={() => { onClose(); onServer(); }}>
                   <Server size={20} color="#c2410c" />
                   <Text style={styles.srvT}>Адрес API (сервер)</Text>
@@ -518,6 +533,20 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   qrFullT: { color: "#fff", fontWeight: "800", fontSize: 16 },
+  subRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    marginTop: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#f3e8ff",
+    backgroundColor: "#faf5ff",
+  },
+  subRowT: { fontSize: 15, fontWeight: "700", color: "#6b21a8" },
   srv: {
     flexDirection: "row",
     alignItems: "center",

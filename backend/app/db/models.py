@@ -137,6 +137,8 @@ class Like(Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     is_super: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    """Одно короткое сообщение при суперлайке (не чат; показывается в уведомлении)."""
+    super_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -249,6 +251,16 @@ class UserReport(Base):
     resolved_by_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
+
+
+class SiteSetting(Base):
+    """Публичные настройки (лендинг): URL APK и т.д."""
+
+    __tablename__ = "site_settings"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class Payment(Base):

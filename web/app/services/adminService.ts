@@ -67,3 +67,16 @@ export async function activateUser(userId: string): Promise<ApiResponse<{ ok: bo
     method: "POST",
   });
 }
+
+export type MobileApkSetting = { downloadUrl: string | null; updatedAt: string | null };
+
+export async function getAdminMobileApk(): Promise<ApiResponse<MobileApkSetting>> {
+  return apiFetch<MobileApkSetting>("/api/admin/mobile-apk");
+}
+
+export async function patchAdminMobileApk(downloadUrl: string | null): Promise<ApiResponse<{ downloadUrl: string | null }>> {
+  return apiFetch<{ downloadUrl: string | null }>("/api/admin/mobile-apk", {
+    method: "PATCH",
+    body: JSON.stringify({ downloadUrl }),
+  });
+}

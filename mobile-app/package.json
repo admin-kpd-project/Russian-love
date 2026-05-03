@@ -5,10 +5,13 @@
   "scripts": {
     "android": "react-native run-android",
     "android:clean-native": "node ./scripts/clean-android-caches.cjs",
+    "android:release": "react-native build-android --mode=release",
     "ios": "react-native run-ios",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
     "start": "react-native start",
-    "test": "jest"
+    "test": "jest",
+    "prebuild:check": "npm run typecheck"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.1.0",

@@ -145,10 +145,21 @@ export function NotificationsModal({ onClose, onOpenChat, onMarkedAllRead }: Not
                       )}
                     </div>
                     <p className="text-sm text-gray-600 mb-1">{notification.message}</p>
+                    {notification.type === "superlike" && notification.superMessage ? (
+                      <div className="mb-2 rounded-xl border border-sky-100 bg-sky-50/80 px-3 py-2 text-sm text-gray-800">
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-sky-700">
+                          Сообщение к суперлайку
+                        </span>
+                        <p className="mt-1 whitespace-pre-wrap">{notification.superMessage}</p>
+                        <p className="mt-1 text-[11px] text-sky-800/80">Чат откроется после взаимного мэтча.</p>
+                      </div>
+                    ) : null}
                     <p className="text-xs text-gray-400 mb-2">{notification.timestamp}</p>
                     
                     {/* Write Button for notifications with avatar */}
-                    {notification.avatar && notification.userName && (
+                    {notification.avatar &&
+                      notification.userName &&
+                      (notification.type === "message" || Boolean(notification.conversationId)) && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();

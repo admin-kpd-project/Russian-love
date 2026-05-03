@@ -1,16 +1,27 @@
-import { Heart, Sparkles, Shield, MessageCircle, Zap, Globe, Download, ArrowRight, Star, UsersRound, TrendingUp, LogIn } from "lucide-react";
+import { Heart, Sparkles, Shield, MessageCircle, Zap, Globe, Download, ArrowRight, Star, UsersRound, TrendingUp, LogIn, Smartphone } from "lucide-react";
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import matreshkaLogo from "../../imports/1775050275_(1)_3_(1)-1.png";
 import { AuthModal } from "./AuthModal";
+import { getPublicMobileApk } from "../services/publicService";
 import { getCurrentUser } from "../services/usersService";
 
 export function LandingPage() {
   const navigate = useNavigate();
   const [showAuth, setShowAuth] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState<"login" | "register">("register");
-  const appDownloadUrl = (import.meta.env.VITE_APP_DOWNLOAD_URL ?? "").trim();
+  const envApkUrl = (import.meta.env.VITE_APP_DOWNLOAD_URL ?? "").trim();
+  const [mobileApkFromApi, setMobileApkFromApi] = useState("");
+  useEffect(() => {
+    void (async () => {
+      const r = await getPublicMobileApk();
+      const u = (r.data?.downloadUrl ?? "").trim();
+      if (u) setMobileApkFromApi(u);
+    })();
+  }, []);
+  /** Сначала ссылка из админки (БД), иначе запасной VITE_APP_DOWNLOAD_URL. */
+  const resolvedApkUrl = (mobileApkFromApi || envApkUrl).trim();
 
   const openRegister = () => {
     setAuthInitialMode("register");
@@ -94,6 +105,18 @@ export function LandingPage() {
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-end">
+            {resolvedApkUrl ? (
+              <a
+                href={resolvedApkUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Скачать приложение для Android (APK)"
+                className="min-h-11 min-w-[44px] inline-flex items-center justify-center rounded-full border-2 border-amber-200 bg-white text-red-600 hover:bg-amber-50 transition-all px-3 gap-2"
+              >
+                <Smartphone className="size-5 sm:size-6 shrink-0" aria-hidden />
+                <span className="text-sm font-semibold hidden sm:inline">APK</span>
+              </a>
+            ) : null}
             <button
               type="button"
               onClick={openRegister}
@@ -525,13 +548,13 @@ export function LandingPage() {
                 Приложение для Android
               </h3>
             </div>
-            {appDownloadUrl ? (
+            {resolvedApkUrl ? (
               <>
                 <p className="text-gray-700 text-center mb-4">
                   Скачайте APK-файл и установите приложение вручную (для теста и дистрибуции вне Google Play).
                 </p>
                 <a
-                  href={appDownloadUrl}
+                  href={resolvedApkUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-red-500 to-amber-500 px-6 py-3.5 text-lg font-medium text-white shadow-md hover:shadow-xl transition-shadow"

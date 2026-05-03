@@ -1,5 +1,6 @@
 from collections.abc import AsyncGenerator
 
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config.settings import get_settings
@@ -12,10 +13,19 @@ def get_engine():
     global _engine
     if _engine is None:
         s = get_settings()
+        db_url = str(s.database_url)
+        connect_args: dict[str, object] = {}
+        url = make_url(db_url)
+        # asyncpg defaults to SSL negotiation; local PostgreSQL often runs without SSL.
+        if url.drivername.endswith("+asyncpg"):
+            has_ssl_param = "ssl" in url.query or "sslmode" in url.query
+            if not has_ssl_param:
+                connect_args["ssl"] = False
         _engine = create_async_engine(
-            str(s.database_url),
+            db_url,
             echo=s.debug,
             pool_pre_ping=True,
+            connect_args=connect_args,
         )
     return _engine
 

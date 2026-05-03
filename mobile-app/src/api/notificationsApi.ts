@@ -11,6 +11,7 @@ export type NotificationItem = {
   userName?: string;
   conversationId?: string;
   peerUserId?: string;
+  superMessage?: string;
 };
 
 export function getNotifications(): Promise<ApiResult<NotificationItem[]>> {
