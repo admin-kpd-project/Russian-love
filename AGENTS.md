@@ -71,6 +71,7 @@ VITE_DEV_PROXY_API="http://localhost:8000" npm run dev
 
 ### Gotchas
 
+- **HTTPS:** Presigned uploads and `fileUrl` must use **https** when the site is HTTPS (mixed content). Set `DATING_PUBLIC_BASE_URL=https://your-public-host` (same host as Nginx with `/s3/<bucket>/`), or ensure the reverse proxy sends `X-Forwarded-Proto` (see `deploy/nginx.conf` `map` + `$dating_forwarded_proto`). Docker API image uses `uvicorn --proxy-headers --forwarded-allow-ips` (override with `FORWARDED_ALLOW_IPS` if needed). Optional `DATING_FORCE_HTTPS_ASSET_URLS=true` if the edge is TLS but the inferred URL is still `http://`.
 - The backend requires **all four** consent fields for registration: `agreeToAge18`, `agreeToTerms`, `agreeToPrivacy`, `agreeToOffer`.
 - The `docker-compose.yml` references Yandex Container Registry images (`cr.yandex/...`) for the `api`, `worker`, and `web` services. For local dev, run services natively instead of via Docker Compose (only use compose for infrastructure: postgres, redis, minio).
 - Integration tests share the same database as the dev server — running them while the server is up is fine but may add test data.

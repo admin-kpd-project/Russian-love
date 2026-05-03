@@ -57,6 +57,7 @@ services:
     ports:
       - "8000:8000"
     environment:
+      FORWARDED_ALLOW_IPS: "*"
       DATING_DATABASE_URL: postgresql+asyncpg://dating:dating@postgres:5432/dating
       DATING_REDIS_URL: redis://redis:6379/0
       DATING_S3_ENDPOINT_URL: http://minio:9000

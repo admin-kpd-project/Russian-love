@@ -59,6 +59,20 @@ class Settings(BaseSettings):
         default="https://your-bucket.s3.amazonaws.com",
         description="Public GET base for fileUrl (S3, CloudFront, MinIO, or path-style e.g. https://storage.yandexcloud.net/bucket). Must match mediaUrl host in chat_routes check.",
     )
+    public_base_url: str = Field(
+        default="",
+        description=(
+            "Optional https://your.domain — public origin for presigned PUT and fileUrl when behind Nginx "
+            "(/s3/<bucket>/…). Overrides X-Forwarded-* / Origin inference. Use when API and site share one HTTPS host."
+        ),
+    )
+    force_https_asset_urls: bool = Field(
+        default=False,
+        description=(
+            "If true, rewrite inferred public base from http:// to https:// (mixed content fix when "
+            "TLS terminates at the edge but X-Forwarded-Proto is missing or wrong)."
+        ),
+    )
     s3_presign_endpoint_url: str = Field(
         default="",
         description="Host embedded in presigned PUT URLs for the browser. Empty = same as s3_endpoint (AWS/MinIO).",

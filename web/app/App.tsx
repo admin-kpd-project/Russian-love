@@ -12,7 +12,11 @@ export default function App() {
     // Prevent pull-to-refresh on mobile
     document.body.style.overscrollBehavior = 'none';
 
-    if (import.meta.env.PROD && "serviceWorker" in navigator) {
+    if (
+      import.meta.env.PROD &&
+      "serviceWorker" in navigator &&
+      globalThis.isSecureContext
+    ) {
       navigator.serviceWorker
         .register("/service-worker.js")
         .then(() => console.log("ServiceWorker registered"))

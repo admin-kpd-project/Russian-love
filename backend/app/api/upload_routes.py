@@ -80,6 +80,13 @@ def _resolved_s3_endpoints() -> tuple[str | None, str | None]:
     return end, pre
 
 
+def _maybe_upgrade_public_to_https(base: str, force: bool) -> str:
+    b = base.rstrip("/")
+    if force and b.startswith("http://"):
+        return f"https://{b[len('http://') :]}"
+    return b
+
+
 def _public_origin_from_nginx(request: Request) -> str | None:
     """Nginx: proxy_set_header X-Forwarded-Host; не подставляйте из сырого Host без доверенного прокси."""
     xfh = (request.headers.get("x-forwarded-host") or "").strip()
@@ -121,6 +128,10 @@ def _presign_bases_for_request(request: Request) -> tuple[str | None, str]:
     s = get_settings()
     _, presign = _resolved_s3_endpoints()
     cdn = s.cdn_public_base_url.rstrip("/")
+    explicit = (s.public_base_url or "").strip().rstrip("/")
+    if explicit:
+        pub = _maybe_upgrade_public_to_https(explicit, s.force_https_asset_urls)
+        return pub, f"{pub}/s3/{s.s3_bucket}"
     origin = (request.headers.get("origin") or "").strip().rstrip("/")
     vite = (request.headers.get("x-vite-s3-proxy") or "").strip().lower() in ("1", "true", "yes")
     gateway_base = s.s3_nginx_dev_gateway_url.strip().rstrip("/")
@@ -128,10 +139,12 @@ def _presign_bases_for_request(request: Request) -> tuple[str | None, str]:
         origin_host = urlparse(origin).hostname or ""
         if origin_host in {"localhost", "127.0.0.1"}:
             # Nginx+MinIO: presign host must match the gateway; GET stays under /s3/<bucket>/...
-            return gateway_base, f"{gateway_base}/s3/{s.s3_bucket}"
+            gb = _maybe_upgrade_public_to_https(gateway_base, s.force_https_asset_urls)
+            return gb, f"{gb}/s3/{s.s3_bucket}"
     public = _public_origin_from_nginx(request) or _client_visible_base_url(request)
     if public:
-        return public, f"{public}/s3/{s.s3_bucket}"
+        pub = _maybe_upgrade_public_to_https(public, s.force_https_asset_urls)
+        return pub, f"{pub}/s3/{s.s3_bucket}"
     return presign, cdn
 
 

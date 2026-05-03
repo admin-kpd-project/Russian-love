@@ -30,7 +30,15 @@ def _validate_media_url(url: str | None) -> bool:
         return False
     c = urlparse(s.cdn_public_base_url)
     b = s.s3_bucket
-    if c.netloc and p.netloc.lower() == c.netloc.lower() and c.scheme in ("http", "https"):
+    allowed_netlocs: set[str] = set()
+    if c.netloc:
+        allowed_netlocs.add(c.netloc.lower())
+    pb = (s.public_base_url or "").strip()
+    if pb:
+        pu = urlparse(pb if "://" in pb else f"https://{pb}")
+        if pu.netloc:
+            allowed_netlocs.add(pu.netloc.lower())
+    if allowed_netlocs and p.netloc.lower() in allowed_netlocs:
         return True
     if p.path.startswith(f"/s3/{b}/") or p.path.startswith(f"/s3/{b}?"):
         return True
