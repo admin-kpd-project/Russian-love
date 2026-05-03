@@ -1,9 +1,10 @@
 import { motion, AnimatePresence } from "motion/react";
-import { X, Share2, Copy, CheckCircle, Download } from "lucide-react";
+import { Share2, CheckCircle, Download } from "lucide-react";
 import { useState } from "react";
 import QRCode from "react-qr-code";
 import matreshkaLogo from "../../imports/1775050275_(1)_3_(1)-1.png";
 import { useAuth } from "../contexts/AuthContext";
+import { ModalShell } from "./ui/modal-shell";
 
 interface QRShareModalProps {
   onClose: () => void;
@@ -134,44 +135,25 @@ export function QRShareModal({ onClose }: QRShareModalProps) {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ModalShell onClose={onClose} ariaLabel="Поделиться QR-кодом">
+      <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-500 to-amber-500 p-6 text-white relative">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition-colors"
-          >
-            <X className="size-6" />
-          </button>
-          <div className="flex items-center gap-3">
-            <div className="bg-white/20 p-3 rounded-full">
-              <Share2 className="size-6" />
+        <div className="flex-shrink-0 bg-gradient-to-r from-red-500 to-amber-500 px-5 sm:px-6 py-4 sm:py-5 text-white">
+          <div className="flex items-center gap-3 pr-12">
+            <div className="bg-white/20 p-2.5 rounded-full">
+              <Share2 className="size-5" />
             </div>
-            <div>
-              <h2 className="text-2xl font-bold">Поделиться</h2>
-              <p className="text-white/80 text-sm">Пригласи друзей</p>
+            <div className="min-w-0">
+              <h2 className="text-xl font-bold leading-tight">Поделиться</h2>
+              <p className="text-white/80 text-xs">Пригласи друзей</p>
             </div>
           </div>
         </div>
 
-        {/* QR Code */}
-        <div className="p-8">
-          <div className="bg-white p-6 rounded-2xl shadow-lg border-4 border-gradient-to-r from-red-500 to-amber-500">
-            <div className="bg-white p-4 rounded-xl relative">
+        {/* QR Code body */}
+        <div className="flex-1 min-h-0 overflow-y-auto modal-scroll p-5 sm:p-6 flex flex-col">
+          <div className="mx-auto w-full max-w-[260px] bg-white p-3 rounded-2xl shadow-lg">
+            <div className="bg-white p-2 rounded-xl relative">
               <QRCode
                 id="qr-code-svg"
                 value={qrUrl}
@@ -181,19 +163,18 @@ export function QRShareModal({ onClose }: QRShareModalProps) {
                 fgColor="#991B1B"
                 bgColor="#ffffff"
               />
-              {/* Overlay logo on QR code */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white p-2 rounded-lg shadow-md">
-                <img 
-                  src={matreshkaLogo} 
-                  alt="Logo" 
-                  className="w-12 h-12 object-contain"
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white p-1.5 rounded-lg shadow-md">
+                <img
+                  src={matreshkaLogo}
+                  alt="Logo"
+                  className="w-10 h-10 object-contain"
                 />
               </div>
             </div>
           </div>
 
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600 mb-6">
+          <div className="mt-4 text-center">
+            <p className="text-xs sm:text-sm text-gray-600 mb-4">
               Отсканируйте QR-код, чтобы узнать совместимость
             </p>
 
@@ -240,7 +221,7 @@ export function QRShareModal({ onClose }: QRShareModalProps) {
             </div>
           </div>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </ModalShell>
   );
 }

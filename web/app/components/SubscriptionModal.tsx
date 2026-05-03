@@ -1,5 +1,6 @@
-import { X, Flame, Sparkles, Check, Crown } from "lucide-react";
+import { Flame, Sparkles, Check, Crown } from "lucide-react";
 import { motion } from "motion/react";
+import { ModalShell } from "./ui/modal-shell";
 
 interface SubscriptionModalProps {
   onClose: () => void;
@@ -8,23 +9,10 @@ interface SubscriptionModalProps {
 
 export function SubscriptionModal({ onClose, remainingSuperLikes }: SubscriptionModalProps) {
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="bg-gradient-to-br from-amber-50 to-red-50 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ModalShell onClose={onClose} ariaLabel="Премиум подписка" variant="sheet" className="bg-gradient-to-br from-amber-50 to-red-50">
+      <div className="flex flex-col h-full overflow-hidden">
         {/* Header */}
-        <div className="relative bg-gradient-to-r from-red-500 via-amber-500 to-yellow-500 text-white p-8 text-center overflow-hidden">
+        <div className="relative flex-shrink-0 bg-gradient-to-r from-red-500 via-amber-500 to-yellow-500 text-white p-6 sm:p-7 text-center overflow-hidden">
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
@@ -34,29 +22,21 @@ export function SubscriptionModal({ onClose, remainingSuperLikes }: Subscription
             <Sparkles className="absolute bottom-4 right-4 size-6" />
             <Sparkles className="absolute top-1/2 right-8 size-10" />
           </motion.div>
-          
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition-colors z-10"
-          >
-            <X className="size-6" />
-          </button>
-
           <div className="relative z-10">
             <motion.div
               animate={{ scale: [1, 1.1, 1] }}
               transition={{ duration: 2, repeat: Infinity }}
-              className="bg-white/20 backdrop-blur-sm rounded-full p-6 mx-auto w-fit mb-4"
+              className="bg-white/20 backdrop-blur-sm rounded-full p-4 mx-auto w-fit mb-3"
             >
-              <Crown className="size-16 fill-white" />
+              <Crown className="size-10 fill-white" />
             </motion.div>
-            <h2 className="text-3xl font-bold mb-2">Премиум подписка</h2>
-            <p className="text-white/90">Любить без ограничений</p>
+            <h2 className="text-2xl font-bold mb-1">Премиум подписка</h2>
+            <p className="text-white/90 text-sm">Любить без ограничений</p>
           </div>
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="flex-1 min-h-0 overflow-y-auto modal-scroll p-5 sm:p-6">
           {/* Current Status */}
           <div className="bg-white rounded-2xl p-4 mb-6 border-2 border-red-200">
             <div className="flex items-center justify-between">
@@ -152,7 +132,7 @@ export function SubscriptionModal({ onClose, remainingSuperLikes }: Subscription
             Автоматическое продление. Отменить можно в любой момент
           </p>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </ModalShell>
   );
 }

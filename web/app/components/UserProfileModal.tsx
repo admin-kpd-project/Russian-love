@@ -1,7 +1,7 @@
-import { motion } from "motion/react";
-import { X, MapPin, Cake, Heart, Sparkles } from "lucide-react";
+import { MapPin, Cake, Heart, Sparkles } from "lucide-react";
 import { UserProfile } from "../utils/compatibilityAI";
 import { Badge } from "./ui/badge";
+import { ModalShell } from "./ui/modal-shell";
 
 interface UserProfileModalProps {
   profile?: UserProfile;
@@ -26,33 +26,13 @@ export function UserProfileModal({ profile, user, onClose }: UserProfileModalPro
   const hasNumerology = data.numerology;
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        transition={{ type: "spring", duration: 0.5 }}
-        className="bg-white rounded-3xl max-w-md w-full max-h-[90vh] flex flex-col shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ModalShell onClose={onClose} ariaLabel={`Профиль ${userName}`} variant="sheet">
+      <div className="flex flex-col h-full">
         {/* Header with Photo */}
-        <div className="relative h-32 bg-gradient-to-br from-red-600 to-amber-500 flex-shrink-0 rounded-t-3xl">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-colors z-10"
-          >
-            <X className="w-6 h-6 text-white" />
-          </button>
-
+        <div className="relative h-24 sm:h-28 bg-gradient-to-br from-red-600 to-amber-500 flex-shrink-0">
           {/* Profile Photo */}
-          <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 z-10">
-            <div className="size-32 rounded-full border-4 border-white shadow-xl overflow-hidden bg-white">
+          <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 z-10">
+            <div className="size-24 sm:size-28 rounded-full border-4 border-white shadow-xl overflow-hidden bg-white">
               <img
                 src={photoUrl}
                 alt={userName}
@@ -63,7 +43,7 @@ export function UserProfileModal({ profile, user, onClose }: UserProfileModalPro
         </div>
 
         {/* Content - with overflow scroll */}
-        <div className="pt-20 px-6 pb-6 overflow-y-auto flex-1">
+        <div className="pt-14 sm:pt-16 px-5 sm:px-6 pb-5 sm:pb-6 overflow-y-auto modal-scroll flex-1 min-h-0">
           {/* Name and Age */}
           <div className="text-center mb-6">
             <h2 className="text-2xl font-bold text-gray-800 mb-1">
@@ -166,7 +146,7 @@ export function UserProfileModal({ profile, user, onClose }: UserProfileModalPro
             </div>
           )}
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </ModalShell>
   );
 }

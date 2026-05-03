@@ -1,6 +1,7 @@
-import { X, Sparkles, Star, Check } from "lucide-react";
+import { Sparkles, Star, Check } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
+import { ModalShell } from "./ui/modal-shell";
 
 interface DetailedAnalysisPurchaseModalProps {
   onClose: () => void;
@@ -21,43 +22,23 @@ export function DetailedAnalysisPurchaseModal({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ y: "100%" }}
-        animate={{ y: 0 }}
-        exit={{ y: "100%" }}
-        transition={{ type: "spring", damping: 25 }}
-        onClick={(e) => e.stopPropagation()}
-        className="w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[90vh] flex flex-col overflow-hidden"
-      >
+    <ModalShell onClose={onClose} ariaLabel="Покупка детального анализа" variant="sheet">
+      <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="relative bg-gradient-to-br from-purple-500 via-pink-500 to-red-500 p-6 text-white flex-shrink-0">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 p-2 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-colors"
-          >
-            <X className="size-5" />
-          </button>
-          
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-3 bg-white/20 backdrop-blur-sm rounded-full">
-              <Sparkles className="size-8" />
+        <div className="relative bg-gradient-to-br from-purple-500 via-pink-500 to-red-500 px-5 sm:px-6 py-4 sm:py-5 text-white flex-shrink-0 pr-14">
+          <div className="flex items-center gap-3 mb-1">
+            <div className="p-2 bg-white/20 backdrop-blur-sm rounded-full flex-shrink-0">
+              <Sparkles className="size-5" />
             </div>
-            <div>
-              <h2 className="text-2xl font-bold">Детальный анализ</h2>
-              <p className="text-sm text-white/90">Узнайте больше о совместимости</p>
+            <div className="min-w-0">
+              <h2 className="text-lg sm:text-xl font-bold leading-tight">Детальный анализ</h2>
+              <p className="text-xs text-white/90 truncate">Узнайте больше о совместимости</p>
             </div>
           </div>
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6 overflow-y-auto flex-1">
+        <div className="px-5 sm:px-6 py-4 sm:py-5 space-y-4 overflow-y-auto modal-scroll flex-1 min-h-0">
           <div className="text-center">
             <p className="text-gray-600 mb-4">
               Получите детальный астрологический и нумерологический анализ совместимости с {profileName}
@@ -186,7 +167,7 @@ export function DetailedAnalysisPurchaseModal({
             Нажимая кнопку, вы соглашаетесь с условиями покупки
           </p>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </ModalShell>
   );
 }

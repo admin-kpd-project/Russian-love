@@ -1,6 +1,6 @@
-import { motion } from "motion/react";
-import { X, Brain, Heart, MapPin, Calendar, CheckCircle2, Info, Sparkles, Star } from "lucide-react";
+import { Brain, Heart, MapPin, Calendar, CheckCircle2, Info, Sparkles, Star } from "lucide-react";
 import { CompatibilityDetails } from "../utils/compatibilityAI";
+import { ModalShell } from "./ui/modal-shell";
 
 interface CompatibilityDetailsModalProps {
   details: CompatibilityDetails;
@@ -20,37 +20,16 @@ const traitLabels: { [key: string]: string } = {
 
 export function CompatibilityDetailsModal({ details, userName, onClose, onOpenDetailedAnalysis, compatibility }: CompatibilityDetailsModalProps) {
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0, y: 20 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        transition={{ type: "spring", duration: 0.5 }}
-        className="bg-white rounded-3xl max-w-lg w-full max-h-[90vh] overflow-hidden shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ModalShell onClose={onClose} ariaLabel="Анализ совместимости" size="wide" variant="sheet">
+      <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-500 to-amber-500 px-6 py-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-white">Анализ совместимости</h2>
-            <p className="text-sm text-white/90">Детальный расчет AI</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-10 h-10 flex items-center justify-center bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-colors"
-          >
-            <X className="w-6 h-6 text-white" />
-          </button>
+        <div className="bg-gradient-to-r from-red-500 to-amber-500 px-5 sm:px-6 py-4 flex-shrink-0 pr-14">
+          <h2 className="text-lg sm:text-xl font-bold text-white">Анализ совместимости</h2>
+          <p className="text-xs text-white/90">Детальный расчет AI</p>
         </div>
 
         {/* Content */}
-        <div className="overflow-y-auto max-h-[calc(90vh-8rem)] p-6 space-y-6">
+        <div className="overflow-y-auto modal-scroll flex-1 min-h-0 p-5 sm:p-6 space-y-5">
           {/* Total Score */}
           <div className="text-center pb-6 border-b border-gray-200">
             <div className="inline-flex items-center justify-center size-24 rounded-full bg-gradient-to-br from-red-100 to-amber-100 mb-3">
@@ -369,7 +348,7 @@ export function CompatibilityDetailsModal({ details, userName, onClose, onOpenDe
             </div>
           </div>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </ModalShell>
   );
 }

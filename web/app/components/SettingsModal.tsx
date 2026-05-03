@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
-import { X, Bell, Shield, MapPin, UsersRound, Globe, Trash2, ChevronRight, QrCode, Sparkles, AlertTriangle } from "lucide-react";
+import { Bell, Shield, MapPin, UsersRound, Globe, Trash2, ChevronRight, QrCode, Sparkles, AlertTriangle } from "lucide-react";
 import { UserGuideModal } from "./UserGuideModal";
+import { ModalShell } from "./ui/modal-shell";
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -59,35 +60,16 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
   const cities = selectedRegion ? REGIONS_CITIES[selectedRegion as keyof typeof REGIONS_CITIES] : [];
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ModalShell onClose={onClose} ariaLabel="Настройки" variant="sheet">
+      <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-500 to-amber-500 p-6 text-white relative">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition-colors"
-          >
-            <X className="size-6" />
-          </button>
-          <h2 className="text-2xl font-bold">Настройки</h2>
-          <p className="text-white/80 text-sm">Управление приложением</p>
+        <div className="bg-gradient-to-r from-red-500 to-amber-500 px-5 sm:px-6 py-4 sm:py-5 text-white flex-shrink-0 pr-14">
+          <h2 className="text-lg sm:text-xl font-bold">Настройки</h2>
+          <p className="text-white/80 text-xs">Управление приложением</p>
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[70vh]">
+        <div className="px-5 sm:px-6 py-4 sm:py-5 overflow-y-auto modal-scroll flex-1 min-h-0">
           {/* Notifications */}
           <div className="mb-6 pb-6 border-b border-gray-200">
             <div className="flex items-center justify-between mb-2">
@@ -447,7 +429,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
             <UserGuideModal onClose={() => setShowUserGuide(false)} />
           )}
         </AnimatePresence>
-      </motion.div>
-    </motion.div>
+      </div>
+    </ModalShell>
   );
 }

@@ -1,5 +1,6 @@
-import { X, Heart } from "lucide-react";
+import { Heart } from "lucide-react";
 import { motion } from "motion/react";
+import { ModalShell } from "./ui/modal-shell";
 
 interface Profile {
   id: number;
@@ -19,37 +20,16 @@ interface LikesModalProps {
 
 export function LikesModal({ onClose, likedProfiles, onOpenProfile }: LikesModalProps) {
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ y: "100%", opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: "100%", opacity: 0 }}
-        transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md max-h-[80vh] overflow-hidden shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ModalShell onClose={onClose} ariaLabel="Мои лайки" variant="sheet">
+      <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="sticky top-0 bg-gradient-to-r from-red-500 to-amber-500 text-white p-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Heart className="size-6 fill-white" />
-            <h2 className="text-2xl font-bold">Мои лайки</h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-white/20 rounded-full transition-colors"
-          >
-            <X className="size-6" />
-          </button>
+        <div className="flex-shrink-0 bg-gradient-to-r from-red-500 to-amber-500 text-white px-5 sm:px-6 py-4 sm:py-5 flex items-center gap-3 pr-14">
+          <Heart className="size-5 fill-white flex-shrink-0" />
+          <h2 className="text-lg sm:text-xl font-bold">Мои лайки</h2>
         </div>
 
         {/* Content */}
-        <div className="overflow-y-auto max-h-[calc(80vh-88px)]">
+        <div className="flex-1 min-h-0 overflow-y-auto modal-scroll">
           {likedProfiles.length === 0 ? (
             <div className="p-8 text-center">
               <div className="bg-gray-100 rounded-full p-8 mx-auto w-fit mb-4">
@@ -94,7 +74,7 @@ export function LikesModal({ onClose, likedProfiles, onOpenProfile }: LikesModal
             </div>
           )}
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </ModalShell>
   );
 }

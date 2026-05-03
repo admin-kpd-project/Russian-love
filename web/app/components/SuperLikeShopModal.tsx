@@ -1,5 +1,6 @@
 import { motion } from "motion/react";
-import { X, Flame, Check, Sparkles } from "lucide-react";
+import { Flame, Check, Sparkles } from "lucide-react";
+import { ModalShell } from "./ui/modal-shell";
 
 interface SuperLikeShopModalProps {
   onClose: () => void;
@@ -35,52 +36,29 @@ export function SuperLikeShopModal({ onClose, onPurchase, currentAmount }: Super
   ];
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0, y: 20 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] overflow-hidden shadow-2xl flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ModalShell onClose={onClose} ariaLabel="Магазин суперлайков" variant="sheet">
+      <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="relative bg-gradient-to-br from-orange-500 via-red-500 to-pink-500 p-6 text-white overflow-hidden flex-shrink-0">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS1vcGFjaXR5PSIwLjEiIHN0cm9rZS13aWR0aD0iMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-30" />
-          
-          <button
-            type="button"
-            onClick={onClose}
-            className="absolute top-4 right-4 p-2 hover:bg-white/30 rounded-full transition-colors z-50 bg-white/10"
-          >
-            <X className="size-6" />
-          </button>
-
-          <div className="relative z-10">
-            <div className="size-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-3">
-              <Flame className="size-8 text-white" />
+        <div className="relative bg-gradient-to-br from-orange-500 via-red-500 to-pink-500 px-5 sm:px-6 py-4 text-white overflow-hidden flex-shrink-0">
+          <div className="relative z-10 pr-12">
+            <div className="size-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-2">
+              <Flame className="size-6 text-white" />
             </div>
-            <h2 className="text-xl font-bold text-center mb-2">
+            <h2 className="text-lg sm:text-xl font-bold text-center">
               Суперлайки
             </h2>
-            <p className="text-white/90 text-center text-sm">
-              Гарантированный мэтч с любым пользователем!
+            <p className="text-white/90 text-center text-xs">
+              Гарантированный мэтч с любым пользователем
             </p>
-            <div className="mt-3 bg-white/20 backdrop-blur-sm rounded-xl p-2.5 text-center">
-              <p className="text-xs opacity-90">У вас сейчас:</p>
-              <p className="text-2xl font-bold">{currentAmount} 🔥</p>
+            <div className="mt-3 bg-white/20 backdrop-blur-sm rounded-xl p-2 text-center">
+              <p className="text-[11px] opacity-90">У вас сейчас:</p>
+              <p className="text-xl font-bold">{currentAmount} 🔥</p>
             </div>
           </div>
         </div>
 
         {/* Packages */}
-        <div className="p-6 space-y-4 overflow-y-auto flex-1">
+        <div className="px-5 sm:px-6 py-4 space-y-3 overflow-y-auto modal-scroll flex-1 min-h-0">
           <div className="text-center mb-4">
             <h3 className="font-semibold text-gray-800 mb-1">Выберите пакет</h3>
             <p className="text-sm text-gray-600">Чем больше, тем выгоднее!</p>
@@ -166,7 +144,7 @@ export function SuperLikeShopModal({ onClose, onPurchase, currentAmount }: Super
             После покупки суперлайки будут зачислены моментально
           </p>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </ModalShell>
   );
 }

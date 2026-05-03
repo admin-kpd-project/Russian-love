@@ -1,9 +1,10 @@
 import { motion } from "motion/react";
-import { X, Heart, Star, MessageCircle, UserPlus, Gift, Send } from "lucide-react";
+import { Heart, Star, MessageCircle, UserPlus, Gift, Send } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import type { OpenChatParams } from "../types/chat";
 import { getNotifications, markNotificationsRead, type NotificationItem } from "../services/notificationsService";
+import { ModalShell } from "./ui/modal-shell";
 
 interface NotificationsModalProps {
   onClose: () => void;
@@ -72,39 +73,18 @@ export function NotificationsModal({ onClose, onOpenChat }: NotificationsModalPr
   const unreadCount = items.filter(n => !n.read).length;
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0, y: 20 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        transition={{ type: "spring", duration: 0.5 }}
-        className="bg-white rounded-3xl max-w-md w-full max-h-[90vh] overflow-hidden shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ModalShell onClose={onClose} ariaLabel="Уведомления" variant="sheet">
+      <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-600 to-amber-500 px-6 py-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-white">Уведомления</h2>
-            {unreadCount > 0 && (
-              <p className="text-sm text-white/90">{unreadCount} непрочитанных</p>
-            )}
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-colors"
-          >
-            <X className="size-6 text-white" />
-          </button>
+        <div className="flex-shrink-0 bg-gradient-to-r from-red-600 to-amber-500 px-5 sm:px-6 py-4 pr-14">
+          <h2 className="text-lg sm:text-xl font-bold text-white">Уведомления</h2>
+          {unreadCount > 0 && (
+            <p className="text-xs sm:text-sm text-white/90">{unreadCount} непрочитанных</p>
+          )}
         </div>
 
         {/* Notifications List */}
-        <div className="overflow-y-auto max-h-[calc(90vh-8rem)] p-4">
+        <div className="flex-1 min-h-0 overflow-y-auto modal-scroll p-4">
           {loading ? (
             <div className="text-center py-12 text-gray-500">Загрузка...</div>
           ) : error ? (
@@ -181,7 +161,7 @@ export function NotificationsModal({ onClose, onOpenChat }: NotificationsModalPr
 
         {/* Footer */}
         {items.length > 0 && (
-          <div className="px-6 py-4 border-t border-gray-100">
+          <div className="flex-shrink-0 px-5 sm:px-6 py-3 border-t border-gray-100">
             <button
               onClick={async () => {
                 await markNotificationsRead();
@@ -193,7 +173,7 @@ export function NotificationsModal({ onClose, onOpenChat }: NotificationsModalPr
             </button>
           </div>
         )}
-      </motion.div>
-    </motion.div>
+      </div>
+    </ModalShell>
   );
 }
